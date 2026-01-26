@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapid Telemetry Viewer</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --primary-color: #007bff;
+            --accent-color: #ffc107;
+            --header-bg: #2c2c2c;
+            --sidebar-bg: #252526;
+            --chart-bg: #2a2a2a;
+            --text-color: #f0f0f0;
+            --text-color-light: #ccc;
+            --border-color: #444;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            padding: 10px 20px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0; font-size: 1.5em; }
+
+        .controls { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+
+        .import-button, button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .import-button:hover, button:hover { background-color: #0056b3; }
+
+        main {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 350px;
+            background-color: var(--sidebar-bg);
+            padding: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+            font-size: 1.1em;
+            color: var(--text-color-light);
+        }
+
+        #lap-selector { max-height: 250px; overflow-y: auto; }
+        .lap-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 6px;
+            border-radius: 3px;
+            background: #333;
+            font-size: 0.85em;
+            border-left: 3px solid transparent;
+        }
+        .lap-item:hover { background-color: #444; }
+        .lap-item.is-reference { border-left-color: var(--accent-color); background-color: #3a3a3a; }
+        
+        .lap-file-label { font-size: 0.8em; color: #888; display: block; width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .lap-status { font-size: 0.7em; margin-left: auto; text-align: right; color: #aaa; }
+        .lap-status span { padding: 2px 5px; border-radius: 3px; }
+        .lap-status .invalid { background-color: rgba(220, 53, 69, 0.2); color: #ff8089; }
+        .lap-status .outin { background-color: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .lap-status .complete { background-color: rgba(40, 167, 69, 0.2); color: #80ff97; }
+
+        input[type="radio"].ref-radio {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #666;
+            border-radius: 50%;
+            cursor: pointer;
+            outline: none;
+        }
+        input[type="radio"].ref-radio:checked {
+            border-color: var(--accent-color);
+            background-color: var(--accent-color);
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        .sector-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+        .sector-table th { text-align: left; color: #aaa; padding: 4px; }
+        .sector-table td { padding: 4px; border-bottom: 1px solid #333; cursor: pointer; }
+        .sector-table tr:hover { background-color: #333; }
+
+        #track-map-wrapper {
+            height: 250px;
+            background-color: var(--chart-bg);
+            border-radius: 6px;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        #chart-container {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            background-color: #222;
+        }
+
+#import-coffee, #buy-coffee, #buy-coffee-btn { 
+  margin-left: 1px;
+  text-decoration: none; /* Removes underline if using anchor */
+  display: inline-flex; /* Aligns items horizontally */
+  align-items: center; /* Vertically centers content */
+  gap: 6px; /* Space between icon and text */
+  padding: 6px 10px; /* Reduced padding for a smaller height */
+  border: none; /* Removes border */
+  border-radius: 4px; /* Matches button corners */
+  background-color: #007bff; /* Matches existing button styles */
+  color: white; /* Text color */
+  font-size: 14px; /* Ensure font size matches others */
+  cursor: pointer; /* Show pointer on hover */
+  transition: background-color 0.2s; /* Smooth hover effect */
+}
+
+#buy-coffee-btn:hover {
+  background-color: #0056b3; /* Darkens background on hover */
+}
+
+
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            flex-shrink: 0;
+            background-color: var(--chart-bg);
+            border-radius: 6px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        canvas { width: 100% !important; height: 100% !important; }
+
+        .status { padding: 10px; border-radius: 4px; font-size: 0.9em; }
+        .info { background-color: rgba(0, 123, 255, 0.2); color: #80bdff; }
+        .error { background-color: rgba(220, 53, 69, 0.2); color: #ff8089; }
+        .success { background-color: rgba(40, 167, 69, 0.2); color: #80ff97; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+
+        .chartjs-tooltip {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Rapid Telemetry Viewer</h1>
+        <div class="controls">
+            <label for="file-import" class="import-button">Import .ibt File(s)</label>
+            <input type="file" id="file-import" accept=".ibt" multiple hidden>
+            
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; color: var(--text-color-light);">
+                <input type="checkbox" id="toggle-tooltips" style="margin:0;">
+                Show Tooltip Details
+            </label>
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; color: var(--text-color-light);">
+                <input type="checkbox" id="toggle-abs-areas" style="margin:0;">
+                Show ABS Areas
+            </label>
+
+            <button id="reset-zoom">Reset Zoom</button>
+            <button id="print-placemat">Placemat Report</button>
+<button id="buy-coffee-btn" class="import-button" title="Buy me a coffee">☕ Buy Me a Coffee</button>
+        </div>
+    </header>
+    <main>
+        <aside id="sidebar">
+            <div>
+                <h2>Status</h2>
+                <div id="status-container">
+                    <div class="status info">Ready to import .ibt files</div>
+                </div>
+            </div>
+
+            <div>
+                <h2>Track Map</h2>
+                <div id="track-map-wrapper">
+                    <canvas id="track-map-chart"></canvas>
+                </div>
+                <div style="font-size: 0.8em; color: #888; margin-top:5px; text-align: center;">
+                    Hover over charts to see position<br>
+                    Drag to zoom, <-|-> to pan
+                </div>
+            </div>
+            
+            <div>
+                <h2>Laps</h2>
+                <div style="font-size: 0.8em; color: #aaa; margin-bottom: 5px; display: flex; justify-content: space-between; padding: 0 5px;">
+                    <span>Vis | Ref</span>
+                    <span>Lap Info</span>
+                    <span>Color</span>
+                </div>
+                <div id="lap-selector">
+                    <p style="color: #888; font-style: italic;">No laps loaded.</p>
+                </div>
+            </div>
+
+            <div>
+                <h2>Sector Analysis</h2>
+                <div id="sector-container">
+                    <table class="sector-table">
+                        <thead>
+                            <tr>
+                                <th>Sector</th>
+                                <th>Time</th>
+                                <th>Delta (vs Ref)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sector-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
+
+        <section id="chart-container">
+             <div class="chart-wrapper">
+                <canvas id="delta-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="speed-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="throttle-brake-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="steering-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="rpm-gear-chart"></canvas>
+            </div>
+        </section>
+    </main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+<script>
+        // --- Global State ---
+        let telemetryData = []; // Stores ALL laps (valid, invalid, out/in)
+        let charts = {};
+        let referenceLapId = null; // ID of the lap selected as reference
+        const defaultVisibleLapIds = new Set(); // IDs of laps checked visible by default
+        const defaultColors = ['#007bff', '#ff4500', '#28a745', '#ffc107', '#17a2b8', '#6f42c1', '#e83e8c'];
+        
+        // Variables to track last hovered point for cursor stability
+        let lastHoveredMapCoords = null; 
+        
+        // NEW: Toggle state for ABS shaded areas
+        let showAbsAreas = false;
+
+        // --- NEW: Minimum time for a lap to be considered valid/complete ---
+        const MIN_VALID_LAP_TIME = 10; // seconds.
+
+        // --- Utility function for debouncing ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        // Helper function to interpolate Y value based on X (distance)
+        function getInterpolatedMapCoords(lapData, distance) {
+            if (!lapData || lapData.distance.length === 0) return null;
+
+            const distances = lapData.distance;
+            const mapX = lapData.mapX;
+            const mapY = lapData.mapY;
+
+            let i = 0;
+            while (i < distances.length && distances[i] < distance) {
+                i++;
+            }
+
+            if (i === 0) return { x: mapX[0], y: mapY[0] }; 
+            if (i >= distances.length) return { x: mapX[distances.length - 1], y: mapY[distances.length - 1] };
+
+            const x1 = distances[i - 1];
+            const y1_mapX = mapX[i - 1];
+            const y1_mapY = mapY[i - 1];
+
+            const x2 = distances[i];
+            const y2_mapX = mapX[i];
+            const y2_mapY = mapY[i];
+
+            if (x1 === x2) return { x: y1_mapX, y: y1_mapY }; 
+
+            const ratio = (distance - x1) / (x2 - x1);
+            const interpolatedMapX = y1_mapX + (y2_mapX - y1_mapX) * ratio;
+            const interpolatedMapY = y1_mapY + (y2_mapY - y1_mapY) * ratio;
+
+            return { x: interpolatedMapX, y: interpolatedMapY };
+        }
+
+
+        // --- IBT Parser (Now including LapInvalid and BrakeABSactive) ---
+        class IBTParser {
+            constructor(buffer) {
+                this.buffer = buffer;
+                this.view = new DataView(buffer);
+                this.header = {};
+                this.vars = [];
+            }
+            parse() {
+                try {
+                    this.readHeader();
+                    this.readVarHeaders();
+                    const varMap = new Map();
+                    this.vars.forEach(v => varMap.set(v.name, v));
+                    const requiredVars = {
+                        'Lap': 'Lap',
+                        'LapDist': 'LapDist',
+                        'Speed': 'Speed',
+                        'RPM': 'RPM',
+                        'Gear': 'Gear',
+                        'Throttle': 'Throttle',
+                        'Brake': 'Brake',
+                        'Steering': 'SteeringWheelAngle',
+                        'SessionTime': 'SessionTime',
+                        'Lat': 'Lat',
+                        'Lon': 'Lon',
+                        'LapInvalid': 'LapInvalid',
+                        'BrakeABSactive': 'BrakeABSactive',
+                        'FuelLevel': 'FuelLevel' // ADDED: FuelLevel for consumption calculation
+                    };
+                    const targetVars = {};
+                    for (const [key, ibtName] of Object.entries(requiredVars)) { if (varMap.has(ibtName)) targetVars[key] = varMap.get(ibtName); }
+                    return this.readDataBuffer(targetVars);
+                } catch (e) { throw new Error("Failed to parse IBT: " + e.message); }
+            }
+            readHeader() {
+                this.header.version = this.view.getInt32(0, true);
+                this.header.numVars = this.view.getInt32(24, true);
+                this.header.varHeaderOffset = this.view.getInt32(28, true);
+                this.header.bufLen = this.view.getInt32(36, true);
+                this.header.bufOffset = this.view.getInt32(52, true);
+            }
+            readVarHeaders() {
+                const decoder = new TextDecoder('windows-1252');
+                const VAR_HEADER_SIZE = 144;
+                for (let i = 0; i < this.header.numVars; i++) {
+                    const offset = this.header.varHeaderOffset + (i * VAR_HEADER_SIZE);
+                    const type = this.view.getInt32(offset, true);
+                    const varOffset = this.view.getInt32(offset + 4, true);
+                    const name = decoder.decode(new Uint8Array(this.buffer, offset + 16, 32)).replace(/\0/g, '');
+                    this.vars.push({ name, type, offset: varOffset });
+                }
+            }
+            readDataBuffer(targetVars) {
+                const dataStart = this.header.bufOffset;
+                const totalBytes = this.buffer.byteLength;
+                const rowCount = Math.floor((totalBytes - dataStart) / this.header.bufLen);
+                const result = { laps: [] };
+                let currentLap = -1;
+                let currentLapData = null; 
+                const getValue = (rowOffset, varDef) => {
+                    if (!varDef) return 0;
+                    const pos = rowOffset + varDef.offset;
+                    switch(varDef.type) { 
+                        case 0: return this.view.getInt8(pos); 
+                        case 1: return this.view.getUint8(pos); 
+                        case 2: return this.view.getInt32(pos, true); 
+                        case 3: return this.view.getUint32(pos, true); 
+                        case 4: return this.view.getFloat32(pos, true); 
+                        case 5: return this.view.getFloat64(pos, true); 
+                        default: return 0; 
+                    }
+                };
+                
+                for (let i = 0; i < rowCount; i++) {
+                    const rowOffset = dataStart + (i * this.header.bufLen);
+                    const lapNum = getValue(rowOffset, targetVars.Lap);
+
+                    if (lapNum !== currentLap) {
+                        if (currentLapData && currentLapData.data.distance.length > 50) {
+                            currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
+                            result.laps.push(currentLapData);
+                        }
+                        currentLap = lapNum;
+                        currentLapData = this.createLapData(lapNum);
+                    }
+                    if (currentLapData) { 
+                        const lat = getValue(rowOffset, targetVars.Lat); 
+                        const lon = getValue(rowOffset, targetVars.Lon); 
+                        const lapInvalid = getValue(rowOffset, targetVars.LapInvalid); 
+                        const brakeABSactive = getValue(rowOffset, targetVars.BrakeABSactive); 
+                        
+                        currentLapData.data.distance.push(getValue(rowOffset, targetVars.LapDist));
+                        currentLapData.data.speed.push(getValue(rowOffset, targetVars.Speed) * 3.6);
+                        currentLapData.data.rpm.push(getValue(rowOffset, targetVars.RPM));
+                        currentLapData.data.gear.push(getValue(rowOffset, targetVars.Gear));
+                        currentLapData.data.throttle.push(getValue(rowOffset, targetVars.Throttle) * 100);
+                        currentLapData.data.brake.push(getValue(rowOffset, targetVars.Brake) * 100);
+                        currentLapData.data.steering.push(getValue(rowOffset, targetVars.Steering));
+                        currentLapData.data.time.push(getValue(rowOffset, targetVars.SessionTime));
+                        currentLapData.data.rawLat.push(lat);
+                        currentLapData.data.rawLon.push(lon);
+                        currentLapData.data.brakeABSactive.push(brakeABSactive);
+                        if (targetVars.FuelLevel) { // Only push if FuelLevel var was actually found
+                            currentLapData.data.fuelLevel.push(getValue(rowOffset, targetVars.FuelLevel));
+                        }
+
+                        if (lapInvalid > 0) {
+                            currentLapData.lapMetadata.isValidByFlag = false;
+                        }
+                    }
+                }
+                if (currentLapData && currentLapData.data.distance.length > 50) {
+                    currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
+                    result.laps.push(currentLapData);
+                }
+                return result;
+            }
+            createLapData(lapNum) {
+                return { 
+                    lapNumber: lapNum, 
+                    lapTime: 0, 
+                    data: { 
+                        distance: [], speed: [], rpm: [], gear: [], throttle: [], brake: [], 
+                        steering: [], time: [], 
+                        rawLat: [], rawLon: [],
+                        mapX: [], mapY: [],
+                        brakeABSactive: [],
+                        fuelLevel: [] // Initialized as empty array
+                    },
+                    lapMetadata: { 
+                        isValidByFlag: true, 
+                        isOutlap: false,
+                        isInlap: false,
+                        isComplete: false,
+                        isFastestInFile: false,
+                        isConsideredValid: false 
+                    },
+                    // ADDED: Placeholders for new metrics
+                    avgSpeed: 0,
+                    maxSpeed: 0,
+                    fuelUsed: null // null to indicate not available/calculable
+                };
+            }
+        }
+
+        // --- Application Logic ---
+        function updateStatus(msg, type) {
+            const el = document.getElementById('status-container');
+            el.innerHTML = `<div class="status ${type}">${msg}</div>`;
+        }
+
+        // Helper function to get sector time for a specific lap and sector definition
+        const getSectorTimeForLap = (lap, sectorStartDistance, sectorEndDistance) => {
+            if (!lap || !lap.data || lap.data.distance.length === 0) return 0;
+
+            let sIdx = lap.data.distance.findIndex(d => d >= sectorStartDistance);
+            if (sIdx === -1) sIdx = 0; 
+            
+            let eIdx = lap.data.distance.findIndex(d => d >= sectorEndDistance);
+
+            if (eIdx === -1 || eIdx <= sIdx) { 
+                return 0; 
+            }
+            
+            return lap.data.time[eIdx] - lap.data.time[sIdx];
+        };
+
+        // Handle Multiple Files
+        document.getElementById('file-import').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            updateStatus(`Reading ${files.length} file(s)...`, 'info');
+            
+            telemetryData = []; 
+            defaultVisibleLapIds.clear(); 
+            lastHoveredMapCoords = null; 
+
+            // NEW: Clear zoom history on new file import
+            zoomHistory = []; 
+
+            let allRawLaps = []; 
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const parser = new IBTParser(buffer);
+                    const parsedData = parser.parse();
+                    
+                    parsedData.laps.forEach(lap => {
+                        lap.filename = file.name;
+                        lap.filenameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name; 
+                        allRawLaps.push(lap);
+                    });
+                } catch (err) { 
+                    console.error(`Error parsing ${file.name}:`, err); 
+                    updateStatus(`Error parsing ${file.name}`, 'error'); 
+                }
+            }
+
+            if (allRawLaps.length === 0) {
+                updateStatus('No laps found in imported files.', 'error');
+                updateLapList();
+                updateCharts();
+                return;
+            }
+
+            // --- GLOBAL MAP COORDINATE CALCULATION ---
+            const EARTH_RADIUS = 6371000; 
+            let globalOriginLat = null;
+            let globalOriginLon = null;
+
+            for (const lap of allRawLaps) {
+                for (let i = 0; i < lap.data.rawLat.length; i++) {
+                    if (lap.data.rawLat[i] !== 0 && lap.data.rawLon[i] !== 0) {
+                        globalOriginLat = lap.data.rawLat[i];
+                        globalOriginLon = lap.data.rawLon[i];
+                        break;
+                    }
+                }
+                if (globalOriginLat !== null) break;
+            }
+            
+            // Calculate mapX and mapY for all laps using the global origin
+            allRawLaps.forEach(lap => {
+                lap.data.mapX = [];
+                lap.data.mapY = [];
+                for (let i = 0; i < lap.data.rawLat.length; i++) {
+                    const lat = lap.data.rawLat[i];
+                    const lon = lap.data.rawLon[i];
+                    
+                    let x = 0, y = 0;
+                    if (globalOriginLat !== null) { 
+                        x = (lon - globalOriginLon) * (Math.PI/180) * EARTH_RADIUS * Math.cos(globalOriginLat * Math.PI/180);
+                        y = (lat - globalOriginLat) * (Math.PI/180) * EARTH_RADIUS;
+                    }
+                    lap.data.mapX.push(x);
+                    lap.data.mapY.push(y);
+                }
+                delete lap.data.rawLat;
+                delete lap.data.rawLon;
+            });
+            // --- END GLOBAL MAP COORDINATE CALCULATION ---
+
+            const lapsByFilename = {};
+            allRawLaps.forEach((lap, index) => {
+                lap.id = index; 
+                lap.color = defaultColors[index % defaultColors.length]; 
+                if (!lapsByFilename[lap.filename]) {
+                    lapsByFilename[lap.filename] = [];
+                }
+                lapsByFilename[lap.filename].push(lap);
+                telemetryData.push(lap); 
+            });
+
+            // ADDED: Calculate average speed, max speed, and fuel used for each lap
+            telemetryData.forEach(lap => {
+                // Calculate average and max speed
+                if (lap.data.speed.length > 0) {
+                    lap.avgSpeed = lap.data.speed.reduce((sum, s) => sum + s, 0) / lap.data.speed.length;
+                    lap.maxSpeed = Math.max(...lap.data.speed);
+                } else {
+                    lap.avgSpeed = 0;
+                    lap.maxSpeed = 0;
+                }
+
+                // Calculate fuel used (if data is available and meaningful)
+                if (lap.data.fuelLevel && lap.data.fuelLevel.length > 1) {
+                    const startFuel = lap.data.fuelLevel[0];
+                    const endFuel = lap.data.fuelLevel[lap.data.fuelLevel.length - 1];
+                    // Only calculate if fuel is actually consumed (fuel level decreased)
+                    if (startFuel > endFuel) {
+                        lap.fuelUsed = startFuel - endFuel;
+                    } else {
+                        lap.fuelUsed = null; // No meaningful consumption or bad data
+                    }
+                } else {
+                    lap.fuelUsed = null; // No fuel level data available
+                }
+            });
+
+
+            let maxTrackDistance = 0;
+            telemetryData.forEach(lap => {
+                if (lap.lapMetadata.isValidByFlag && lap.data.distance.length > 100 && lap.lapTime > MIN_VALID_LAP_TIME) { 
+                    maxTrackDistance = Math.max(maxTrackDistance, lap.data.distance[lap.data.distance.length - 1]);
+                }
+            });
+            if (maxTrackDistance < 100) maxTrackDistance = 1000;
+
+            const firstSectorEndDistance = maxTrackDistance / 3;
+
+            telemetryData.forEach(lap => {
+                const isFullDistance = lap.data.distance.length > 100 && lap.data.distance[lap.data.distance.length - 1] > (maxTrackDistance * 0.9);
+                const firstSectorTime = getSectorTimeForLap(lap, 0, firstSectorEndDistance);
+                lap.lapMetadata.isComplete = isFullDistance && (firstSectorTime > 0.5); 
+            });
+
+            for (const filename in lapsByFilename) {
+                const fileLaps = lapsByFilename[filename].sort((a, b) => a.lapNumber - b.lapNumber);
+                if (fileLaps.length > 0) {
+                    fileLaps[0].lapMetadata.isOutlap = !fileLaps[0].lapMetadata.isComplete || fileLaps[0].lapTime < MIN_VALID_LAP_TIME;
+                    if (fileLaps.length > 1) { 
+                         fileLaps[fileLaps.length - 1].lapMetadata.isInlap = !fileLaps[fileLaps.length - 1].lapMetadata.isComplete || fileLaps[fileLaps.length - 1].lapTime < MIN_VALID_LAP_TIME;
+                    }
+                }
+            }
+
+            telemetryData.forEach(lap => {
+                lap.lapMetadata.isConsideredValid = 
+                    lap.lapTime >= MIN_VALID_LAP_TIME &&
+                    lap.lapMetadata.isComplete &&
+                    !lap.lapMetadata.isOutlap &&
+                    !lap.lapMetadata.isInlap &&
+                    lap.lapMetadata.isValidByFlag;
+            });
+
+            let fastestOverallValidLap = null;
+
+            for (const filename in lapsByFilename) {
+                const validCandidateLapsInFile = lapsByFilename[filename].filter(l => l.lapMetadata.isConsideredValid);
+                
+                if (validCandidateLapsInFile.length > 0) {
+                    const fastestInFile = validCandidateLapsInFile.reduce((prev, curr) => 
+                        (curr.lapTime < prev.lapTime ? curr : prev),
+                        { lapTime: Infinity }); 
+
+                    if (fastestInFile.lapTime !== Infinity) { 
+                        fastestInFile.lapMetadata.isFastestInFile = true; 
+                        defaultVisibleLapIds.add(fastestInFile.id); 
+                        if (!fastestOverallValidLap || fastestInFile.lapTime < fastestOverallValidLap.lapTime) {
+                            fastestOverallValidLap = fastestInFile;
+                        }
+                    }
+                }
+            }
+            
+            referenceLapId = fastestOverallValidLap ? fastestOverallValidLap.id : null;
+
+            updateLapList(); 
+            updateStatus(`Loaded ${telemetryData.length} laps from ${files.length} files.`, 'success');
+            
+            defaultVisibleLapIds.forEach(lapId => {
+                const checkbox = document.querySelector(`#lap-selector input[type="checkbox"][value="${lapId}"]`);
+                if (checkbox) checkbox.checked = true; 
+            });
+
+            updateCharts(); 
+            saveCurrentMasterZoom();
+        });
+
+        function formatTime(seconds) {
+            if(!seconds || isNaN(seconds) || seconds === Infinity) return "--:--.--";
+            const m = Math.floor(seconds / 60);
+            const s = (seconds % 60).toFixed(3);
+            return `${m}:${s.padStart(6, '0')}`;
+        }
+
+        function updateLapList() {
+            const container = document.getElementById('lap-selector');
+            container.innerHTML = '';
+            if (telemetryData.length === 0) {
+                container.innerHTML = '<p style="color: #888; font-style: italic;">No laps loaded.</p>';
+                return;
+            }
+
+            telemetryData.forEach((lap) => {
+                const isRef = lap.id === referenceLapId;
+                const isChecked = defaultVisibleLapIds.has(lap.id); 
+                
+                let statusHtml = '';
+                if (!lap.lapMetadata.isValidByFlag) {
+                    statusHtml += '<span class="invalid" title="Lap flagged as invalid by iRacing (e.g., track cut).">INVALID</span>';
+                } else if (lap.lapMetadata.isOutlap) {
+                    statusHtml += '<span class="outin" title="Outlap (first lap in session/file, likely incomplete or slow).">OUT</span>';
+                } else if (lap.lapMetadata.isInlap) {
+                    statusHtml += '<span class="outin" title="Inlap (last lap in session/file, likely incomplete or slow).">IN</span>';
+                } else if (!lap.lapMetadata.isComplete) {
+                    statusHtml += '<span class="invalid" title="Lap did not cover the full track distance or did not record a meaningful first sector.">INCOMPLETE</span>';
+                } else if (lap.lapMetadata.isFastestInFile) {
+                    statusHtml += '<span class="complete" title="Fastest valid and complete lap in this file.">FASTEST</span>';
+                } else if (lap.lapTime < MIN_VALID_LAP_TIME) {
+                    statusHtml += '<span class="invalid" title="Lap is too short to be considered valid.">SHORT</span>';
+                }
+
+                const div = document.createElement('div');
+                div.className = `lap-item ${isRef ? 'is-reference' : ''}`;
+                div.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:2px; margin-right:8px;">
+                        <input type="checkbox" value="${lap.id}" onchange="toggleLapVisibility(${lap.id}, this.checked)" ${isChecked ? 'checked' : ''}>
+                        <input type="radio" name="refLap" class="ref-radio" value="${lap.id}" title="Set as Reference Lap" onchange="setReferenceLap(${lap.id})" ${isRef ? 'checked' : ''}>
+                    </div>
+                    <div style="flex-grow:1; cursor:pointer;" onclick="toggleLapVisibility(${lap.id}, !document.querySelector('#lap-selector input[type=&quot;checkbox&quot;][value=&quot;${lap.id}&quot;]').checked)">
+                        <span class="lap-file-label" title="${lap.filename}">${lap.filename}</span>
+                        <div>Lap ${lap.lapNumber} - ${formatTime(lap.lapTime)}</div>
+                        <div style="font-size: 0.75em; color: #aaa; display: flex; gap: 8px; justify-content: space-between; margin-top: 2px;">
+                            <span>Fuel: ${lap.fuelUsed !== null ? lap.fuelUsed.toFixed(2) + 'L' : 'N/A'}</span>
+                            <span>Avg Spd: ${lap.avgSpeed.toFixed(1)}kph</span>
+                            <span>Max Spd: ${lap.maxSpeed.toFixed(1)}kph</span>
+                        </div>
+                        <div class="lap-status">${statusHtml}</div>
+                    </div>
+                    <input type="color" value="${lap.color}" onchange="updateLapColor(${lap.id}, this.value)">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleLapVisibility(id, isChecked) {
+            if (isChecked) {
+                defaultVisibleLapIds.add(id);
+            } else {
+                defaultVisibleLapIds.delete(id);
+                if (referenceLapId === id) {
+                    referenceLapId = null;
+                }
+            }
+            updateLapList(); 
+            updateCharts();
+        }
+
+        function setReferenceLap(id) {
+            referenceLapId = id;
+            defaultVisibleLapIds.add(id); 
+            updateLapList(); 
+            const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
+            if (checkbox) checkbox.checked = true; 
+            updateCharts();
+        }
+
+        function updateLapColor(id, color) {
+            const lap = telemetryData.find(l => l.id === id);
+            if (lap) { lap.color = color; updateCharts(); }
+        }
+
+        // --- Calculation Logic ---
+        
+        function calculateTimeDelta(targetLap, refLap) {
+            if (!targetLap || !refLap) return [];
+            
+            const refStart = refLap.data.time[0];
+            const targetStart = targetLap.data.time[0];
+            
+            const deltas = refLap.data.distance.map((dist, i) => {
+                const refElapsed = refLap.data.time[i] - refStart;
+                
+                let idx = -1;
+                let minDiff = Infinity;
+                
+                const proportionalGuess = Math.floor((i / refLap.data.distance.length) * targetLap.data.distance.length);
+                const searchWindow = 100; 
+                
+                const startSearchIdx = Math.max(0, proportionalGuess - searchWindow); 
+                const endSearchIdx = Math.min(targetLap.data.distance.length, proportionalGuess + searchWindow);
+
+                for(let k = startSearchIdx; k < endSearchIdx; k++) {
+                    const dDiff = Math.abs(targetLap.data.distance[k] - dist);
+                    if(dDiff < minDiff) { 
+                        minDiff = dDiff; 
+                        idx = k; 
+                    }
+                }
+                if (idx > -1) {
+                    const targetElapsed = targetLap.data.time[idx] - targetStart;
+                    return targetElapsed - refElapsed; 
+                } else {
+                    return 0; 
+                }
+            });
+            
+            return deltas;
+        }
+
+        function calculateSectors(selectedLaps, refLap) {
+            if (!refLap) return { analysis: [], definitions: [], targetLap: null };
+
+            const targetLap = selectedLaps.find(l => l.id !== refLap.id);
+
+            const maxDist = refLap.data.distance[refLap.data.distance.length - 1];
+            const sectorSize = maxDist / 3;
+            const sectorDefinitions = [
+                { id: 1, start: 0, end: sectorSize },
+                { id: 2, start: sectorSize, end: sectorSize * 2 },
+                { id: 3, start: sectorSize * 2, end: maxDist }
+            ];
+
+            const analysis = [];
+
+            const getSectorTime = (lap, def) => {
+                let sIdx = lap.data.distance.findIndex(d => d >= def.start);
+                let eIdx = lap.data.distance.findIndex(d => d >= def.end);
+
+                if (sIdx === -1) sIdx = 0; 
+                if (eIdx === -1 && lap.data.distance.length > 0) eIdx = lap.data.distance.length -1; 
+                
+                if (sIdx > -1 && eIdx > -1 && sIdx < eIdx) {
+                    return lap.data.time[eIdx] - lap.data.time[sIdx];
+                }
+                return 0; 
+            };
+
+            sectorDefinitions.forEach(def => {
+                const refTime = getSectorTime(refLap, def);
+                
+                let delta = 0;
+                let isDiff = false;
+
+                if (targetLap) {
+                    const targetTime = getSectorTime(targetLap, def);
+                    delta = targetTime - refTime; 
+                    isDiff = true;
+                }
+
+                analysis.push({
+                    id: def.id,
+                    start: def.start,
+                    end: def.end,
+                    refTime: refTime,
+                    delta: delta,
+                    isDiff: isDiff
+                });
+            });
+
+            return { analysis, definitions: sectorDefinitions, targetLap };
+        }
+
+        function updateSectorTable(sectorsData) {
+            const tbody = document.getElementById('sector-body');
+            tbody.innerHTML = '';
+            
+            const headerCell = document.querySelector('.sector-table th:last-child');
+            headerCell.textContent = sectorsData.targetLap 
+                ? `Delta (vs L${sectorsData.targetLap.lapNumber})` 
+                : "Delta (vs Ref)";
+            headerCell.title = sectorsData.targetLap ? `Comparing to Lap ${sectorsData.targetLap.lapNumber} from ${sectorsData.targetLap.filename}` : 'No comparison lap selected';
+
+            sectorsData.analysis.forEach(sec => {
+                const tr = document.createElement('tr');
+                
+                let deltaHtml = '<span style="color:#666">-</span>';
+                if (sec.isDiff) {
+                    let color = '#ccc'; 
+                    if (sec.delta > 0.005) color = '#dc3545';
+                    else if (sec.delta < -0.005) color = '#28a745';
+                    
+                    const sign = sec.delta > 0 ? '+' : '';
+                    deltaHtml = `<span style="color:${color}">${sign}${sec.delta.toFixed(3)}</span>`;
+                } else if (sec.refTime > 0) {
+                    deltaHtml = '<span style="color:#888; font-style:italic">Ref</span>'; 
+                }
+
+                tr.innerHTML = `
+                    <td>S${sec.id}</td>
+                    <td>${sec.refTime > 0 ? sec.refTime.toFixed(3) : '--.---'}</td>
+                    <td>${deltaHtml}</td>
+                `;
+                
+                tr.addEventListener('click', () => { 
+                    zoomToSector(sec.start, sec.end); 
+                });
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        function zoomToSector(start, end) {
+            const masterChart = charts.delta;
+            if (!masterChart || !masterChart.options.scales || !masterChart.options.scales.x) return;
+
+            masterChart.options.scales.x.min = start;
+            masterChart.options.scales.x.max = end;
+            masterChart.update('none');
+
+            syncScales(masterChart);
+        }
+
+        // --- Placemat helpers ---
+
+        // Compute a few simple driving metrics for a lap over a distance window
+        function computeLapSectorMetrics(lap, startDist, endDist) {
+            if (!lap || !lap.data || !lap.data.distance.length) {
+                return null;
+            }
+
+            const d   = lap.data.distance;
+            const t   = lap.data.time;
+            const spd = lap.data.speed;
+            const thr = lap.data.throttle;
+            const brk = lap.data.brake;
+            const abs = lap.data.brakeABSactive || [];
+
+            const idxs = [];
+            for (let i = 0; i < d.length; i++) {
+                if (d[i] >= startDist && d[i] <= endDist) idxs.push(i);
+            }
+            if (idxs.length === 0) return null;
+
+            const firstIdx = idxs[0];
+            const lastIdx  = idxs[idxs.length - 1];
+
+            const tStart = t[firstIdx];
+            const tEnd   = t[lastIdx];
+            const sectorTime = tEnd - tStart;
+
+            let minSpeed = Infinity, maxSpeed = -Infinity, sumSpeed = 0;
+            let maxBrake = 0, maxThrottle = 0, sumThrottle = 0;
+
+            // ABS time accumulation
+            let absTime = 0;
+            for (let i = 0; i < idxs.length - 1; i++) {
+                const i0 = idxs[i];
+                const i1 = idxs[i + 1];
+
+                const s  = spd[i0];
+                const th = thr[i0];
+                const bk = brk[i0];
+
+                if (s < minSpeed) minSpeed = s;
+                if (s > maxSpeed) maxSpeed = s;
+                sumSpeed += s;
+
+                if (bk > maxBrake) maxBrake = bk;
+                if (th > maxThrottle) maxThrottle = th;
+                sumThrottle += th;
+
+                if (abs[i0] > 0) {
+                    absTime += (t[i1] - t[i0]);
+                }
+            }
+
+            const avgSpeed    = sumSpeed / idxs.length;
+            const avgThrottle = sumThrottle / idxs.length;
+
+            let brakePointDist = null;
+            for (let i of idxs) {
+                if (brk[i] > 10) {
+                    brakePointDist = d[i];
+                    break;
+                }
+            }
+
+            return {
+                sectorTime,
+                minSpeed,
+                maxSpeed,
+                avgSpeed,
+                maxBrake,
+                avgThrottle,
+                brakePointDist,
+                absTime   // seconds in ABS in this sector
+            };
+        }
+
+
+        // Build two side-by-side SVG track maps (Ref left, Compare right),
+        // showing ABS zones and yellow X at sector min-speed points
+        function buildTwoTrackMapsSvg(refLap, compareLap, definitions) {
+            if (!refLap || !refLap.data || !refLap.data.mapX.length) return '';
+
+            const laps = [refLap, compareLap].filter(Boolean);
+
+            // Shared bounds
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            laps.forEach(lap => {
+                lap.data.mapX.forEach(x => {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                });
+                lap.data.mapY.forEach(y => {
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                });
+            });
+            if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+                return '';
+            }
+
+            const width  = maxX - minX || 1;
+            const height = maxY - minY || 1;
+
+            function toSvgX(x) { return ((x - minX) / width) * 1000; }
+            function toSvgY(y) { return (1 - (y - minY) / height) * 700; } // 1000x700
+
+            function buildSingleSvg(lap, title, absColor, lineColor) {
+                if (!lap) {
+                    return `<div style="flex:1;padding:4px;box-sizing:border-box;">
+<p style="font-size:11px;">Not available</p>
+</div>`;
+                }
+
+                let svg = `<div style="flex:1;padding:4px;box-sizing:border-box;">
+<h3 style="margin:4px 0;font-size:13px;font-weight:bold;">${title}</h3>
+<svg class="placemat-svg-map two-maps-svg" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg"
+      style="width:100%;border:1px solid #444;background:#ffffff;">` 
+
+                const dists = lap.data.distance;
+                const xs    = lap.data.mapX;
+                const ys    = lap.data.mapY;
+                const abs   = lap.data.brakeABSactive || [];
+                const times = lap.data.time || [];
+                const speeds = lap.data.speed || [];
+
+                // --- ABS segments (with gap check) ---
+                if (dists.length && abs.length) {
+                    let inSeg = false;
+                    let segPoints = [];
+                    let lastIdx = -1;
+
+                    const MAX_DIST_GAP = 30;   // m
+                    const MAX_TIME_GAP = 1.0;  // s
+
+                    function flushSeg() {
+                        if (segPoints.length < 2) return;
+                        const pathData = segPoints.map((p, i) =>
+                            (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)
+                        ).join(' ');
+                        svg += `<path d="${pathData}" stroke="${absColor}"
+                                 stroke-width="18" stroke-linecap="round" stroke-linejoin="round"
+                                 fill="none" opacity="0.85"/>`;
+                        segPoints = [];
+                    }
+
+                    for (let i = 0; i < dists.length; i++) {
+                        const active = abs[i] > 0;
+                        const px = toSvgX(xs[i]);
+                        const py = toSvgY(ys[i]);
+
+                        if (active) {
+                            if (inSeg && lastIdx >= 0) {
+                                const distGap = Math.abs(dists[i] - dists[lastIdx]);
+                                const timeGap = (times.length > i && times.length > lastIdx)
+                                    ? Math.abs(times[i] - times[lastIdx])
+                                    : 0;
+                                if (distGap > MAX_DIST_GAP || timeGap > MAX_TIME_GAP) {
+                                    flushSeg();
+                                    segPoints = [];
+                                }
+                            }
+                            if (!inSeg) inSeg = true;
+                            segPoints.push({ x: px, y: py });
+                            lastIdx = i;
+                        } else {
+                            if (inSeg) {
+                                inSeg = false;
+                                flushSeg();
+                                segPoints = [];
+                                lastIdx = -1;
+                            }
+                        }
+                    }
+                    if (inSeg) flushSeg();
+                }
+
+                // --- Racing line ---
+                if (xs.length) {
+                    const pathData = xs.map((x, i) => {
+                        const sx = toSvgX(x).toFixed(1);
+                        const sy = toSvgY(ys[i]).toFixed(1);
+                        return (i === 0 ? 'M' : 'L') + sx + ' ' + sy;
+                    }).join(' ');
+
+                    svg += `<path d="${pathData}" stroke="${lineColor}" stroke-width="4"
+                             fill="none" stroke-linecap="round" stroke-linejoin="round"
+                             opacity="0.9"/>`;
+                }
+
+                // --- Yellow X markers at sector min-speed points ---
+                if (definitions && Array.isArray(definitions) && dists.length && speeds.length) {
+                    definitions.forEach(def => {
+                        const start = def.start;
+                        const end   = def.end;
+
+                        let minSpd = Infinity;
+                        let minIdx = -1;
+
+                        for (let i = 0; i < dists.length; i++) {
+                            const dist = dists[i];
+                            if (dist < start || dist > end) continue;
+                            const s = speeds[i];
+                            if (s < minSpd) {
+                                minSpd = s;
+                                minIdx = i;
+                            }
+                        }
+
+                        if (minIdx >= 0) {
+                            const px = toSvgX(xs[minIdx]);
+                            const py = toSvgY(ys[minIdx]);
+
+                            const size = 20; // pixels in SVG units
+                            svg += `
+<line x1="${(px - size).toFixed(1)}" y1="${(py - size).toFixed(1)}"
+      x2="${(px + size).toFixed(1)}" y2="${(py + size).toFixed(1)}"
+      stroke="#ffcc00" stroke-width="6" stroke-linecap="round"/>
+<line x1="${(px - size).toFixed(1)}" y1="${(py + size).toFixed(1)}"
+      x2="${(px + size).toFixed(1)}" y2="${(py - size).toFixed(1)}"
+      stroke="#ffcc00" stroke-width="6" stroke-linecap="round"/>`;
+                        }
+                    });
+                }
+
+                // Mini legend
+                svg += `
+<rect x="20" y="20" width="26" height="6" fill="${lineColor}" />
+<text x="55" y="26" font-size="18" fill="#000000">Line</text>
+<rect x="20" y="44" width="26" height="6" fill="${absColor}" />
+<text x="55" y="50" font-size="18" fill="#000000">ABS</text>
+<rect x="20" y="68" width="26" height="6" fill="#ffcc00" />
+<text x="55" y="74" font-size="18" fill="#000000">Corner Min Speed</text>`;
+
+                svg += `</svg></div>`;
+                return svg;
+            }
+
+            const refTitle = 'Ref L' + refLap.lapNumber + ' ' + (refLap.filenameWithoutExt || '');
+            const cmpTitle = compareLap
+                ? 'Lap L' + compareLap.lapNumber + ' ' + (compareLap.filenameWithoutExt || '')
+                : 'Comparison';
+
+            const cmpColor = (compareLap && compareLap.color) ? compareLap.color : '#777777';
+
+            const refSvg = buildSingleSvg(refLap, refTitle, '#0066ff', '#222222');
+            const cmpSvg = buildSingleSvg(compareLap, cmpTitle, '#ff0000', cmpColor);
+
+            return `<div style="display:flex;gap:8px;align-items:flex-start;" class="two-maps">
+${refSvg}
+${cmpSvg}
+</div>`;
+        }
+
+
+function buildOverlayTrackMapSvg(refLap, compareLap, definitions) {
+    if (!refLap || !refLap.data || !refLap.data.mapX.length || !compareLap) return '';
+
+    const laps = [refLap, compareLap];
+
+    // Shared bounds
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    laps.forEach(lap => {
+        lap.data.mapX.forEach(x => {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+        });
+        lap.data.mapY.forEach(y => {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        });
+    });
+    if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+        return '';
+    }
+
+    const width  = maxX - minX || 1;
+    const height = maxY - minY || 1;
+
+    function toSvgX(x) { return ((x - minX) / width) * 1000; }
+    function toSvgY(y) { return (1 - (y - minY) / height) * 700; } // 1000x700
+
+    let svg = `<svg class="placemat-svg-map overlay-map-svg" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg"
+      style="width:100%;border:1px solid #444;background:#ffffff;">`
+
+    // Helper: ABS with gap check
+    function drawAbsSegments(lap, absColor, opacity, offset = 0) {
+        const dists = lap.data.distance;
+        const xs    = lap.data.mapX;
+        const ys    = lap.data.mapY;
+        const abs   = lap.data.brakeABSactive || [];
+        const times = lap.data.time || [];
+
+        if (!dists.length || !abs.length) return;
+
+        let inSeg = false;
+        let segPoints = [];
+        let lastIdx = -1;
+        const MAX_DIST_GAP = 30;   // m
+        const MAX_TIME_GAP = 1.0;  // s
+
+        function flushSeg() {
+            if (segPoints.length < 2) return;
+            const pathData = segPoints.map((p, i) =>
+                (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)
+            ).join(' ');
+            svg += `<path d="${pathData}" stroke="${absColor}"
+                     stroke-width="22" stroke-linecap="round" stroke-linejoin="round"
+                     fill="none" opacity="${opacity}"/>`;
+            segPoints = [];
+        }
+
+        for (let i = 0; i < dists.length; i++) {
+            const active = abs[i] > 0;
+            const px = toSvgX(xs[i]) + offset;  // Apply offset here
+            const py = toSvgY(ys[i]);
+
+            if (active) {
+                if (inSeg && lastIdx >= 0) {
+                    const distGap = Math.abs(dists[i] - dists[lastIdx]);
+                    const timeGap = (times.length > i && times.length > lastIdx)
+                        ? Math.abs(times[i] - times[lastIdx])
+                        : 0;
+                    if (distGap > MAX_DIST_GAP || timeGap > MAX_TIME_GAP) {
+                        flushSeg();
+                        segPoints = [];
+                    }
+                }
+                if (!inSeg) inSeg = true;
+                segPoints.push({ x: px, y: py });
+                lastIdx = i;
+            } else {
+                if (inSeg) {
+                    inSeg = false;
+                    flushSeg();
+                    segPoints = [];
+                    lastIdx = -1;
+                }
+            }
+        }
+        if (inSeg) flushSeg();
+    }
+
+    // Helper: racing line
+    function drawLine(lap, stroke, width, opacity, offset = 0) {
+        const xs = lap.data.mapX;
+        const ys = lap.data.mapY;
+        if (!xs.length) return;
+
+        const pathData = xs.map((x, i) => {
+            const sx = (toSvgX(x) + offset).toFixed(1);
+            const sy = toSvgY(ys[i]).toFixed(1);
+            return (i === 0 ? 'M' : 'L') + sx + ' ' + sy;
+        }).join(' ');
+
+        svg += `<path d="${pathData}" stroke="${stroke}" stroke-width="${width}"
+                 fill="none" stroke-linecap="round" stroke-linejoin="round"
+                 opacity="${opacity}"/>`;
+    }
+
+    // Helper: min-speed X markers per sector
+    function drawMinSpeedXs(lap, definitions, color, offset = 0) {
+        const dists  = lap.data.distance;
+        const xs     = lap.data.mapX;
+        const ys     = lap.data.mapY;
+        const speeds = lap.data.speed || [];
+        if (!definitions || !Array.isArray(definitions) || !dists.length || !speeds.length) return;
+
+        definitions.forEach(def => {
+            const start = def.start;
+            const end   = def.end;
+
+            let minSpd = Infinity;
+            let minIdx = -1;
+
+            for (let i = 0; i < dists.length; i++) {
+                const dist = dists[i];
+                if (dist < start || dist > end) continue;
+                const s = speeds[i];
+                if (s < minSpd) {
+                    minSpd = s;
+                    minIdx = i;
+                }
+            }
+
+            if (minIdx >= 0) {
+                const px = toSvgX(xs[minIdx]) + offset;
+                const py = toSvgY(ys[minIdx]);
+                const size = 20;
+
+                svg += `
+<line x1="${(px - size).toFixed(1)}" y1="${(py - size).toFixed(1)}"
+      x2="${(px + size).toFixed(1)}" y2="${(py + size).toFixed(1)}"
+      stroke="${color}" stroke-width="6" stroke-linecap="round"/>
+<line x1="${(px - size).toFixed(1)}" y1="${(py + size).toFixed(1)}"
+      x2="${(px + size).toFixed(1)}" y2="${(py - size).toFixed(1)}"
+      stroke="${color}" stroke-width="6" stroke-linecap="round"/>`;
+            }
+        });
+    }
+
+    const refLineColor   = '#222222';
+    const refAbsColor    = '#0066ff';
+    const refMinSpeedCol = '#ffcc00';
+
+    const cmpLineColor   = (compareLap && compareLap.color) ? compareLap.color : '#777777';
+    const cmpAbsColor    = '#ff0000';
+    const cmpMinSpeedCol = '#00cc66';
+
+    // Draw in sensible z-order: lines first, then ABS, then markers
+    drawLine(refLap, refLineColor, 4, 0.8, 0);  // Stacked with no offset
+    drawLine(compareLap, cmpLineColor, 4, 0.8, 0);  // Stacked with no offset
+
+    drawAbsSegments(refLap, refAbsColor, 0.65, -20);  // ABS offset left for reference
+    drawAbsSegments(compareLap, cmpAbsColor, 0.65, +20);  // ABS offset right for compare
+
+    drawMinSpeedXs(refLap, definitions, refMinSpeedCol, 0);  // Stacked if desired
+    drawMinSpeedXs(compareLap, definitions, cmpMinSpeedCol, 0);  // Stacked if desired
+
+    // Legend for Overlay Map
+    svg += `
+<g style="font-size: 18px; fill: #000000;">
+    <rect x="20" y="20" width="26" height="6" fill="${refLineColor}" />
+    <text x="55" y="26">Ref Line</text>
+    <rect x="20" y="44" width="26" height="6" fill="${refAbsColor}" />
+    <text x="55" y="50">Ref ABS</text>
+    <rect x="20" y="68" width="26" height="6" fill="${refMinSpeedCol}" />
+    <text x="55" y="74">Ref Min Speed Corner</text>
+
+    <rect x="20" y="98" width="26" height="6" fill="${cmpLineColor}" />
+    <text x="55" y="104">Compare Line</text>
+    <rect x="20" y="122" width="26" height="6" fill="${cmpAbsColor}" />
+    <text x="55" y="128">Compare ABS</text>
+    <rect x="20" y="146" width="26" height="6" fill="${cmpMinSpeedCol}" />
+    <text x="55" y="152">Compare Min Speed Corner</text>
+</g>`;
+
+    svg += `</svg>`;
+    return svg;
+}
+
+
+        function openPlacematReport() {
+            const selectedLaps = telemetryData.filter(l => defaultVisibleLapIds.has(l.id));
+            const refLap = telemetryData.find(l => l.id === referenceLapId);
+
+            if (!refLap || selectedLaps.length < 2) {
+                alert("Select a reference lap and at least one comparison lap to print a placemat.");
+                return;
+            }
+
+            const { definitions } = calculateSectors(selectedLaps, refLap);
+            if (!definitions || definitions.length === 0) {
+                alert("No sector information available.");
+                return;
+            }
+
+            const compareLaps = selectedLaps.filter(l => l.id !== refLap.id);
+            if (compareLaps.length === 0) {
+                alert("No comparison laps selected (only the reference is visible).");
+                return;
+            }
+
+            const metricsByLap = {};
+            [refLap, ...compareLaps].forEach(lap => {
+                const lapEntry = {};
+                definitions.forEach(def => {
+                    lapEntry[def.id] = computeLapSectorMetrics(lap, def.start, def.end);
+                });
+                metricsByLap[lap.id] = lapEntry;
+            });
+
+            let html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Placemat Report</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
+    h1, h2 { margin-bottom: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; font-size: 12px; }
+    th, td { border: 1px solid #888; padding: 4px 6px; text-align: center; }
+    th { background:#eee; }
+    .faster { color: #0a0; font-weight:bold; }
+    .slower { color: #c00; font-weight:bold; }
+    .small { font-size: 11px; color:#555; }
+    
+    /* Base styles for all SVG maps (screen display) */
+    .placemat-svg-map {
+        width: 100%;
+        height: auto; /* Let viewBox manage aspect ratio by default */
+        max-width: 100%;
+        display: block; /* Prevents extra space below SVG */
+    }
+    .placemat-svg-map.two-maps-svg { height: 50vh; max-height: 50vh; }
+    .placemat-svg-map.overlay-map-svg { height: 85vh; max-height: 85vh; }
+    .map-container { margin-top: 6px; } /* Apply general margin to map containers */
+
+@media print {
+  body { margin: 5mm; }
+
+  /* Keep tables and the adjacent two-maps block together */
+  table,
+  .two-maps,
+  .map-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Fixed printed heights for SVG maps */
+  .placemat-svg-map.two-maps-svg {
+    height: 12.0cm !important;
+    max-height: 12.0cm !important;
+    display: block !important;
+  }
+  .placemat-svg-map.overlay-map-svg {
+    height: 18.0cm !important;
+    max-height: 18.0cm !important;
+    display: block !important;
+  }
+
+  /* Ensure lap-block content (table + two-maps) stays together and occupies its page */
+  .lap-block {
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    clear: both !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 11.5cm !important;
+  }
+
+  /* Force overlay to begin on the next page and avoid splitting */
+  .overlay-block {
+    display: block !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    clear: both !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Tidy margins so content doesn't float up */
+  .lap-block,
+  .overlay-block,
+  .map-container {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
+</style>
+
+
+</head>
+<body>
+<h1>Placemat – Driving Differences</h1>
+<p class="small">
+Reference: L${refLap.lapNumber} (${refLap.filenameWithoutExt}) – ${formatTime(refLap.lapTime)}
+</p>
+`;
+
+            compareLaps.forEach(lap => {
+                const mapsHtml = buildTwoTrackMapsSvg(refLap, lap, definitions);
+
+                html += `<div class="lap-block">`;
+
+                html += `<h2>Compare Lap L${lap.lapNumber} (${lap.filenameWithoutExt}) – ${formatTime(lap.lapTime)}</h2>`;
+                html += `
+<table>
+    <thead>
+        <tr>
+            <th>Sector</th>
+            <th>Δ Time (s)</th>
+            <th>Ref Time</th>
+            <th>Lap Time</th>
+            <th>Min Speed (km/h)</th>
+            <th>Δ Min Speed</th>
+            <th>Avg Speed (km/h)</th>
+            <th>Max Brake (%)</th>
+            <th>ABS Time Ref (s)</th>
+            <th>ABS Time Lap (s)</th>
+            <th>Δ ABS Time (s)</th>
+            <th>Brake Point (m from S start)</th>
+        </tr>
+    </thead>
+    <tbody>
+`;
+
+                definitions.forEach(def => {
+                    const refM = metricsByLap[refLap.id][def.id];
+                    const lapM = metricsByLap[lap.id][def.id];
+
+                    let sectorDelta = 0;
+                    if (refM && lapM) sectorDelta = lapM.sectorTime - refM.sectorTime;
+
+                    const cls = sectorDelta < -0.01 ? 'faster' : (sectorDelta > 0.01 ? 'slower' : '');
+
+                    const refTime = refM ? refM.sectorTime.toFixed(3) : '--';
+                    const lapTime = lapM ? lapM.sectorTime.toFixed(3) : '--';
+
+                    const refMinSpd = refM ? refM.minSpeed.toFixed(1) : '--';
+                    const lapMinSpd = lapM ? lapM.minSpeed.toFixed(1) : '--';
+                    const dMinSpd = (refM && lapM) ? (lapM.minSpeed - refM.minSpeed).toFixed(1) : '--';
+
+                    const avgSpd  = lapM ? lapM.avgSpeed.toFixed(1) : '--';
+                    const maxBrake = lapM ? lapM.maxBrake.toFixed(0) : '--';
+
+                    const refAbsTime = refM ? refM.absTime.toFixed(3) : '--';
+                    const lapAbsTime = lapM ? lapM.absTime.toFixed(3) : '--';
+                    let dAbsTime = '--';
+                    if (refM && lapM) {
+                        const diff = lapM.absTime - refM.absTime;
+                        dAbsTime = (diff >= 0 ? '+' : '') + diff.toFixed(3);
+                    }
+
+                    let brakePointRef = refM && refM.brakePointDist != null ? (refM.brakePointDist - def.start).toFixed(1) : '--';
+                    let brakePointLap = lapM && lapM.brakePointDist != null ? (lapM.brakePointDist - def.start).toFixed(1) : '--';
+
+                    let brakePointText = '--';
+                    if (brakePointRef !== '--' && brakePointLap !== '--') {
+                        const diff = (parseFloat(brakePointLap) - parseFloat(brakePointRef)).toFixed(1);
+                        const sign = diff > 0 ? '+' : '';
+                        brakePointText = `${brakePointLap} (${sign}${diff})`;
+                    } else if (brakePointLap !== '--') {
+                        brakePointText = brakePointLap;
+                    }
+
+                    html += `
+        <tr>
+            <td>S${def.id}</td>
+            <td class="${cls}">${sectorDelta >= 0 ? '+' : ''}${sectorDelta.toFixed(3)}</td>
+            <td>${refTime}</td>
+            <td>${lapTime}</td>
+            <td>${lapMinSpd} / ${refMinSpd}</td>
+            <td>${dMinSpd}</td>
+            <td>${avgSpd}</td>
+            <td>${maxBrake}</td>
+            <td>${refAbsTime}</td>
+            <td>${lapAbsTime}</td>
+            <td>${dAbsTime}</td>
+            <td>${brakePointText}</td>
+        </tr>`;
+                });
+
+                html += `
+    </tbody>
+</table>
+<div class="map-container">
+${mapsHtml || '<p class="small">Track maps not available.</p>'}
+</div>
+</div>`; // end lap-block
+
+                // add full-page overlay map for this comparison lap
+                const overlayHtml = buildOverlayTrackMapSvg(refLap, lap, definitions);
+                html += `
+<div class="overlay-block">
+  <h2>Overlay Map – Ref vs L${lap.lapNumber} (${lap.filenameWithoutExt})</h2>
+  <div class="map-container overlay-map-wrapper">
+    ${overlayHtml || '<p class="small">Overlay track map not available.</p>'}
+  </div>
+</div>
+`;
+
+            });
+
+            html += `
+</body>
+</html>`;
+
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.open();
+                win.document.write(html);
+                win.document.close();
+                setTimeout(() => { win.print(); }, 100);
+            } else {
+                alert("Popup blocked – allow popups to print the placemat.");
+            }
+        }
+
+
+        // --- Chart Zoom History ---
+        let zoomHistory = [];
+        const MAX_ZOOM_HISTORY_DEPTH = 10;
+
+        function saveCurrentMasterZoom() {
+            const chart = charts.delta;
+            if (!chart || !chart.scales || !chart.scales.x) return;
+
+            const scale = chart.scales.x;
+            if (typeof scale.min !== 'number' || typeof scale.max !== 'number') return;
+
+            const currentState = { min: scale.min, max: scale.max };
+
+            if (zoomHistory.length === 0 ||
+                zoomHistory[zoomHistory.length - 1].min !== currentState.min ||
+                zoomHistory[zoomHistory.length - 1].max !== currentState.max) {
+                
+                if (zoomHistory.length >= MAX_ZOOM_HISTORY_DEPTH) {
+                    zoomHistory.shift();
+                }
+                zoomHistory.push(currentState);
+            }
+        }
+
+        // --- Charts & Map Sync ---
+        function syncScales(sourceChart) {
+            const xMinDistance = sourceChart.scales.x.min; 
+            const xMaxDistance = sourceChart.scales.x.max; 
+
+            Object.values(charts).forEach(chart => {
+                if (chart === sourceChart) return; 
+
+                if (chart.config.type !== 'scatter') {
+                    if (chart.options.scales && chart.options.scales.x) {
+                        chart.options.scales.x.min = xMinDistance;
+                        chart.options.scales.x.max = xMaxDistance;
+                    }
+                } else {
+                    const currentRefLap = telemetryData.find(l => l.id === referenceLapId);
+
+                    if (!currentRefLap || !currentRefLap.data || currentRefLap.data.distance.length === 0) {
+                        chart.options.scales.x.min = undefined;
+                        chart.options.scales.x.max = undefined;
+                        chart.options.scales.y.min = undefined;
+                        chart.options.scales.y.max = undefined;
+                    } else {
+                        let mapPointsInView = [];
+                        for (let i = 0; i < currentRefLap.data.distance.length; i++) {
+                            const dist = currentRefLap.data.distance[i];
+                            if (dist >= xMinDistance && dist <= xMaxDistance) {
+                                mapPointsInView.push({
+                                    x: currentRefLap.data.mapX[i],
+                                    y: currentRefLap.data.mapY[i]
+                                });
+                            }
+                        }
+
+                        if (mapPointsInView.length > 0) {
+                            let newMinMapX = Math.min(...mapPointsInView.map(p => p.x));
+                            let newMaxMapX = Math.max(...mapPointsInView.map(p => p.x));
+                            let newMinMapY = Math.min(...mapPointsInView.map(p => p.y));
+                            let newMaxMapY = Math.max(...mapPointsInView.map(p => p.y));
+
+                            const rangeX = newMaxMapX - newMinMapX;
+                            const rangeY = newMaxMapY - newMinMapY;
+                            const paddingFactor = 0.1;
+                            const paddingX = rangeX === 0 ? 0.01 : rangeX * paddingFactor; 
+                            const paddingY = rangeY === 0 ? 0.01 : rangeY * paddingFactor;
+
+                            chart.options.scales.x.min = newMinMapX - paddingX;
+                            chart.options.scales.x.max = newMaxMapX + paddingX;
+                            chart.options.scales.y.min = newMinMapY - paddingY;
+                            chart.options.scales.y.max = newMaxMapY + paddingY;
+                        } else {
+                            chart.options.scales.x.min = undefined;
+                            chart.options.scales.x.max = undefined;
+                            chart.options.scales.y.min = undefined;
+                            chart.options.scales.y.max = undefined;
+                        }
+                    }
+                }
+                chart.update('none'); 
+            });
+
+            if (sourceChart === charts.delta) {
+                saveCurrentMasterZoom();
+            }
+        }
+        
+        const debouncedUpdateMapCursor = debounce((event, elements, chartInstance) => {
+            if (!charts.map || !charts.map.data || !charts.map.data.datasets || charts.map.data.datasets.length === 0) {
+                return;
+            }
+
+            const cursorDsIndex = charts.map.data.datasets.length - 1;
+
+            if (elements && elements.length > 0) {
+                const first = elements[0];
+
+                let distance = null;
+                if (first.element && first.element.$context) {
+                    const ctx = first.element.$context;
+                    if (ctx.raw && typeof ctx.raw.x === 'number') {
+                        distance = ctx.raw.x;
+                    } else if (ctx.parsed && typeof ctx.parsed.x === 'number') {
+                        distance = ctx.parsed.x;
+                    }
+                }
+
+                if (distance == null) {
+                    const rect = chartInstance.canvas.getBoundingClientRect();
+                    const xPixel = event.clientX - rect.left;
+                    distance = chartInstance.scales.x.getValueForPixel(xPixel);
+                }
+
+                let lapForMap = telemetryData.find(l => l.id === referenceLapId);
+                if (!lapForMap && defaultVisibleLapIds.size > 0) {
+                    const firstVisibleLapId = Array.from(defaultVisibleLapIds)[0];
+                    lapForMap = telemetryData.find(l => l.id === firstVisibleLapId);
+                }
+
+                if (lapForMap && typeof distance === 'number') {
+                    const mapCoords = getInterpolatedMapCoords(lapForMap.data, distance);
+                    if (mapCoords) {
+                        if (!lastHoveredMapCoords || mapCoords.x !== lastHoveredMapCoords.x || mapCoords.y !== lastHoveredMapCoords.y) {
+                            charts.map.data.datasets[cursorDsIndex].data = [{ x: mapCoords.x, y: mapCoords.y }];
+                            charts.map.data.datasets[cursorDsIndex].pointBackgroundColor = lapForMap.color;
+                            charts.map.data.datasets[cursorDsIndex].pointBorderColor = lapForMap.color;
+                            charts.map.update('none');
+                            lastHoveredMapCoords = mapCoords;
+                        }
+                        return;
+                    }
+                }
+            }
+
+            if (charts.map.data.datasets[cursorDsIndex] && charts.map.data.datasets[cursorDsIndex].data.length > 0) {
+                charts.map.data.datasets[cursorDsIndex].data = [];
+                charts.map.update('none');
+                lastHoveredMapCoords = null;
+            }
+        }, 50);
+
+
+        function panAllChartsX(stepFraction = 0.1, direction = 1) {
+            const masterChart = charts.delta; 
+            if (!masterChart || !masterChart.scales || !masterChart.scales.x) return;
+
+            const scale = masterChart.scales.x;
+            if (scale.min == null || scale.max == null) return;
+
+            const range = scale.max - scale.min;
+            if (range <= 0) return;
+
+            const shift = range * stepFraction * direction;
+            const newMin = scale.min + shift;
+            const newMax = scale.max + shift;
+
+            masterChart.options.scales.x.min = newMin;
+            masterChart.options.scales.x.max = newMax;
+            masterChart.update('none');
+
+            syncScales(masterChart);
+        }
+
+        function initLineChart(canvasId, label, unit) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            const chartOptions = { 
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false }, 
+                onHover: (e, elements, chartInstance) => debouncedUpdateMapCursor(e, elements, chartInstance), 
+                onLeave: (e, elements, chartInstance) => debouncedUpdateMapCursor(e, null, chartInstance), 
+                scales: {
+                    x: { type: 'linear', title: { display: true, text: 'Distance (m)' }, ticks: { color: '#888' }, grid: { color: '#333' } },
+                    y: { title: { display: true, text: unit }, ticks: { color: '#888' }, grid: { color: '#333' } }
+                },
+                elements: { 
+                    point: {
+                        hoverRadius: 0 
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: label, color: '#eee' },
+                    tooltip: {
+                        enabled: false,
+                        mode: 'index', 
+                        intersect: false, 
+                        caretPadding: 10, 
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                if (tooltipItems.length === 0) return '';
+                                const distance = tooltipItems[0].parsed.x;
+                                return `Distance: ${distance.toFixed(1)} m`;
+                            },
+                            label: function(tooltipItem) {
+                                const lapId = tooltipItem.dataset.lapId;
+                                if (lapId === -1) return ''; 
+
+                                const lap = telemetryData.find(l => l.id === lapId);
+                                if (!lap) return '';
+
+                                const value = tooltipItem.parsed.y;
+                                let formattedValue = '';
+                                
+                                const lapInfo = `L${lap.lapNumber} (${lap.filenameWithoutExt})`; 
+
+                                if (tooltipItem.dataset.label.includes('Speed')) {
+                                    formattedValue = `${lapInfo} Speed: ${value.toFixed(1)} km/h`;
+                                } else if (tooltipItem.dataset.label.includes('Thr')) {
+                                    formattedValue = `${lapInfo} Throttle: ${value.toFixed(1)} %`;
+                                } else if (tooltipItem.dataset.label.includes('Brk')) {
+                                    formattedValue = `${lapInfo} Brake: ${value.toFixed(1)} %`;
+                                } else if (tooltipItem.dataset.label.includes('Steering')) {
+                                    formattedValue = `${lapInfo} Steering: ${(value * 180 / Math.PI).toFixed(1)} deg`;
+                                } else if (tooltipItem.dataset.label.includes('RPM')) {
+                                    formattedValue = `${lapInfo} RPM: ${value.toFixed(0)}`;
+                                } else if (tooltipItem.dataset.label.includes('Gear')) {
+                                    formattedValue = `${lapInfo} Gear: ${value.toFixed(0)}`;
+                                } else if (tooltipItem.dataset.label.includes('Delta')) {
+                                    const sign = value > 0 ? '+' : '';
+                                    formattedValue = `${lapInfo} Delta: ${sign}${value.toFixed(3)} s`;
+                                } else if (tooltipItem.dataset.label.includes('ABS Active')) { 
+                                    formattedValue = `${lapInfo} ABS Active`; 
+                                } else if (tooltipItem.dataset.label.includes('Reference')) { 
+                                    formattedValue = `${lapInfo} Delta: 0.000 s`;
+                                } else {
+                                    formattedValue = `${lapInfo} ${tooltipItem.dataset.label.replace(`L${lap.lapNumber} `, '').replace(` (${lap.filename})`, '')}: ${value.toFixed(2)}`;
+                                }
+                                return formattedValue; 
+                            },
+                        }
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                            drag: {
+                                enabled: true,
+                                borderColor: 'rgba(255,255,255,0.3)',
+                                borderWidth: 1,
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                threshold: 5
+                            },
+                            onZoomComplete: ({chart}) => { syncScales(chart); }, 
+                            onZoom: ({chart}) => syncScales(chart)
+                        },
+                        pan: {
+                            enabled: false
+                        }
+                    },
+                    annotation: { annotations: {} }
+                }
+            };
+
+            if (canvasId === 'throttle-brake-chart') {
+                chartOptions.scales.y.min = 0;
+                chartOptions.scales.y.max = 100;
+            }
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: chartOptions 
+            });
+        }
+
+        function initTrackMap() {
+            const ctx = document.getElementById('track-map-chart').getContext('2d');
+            return new Chart(ctx, {
+                type: 'scatter', 
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: { 
+                        x: { display: false, grid: { drawOnChartArea: false } }, 
+                        y: { display: false, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }, 
+                    elements: { point: { radius: 0 }, line: { borderWidth: 2 } } 
+                }
+            });
+        }
+
+        // Initialize all charts
+        charts.delta = initLineChart('delta-chart', 'Time Delta (vs Reference)', 'sec');
+        charts.map = initTrackMap();
+        charts.speed = initLineChart('speed-chart', 'Speed', 'km/h');
+        charts.inputs = initLineChart('throttle-brake-chart', 'Inputs', '%');
+        charts.steering = initLineChart('steering-chart', 'Steering', 'rad');
+        charts.rpm = initLineChart('rpm-gear-chart', 'RPM / Gear', 'val');
+
+        function toggleTooltips(enabled) {
+            Object.values(charts).forEach(chart => {
+                if (chart.options.plugins && chart.options.plugins.tooltip && chart.config.type !== 'scatter') {
+                    chart.options.plugins.tooltip.enabled = enabled;
+                    chart.update('none'); 
+                }
+            });
+        }
+
+        function updateCharts() {
+            const selectedLaps = telemetryData.filter(l => defaultVisibleLapIds.has(l.id));
+            const refLap = telemetryData.find(l => l.id === referenceLapId);
+
+            const sectorData = calculateSectors(selectedLaps, refLap);
+            if (refLap) updateSectorTable(sectorData);
+            else document.getElementById('sector-body').innerHTML =
+                '<tr><td colspan="3" style="text-align:center;color:#888;">No reference lap selected.</td></tr>';
+
+            const createDataset = (lap, dataKey, label, color, borderDash = []) => ({
+                label: `L${lap.lapNumber} ${label} (${lap.filenameWithoutExt})`,
+                data: lap.data[dataKey].map((val, i) => ({ x: lap.data.distance[i], y: val })),
+                borderColor: color,
+                borderWidth: 1.5,
+                borderDash: borderDash,
+                pointRadius: 0,
+                tension: 0.1,
+                lapId: lap.id
+            });
+
+            // 1. Time Delta Chart
+            if (refLap && selectedLaps.length > 0) {
+                charts.delta.data.datasets = selectedLaps.map(lap => {
+                    if (lap.id === refLap.id) {
+                        return {
+                            label: `Reference L${lap.lapNumber}`,
+                            data: lap.data.distance.map(d => ({ x: d, y: 0 })),
+                            borderColor: '#666',
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            lapId: lap.id
+                        };
+                    }
+                    const deltas = calculateTimeDelta(lap, refLap);
+                    return {
+                        label: `Delta L${lap.lapNumber} vs Ref`,
+                        data: refLap.data.distance.map((dist, i) => ({ x: dist, y: deltas[i] })),
+                        borderColor: lap.color,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        lapId: lap.id
+                    };
+                });
+            } else {
+                charts.delta.data.datasets = [];
+            }
+
+            // 2. Standard Telemetry Charts
+            charts.speed.data.datasets = selectedLaps.map(lap =>
+                createDataset(lap, 'speed', 'Speed', lap.color)
+            );
+
+            let inputsDatasets = [];
+            selectedLaps.forEach(lap => {
+                inputsDatasets.push(createDataset(lap, 'throttle', 'Thr', lap.color));
+                inputsDatasets.push(createDataset(lap, 'brake', 'Brk', lap.color, [5, 5]));
+            });
+            charts.inputs.data.datasets = inputsDatasets;
+
+            charts.steering.data.datasets = selectedLaps.map(lap =>
+                createDataset(lap, 'steering', 'Steering', lap.color)
+            );
+
+            charts.rpm.data.datasets = selectedLaps.map(lap => {
+                const rpmDataset = createDataset(lap, 'rpm', 'RPM', lap.color);
+                const gearDataset = createDataset(lap, 'gear', 'Gear', lap.color, [2, 2]);
+                gearDataset.yAxisID = 'y1';
+                return [rpmDataset, gearDataset];
+            }).flat();
+
+            if (charts.rpm.options.scales.y1 === undefined &&
+                charts.rpm.data.datasets.some(ds => ds.yAxisID === 'y1')) {
+                charts.rpm.options.scales.y1 = {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Gear', color: '#888' },
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#888', stepSize: 1, precision: 0 }
+                };
+            } else if (charts.rpm.options.scales.y1 &&
+                       !charts.rpm.data.datasets.some(ds => ds.yAxisID === 'y1')) {
+                delete charts.rpm.options.scales.y1;
+            }
+
+            // 3. Track Map & Cursor
+            const mapDatasets = selectedLaps.map(lap => ({
+                label: `L${lap.lapNumber} (${lap.filenameWithoutExt})`,
+                data: lap.data.mapX.map((x, i) => ({ x: x, y: lap.data.mapY[i] })),
+                borderColor: lap.color,
+                borderWidth: 2,
+                showLine: true,
+                pointRadius: 0,
+                lapId: lap.id
+            }));
+
+            mapDatasets.push({
+                label: 'Cursor',
+                data: [],
+                pointRadius: 6,
+                pointBackgroundColor: 'white',
+                pointBorderColor: 'white',
+                lapId: -1
+            });
+            charts.map.data.datasets = mapDatasets;
+
+            let globalMinX = Infinity, globalMaxX = -Infinity;
+            let globalMinY = Infinity, globalMaxY = -Infinity;
+
+            if (selectedLaps.length > 0) {
+                selectedLaps.forEach(lap => {
+                    lap.data.mapX.forEach(val => {
+                        globalMinX = Math.min(globalMinX, val);
+                        globalMaxX = Math.max(globalMaxX, val);
+                    });
+                    lap.data.mapY.forEach(val => {
+                        globalMinY = Math.min(globalMinY, val);
+                        globalMaxY = Math.max(globalMaxY, val);
+                    });
+                });
+
+                const mapPaddingX = (globalMaxX === -Infinity) ? 0 : (globalMaxX - globalMinX) * 0.1;
+                const mapPaddingY = (globalMaxY === -Infinity) ? 0 : (globalMaxY - globalMinY) * 0.1;
+
+                charts.map.options.scales.x.min = globalMinX - mapPaddingX;
+                charts.map.options.scales.x.max = globalMaxX + mapPaddingX;
+                charts.map.options.scales.y.min = globalMinY - mapPaddingY;
+                charts.map.options.scales.y.max = globalMaxY + mapPaddingY;
+            } else {
+                charts.map.options.scales.x.min = undefined;
+                charts.map.options.scales.x.max = undefined;
+                charts.map.options.scales.y.min = undefined;
+                charts.map.options.scales.y.max = undefined;
+            }
+
+            // 4. Sector Lines Annotations
+            let sectorAnnotations = {};
+            if (sectorData && sectorData.definitions && refLap) {
+                sectorData.definitions.forEach((sec, i) => {
+                    sectorAnnotations[`sec_${i}`] = {
+                        type: 'line',
+                        xMin: sec.end,
+                        xMax: sec.end,
+                        borderColor: '#444',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        label: {
+                            display: true,
+                            content: `S${sec.id}`,
+                            position: 'start',
+                            color: '#666'
+                        }
+                    };
+                });
+            }
+
+            // 5. ABS Areas (box annotations on inputs chart)
+            let absAnnotations = {};
+            if (showAbsAreas) {
+                selectedLaps.forEach(lap => {
+                    const dist = lap.data.distance;
+                    const absArr = lap.data.brakeABSactive || [];
+                    if (!dist.length || !absArr.length) return;
+
+                    let inSegment = false;
+                    let segStart = null;
+
+                    for (let i = 0; i < dist.length; i++) {
+                        const active = absArr[i] > 0;
+                        if (active && !inSegment) {
+                            inSegment = true;
+                            segStart = dist[i];
+                        } else if (!active && inSegment) {
+                            inSegment = false;
+                            const segEnd = dist[i];
+                            const id = `abs_${lap.id}_${segStart.toFixed(3)}`;
+                            absAnnotations[id] = {
+                                type: 'box',
+                                xMin: segStart,
+                                xMax: segEnd,
+                                yMin: 0,
+                                yMax: 100,
+                                backgroundColor: 'rgba(255, 0, 0, 0.25)',
+                                borderWidth: 0,
+                                drawTime: 'beforeDatasetsDraw'
+                            };
+                        }
+                    }
+
+                    if (inSegment) {
+                        const segEnd = dist[dist.length - 1];
+                        const id = `abs_${lap.id}_${segStart.toFixed(3)}_end`;
+                        absAnnotations[id] = {
+                            type: 'box',
+                            xMin: segStart,
+                            xMax: segEnd,
+                            yMin: 0,
+                            yMax: 100,
+                            backgroundColor: 'rgba(255, 0, 0, 0.25)',
+                            borderWidth: 0,
+                            drawTime: 'beforeDatasetsDraw'
+                        };
+                    }
+                });
+            }
+
+            charts.delta.options.plugins.annotation.annotations = sectorAnnotations;
+            charts.speed.options.plugins.annotation.annotations = sectorAnnotations;
+            charts.steering.options.plugins.annotation.annotations = sectorAnnotations;
+            charts.rpm.options.plugins.annotation.annotations = sectorAnnotations;
+
+            charts.inputs.options.plugins.annotation.annotations = {
+                ...sectorAnnotations,
+                ...absAnnotations
+            };
+
+            Object.values(charts).forEach(chart => {
+                if (chart.config.type !== 'scatter' && chart.options.scales && chart.options.scales.x) {
+                    chart.options.scales.x.min = undefined;
+                    chart.options.scales.x.max = undefined;
+                }
+                chart.update();
+            });
+            
+            if (charts.delta) {
+                syncScales(charts.delta);
+            }
+        }
+
+        // --- Full reset of charts ---
+        function performFullReset() {
+            updateCharts();
+            zoomHistory = []; 
+        }
+
+        function applyZoomState(min, max) {
+            const masterChart = charts.delta;
+            if (!masterChart || !masterChart.options.scales || !masterChart.options.scales.x) return;
+
+            masterChart.options.scales.x.min = min;
+            masterChart.options.scales.x.max = max;
+            masterChart.update('none');
+
+            syncScales(masterChart);
+        }
+
+        // --- Reset Zoom button with hold functionality ---
+        let resetZoomTimer;
+        const HOLD_DURATION = 500; // ms
+
+        document.getElementById('reset-zoom').addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                let isLongPress = false;
+                resetZoomTimer = setTimeout(() => {
+                    isLongPress = true;
+                    performFullReset();
+                    resetZoomTimer = null;
+                }, HOLD_DURATION);
+
+                const mouseUpHandler = () => {
+                    clearTimeout(resetZoomTimer);
+                    if (!isLongPress) {
+                        if (zoomHistory.length > 1) {
+                            zoomHistory.pop();
+                            const previousState = zoomHistory[zoomHistory.length - 1];
+                            applyZoomState(previousState.min, previousState.max);
+                        } else {
+                            performFullReset();
+                        }
+                    }
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                    document.removeEventListener('mouseleave', mouseLeaveHandler);
+                    resetZoomTimer = null;
+                };
+
+                const mouseLeaveHandler = () => {
+                    clearTimeout(resetZoomTimer);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                    document.removeEventListener('mouseleave', mouseLeaveHandler);
+                    resetZoomTimer = null;
+                };
+
+                document.addEventListener('mouseup', mouseUpHandler);
+                document.addEventListener('mouseleave', mouseLeaveHandler);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleTooltipsCheckbox = document.getElementById('toggle-tooltips');
+            const toggleAbsAreasCheckbox = document.getElementById('toggle-abs-areas');
+
+            toggleTooltipsCheckbox.checked = false; 
+            toggleTooltips(toggleTooltipsCheckbox.checked); 
+
+            toggleAbsAreasCheckbox.checked = false;
+            showAbsAreas = toggleAbsAreasCheckbox.checked; 
+
+            toggleTooltipsCheckbox.addEventListener('change', (event) => {
+                toggleTooltips(event.target.checked);
+            });
+
+            toggleAbsAreasCheckbox.addEventListener('change', (event) => {
+                showAbsAreas = event.target.checked; 
+                updateCharts(); 
+            });
+
+            // NEW: placemat button
+            document.getElementById('print-placemat')
+                .addEventListener('click', openPlacematReport);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                panAllChartsX(0.1, -1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                panAllChartsX(0.1, 1);
+            }
+        });
+
+document.getElementById('buy-coffee-btn').addEventListener('click', function () {
+    window.open('https://buymeacoffee.com/mhmatthew', '_blank', 'noopener');
+});
+
+</script>
+
+</body>
+</html>
+
+
+
+           
+
+
+                
