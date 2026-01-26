@@ -1349,21 +1349,21 @@ function buildOverlayTrackMapSvg(refLap, compareLap, definitions) {
     drawMinSpeedXs(compareLap, definitions, cmpMinSpeedCol, 0);  // Stacked if desired
 
     // Legend for Overlay Map
-    svg += `
-<g style="font-size: 18px; fill: #000000;">
-    <rect x="20" y="20" width="26" height="6" fill="${refLineColor}" />
-    <text x="55" y="26">Ref Line</text>
-    <rect x="20" y="44" width="26" height="6" fill="${refAbsColor}" />
-    <text x="55" y="50">Ref ABS</text>
-    <rect x="20" y="68" width="26" height="6" fill="${refMinSpeedCol}" />
-    <text x="55" y="74">Ref Min Speed Corner</text>
+svg += `
+<g style="font-size: 18px; fill: #000000; transform: translate(20px, 20px);">
+    <rect width="26" height="6" fill="${refLineColor}" />
+    <text x="35" y="6">Ref Line</text>
+    <rect y="20" width="26" height="6" fill="${refAbsColor}" />
+    <text x="35" y="26">Ref ABS</text>
+    <rect y="40" width="26" height="6" fill="${refMinSpeedCol}" />
+    <text x="35" y="46">Ref Min Speed Corner</text>
 
-    <rect x="20" y="98" width="26" height="6" fill="${cmpLineColor}" />
-    <text x="55" y="104">Compare Line</text>
-    <rect x="20" y="122" width="26" height="6" fill="${cmpAbsColor}" />
-    <text x="55" y="128">Compare ABS</text>
-    <rect x="20" y="146" width="26" height="6" fill="${cmpMinSpeedCol}" />
-    <text x="55" y="152">Compare Min Speed Corner</text>
+    <rect y="60" width="26" height="6" fill="${cmpLineColor}" />
+    <text x="35" y="66">Compare Line</text>
+    <rect y="80" width="26" height="6" fill="${cmpAbsColor}" />
+    <text x="35" y="86">Compare ABS</text>
+    <rect y="100" width="26" height="6" fill="${cmpMinSpeedCol}" />
+    <text x="35" y="106">Compare Min Speed Corner</text>
 </g>`;
 
     svg += `</svg>`;
@@ -2245,7 +2245,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
         });
 
 document.getElementById('buy-coffee-btn').addEventListener('click', function () {
-    window.open('https://buymeacoffee.com/mhmatthew', '_blank', 'noopener');
+    window.open('https://www.buymeacoffee.com/mhmatthew', '_blank', 'noopener');
 });
 
 </script>
