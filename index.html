@@ -168,6 +168,58 @@
 }
 
 
+        /* New styles for fullscreen chart toggle */
+        #chart-container {
+            position: relative; /* Needed for absolute positioning of fullscreen charts */
+        }
+
+        .chart-wrapper {
+            position: relative; /* Needed for absolute positioning of the fullscreen button */
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 3px;
+            color: white;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1; /* Prevents extra line height causing vertical misalignment */
+            z-index: 10; /* Ensure button is above chart */
+            transition: background-color 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Styles for the chart in fullscreen mode */
+        .chart-wrapper.is-fullscreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100; /* Ensure it's on top of other elements in #chart-container */
+            background-color: var(--chart-bg); /* Ensure background covers hidden charts */
+            padding: 20px; /* Adjust padding for fullscreen view */
+            box-sizing: border-box; /* Include padding in width/height calculation */
+            border-radius: 0; /* Remove rounded corners in fullscreen */
+        }
+
+        /* Hide other charts when one is fullscreen */
+        #chart-container.fullscreen-active .chart-wrapper:not(.is-fullscreen) {
+            display: none;
+        }
+
+
 
         .chart-wrapper {
             position: relative;
@@ -289,6 +341,9 @@
             <div class="chart-wrapper">
                 <canvas id="rpm-gear-chart"></canvas>
             </div>
+            <div class="chart-wrapper">
+                <canvas id="suspension-velocity-chart"></canvas>
+            </div>
         </section>
     </main>
 
@@ -300,6 +355,7 @@
         // --- Global State ---
         let telemetryData = []; // Stores ALL laps (valid, invalid, out/in)
         let charts = {};
+        let currentFullscreenChartWrapper = null;
         let referenceLapId = null; // ID of the lap selected as reference
         const defaultVisibleLapIds = new Set(); // IDs of laps checked visible by default
         const defaultColors = ['#007bff', '#ff4500', '#28a745', '#ffc107', '#17a2b8', '#6f42c1', '#e83e8c'];
@@ -312,6 +368,71 @@
 
         // --- NEW: Minimum time for a lap to be considered valid/complete ---
         const MIN_VALID_LAP_TIME = 10; // seconds.
+
+
+// SVG icons for the button
+const fullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3m-18 0V19a2 2 0 0 0 2 2h3"></path></svg>`;
+const exitFullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5a2 2 0 0 0-2 2v3m18 0V6a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3m-18 0V18a2 2 0 0 0 2 2h3"></path></svg>`;
+
+function addFullscreenButton(chartWrapper, chartInstance) {
+    const btn = document.createElement('button');
+    btn.className = 'fullscreen-btn';
+    btn.innerHTML = fullscreenIcon; // Initial icon
+    btn.title = 'Toggle Fullscreen';
+
+    btn.addEventListener('click', () => {
+        toggleChartFullscreen(chartWrapper, chartInstance, btn);
+    });
+    chartWrapper.appendChild(btn);
+}
+
+function toggleChartFullscreen(targetWrapper, chartInstance, buttonElement) {
+    const chartContainer = document.getElementById('chart-container');
+
+    // Store references to all potentially affected charts
+    const allCharts = Object.values(charts).filter(c => c && c.canvas && c.canvas.id !== 'suspension-velocity-chart');
+
+    // If this chart is already fullscreen, exit fullscreen
+    if (targetWrapper.classList.contains('is-fullscreen')) {
+        targetWrapper.classList.remove('is-fullscreen');
+        chartContainer.classList.remove('fullscreen-active');
+        buttonElement.innerHTML = fullscreenIcon;
+        currentFullscreenChartWrapper = null;
+    } else {
+        // If another chart is fullscreen, exit that one first
+        if (currentFullscreenChartWrapper && currentFullscreenChartWrapper !== targetWrapper) {
+            currentFullscreenChartWrapper.classList.remove('is-fullscreen');
+            const otherBtn = currentFullscreenChartWrapper.querySelector('.fullscreen-btn');
+            if (otherBtn) otherBtn.innerHTML = fullscreenIcon;
+        }
+
+        // Enter fullscreen for the target chart
+        targetWrapper.classList.add('is-fullscreen');
+        chartContainer.classList.add('fullscreen-active');
+        buttonElement.innerHTML = exitFullscreenIcon;
+        currentFullscreenChartWrapper = targetWrapper;
+    }
+
+    // Crucially, trigger Chart.js to resize itself after DOM manipulation
+    // Use a small delay to ensure CSS transitions/layout changes are complete
+    // We now resize ALL relevant charts to ensure they pick up their correct container dimensions
+    setTimeout(() => {
+        allCharts.forEach(chart => {
+            // Check if the chart's wrapper is currently visible
+            const chartElement = chart.canvas;
+            const chartWrapper = chartElement.closest('.chart-wrapper');
+            if (chartWrapper && chartWrapper.offsetParent !== null) { // offsetParent is null if display: none
+                chart.resize();
+            } else {
+                // If the chart is hidden, we explicitly ensure its internal state is prepared for when it becomes visible
+                // Forcing an update can sometimes help it wake up correctly when display:block
+                chart.update('none'); 
+            }
+        });
+    }, 50); // Small delay to let CSS apply
+}
+
+
 
         // --- Utility function for debouncing ---
         function debounce(func, delay) {
@@ -385,7 +506,11 @@
                         'Lon': 'Lon',
                         'LapInvalid': 'LapInvalid',
                         'BrakeABSactive': 'BrakeABSactive',
-                        'FuelLevel': 'FuelLevel' // ADDED: FuelLevel for consumption calculation
+                        'FuelLevel': 'FuelLevel', // ADDED: FuelLevel for consumption calculation
+                        'LFshockVel': 'LFshockVel',
+                        'RFshockVel': 'RFshockVel',
+                        'LRshockVel': 'LRshockVel',
+                        'RRshockVel': 'RRshockVel'
                     };
                     const targetVars = {};
                     for (const [key, ibtName] of Object.entries(requiredVars)) { if (varMap.has(ibtName)) targetVars[key] = varMap.get(ibtName); }
@@ -439,6 +564,40 @@
                         if (currentLapData && currentLapData.data.distance.length > 50) {
                             currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
                             result.laps.push(currentLapData);
+
+    if (currentLapData.lapNumber === 7) {
+        console.log(`[IBTParser Summary] Lap ${currentLapData.lapNumber} - General Info:`);
+        console.log(`  Total distance samples: ${currentLapData.data.distance.length}`);
+        console.log(`  Total speed samples: ${currentLapData.data.speed.length}`);
+        console.log(`  Total RPM samples: ${currentLapData.data.rpm.length}`);
+        console.log(`  Total time samples: ${currentLapData.data.time.length}`);
+
+
+        const wheels = ['shockVelLF', 'shockVelRF', 'shockVelLR', 'shockVelRR'];
+        wheels.forEach(wheelKey => {
+            const velData = currentLapData.data[wheelKey];
+            if (velData && velData.length > 0) {
+                const nonZeroVels = velData.filter(v => Math.abs(v) > 0.001); // Consider anything > 0.001 as "non-zero"
+                const maxVal = Math.max(...velData);
+                const minVal = Math.min(...velData);
+
+                console.log(`[IBTParser Summary] Lap ${currentLapData.lapNumber} - ${wheelKey}:`);
+                console.log(`  Total samples: ${velData.length}`);
+                if (nonZeroVels.length > 0) {
+                    console.log(`  Non-zero samples (abs > 0.001): ${nonZeroVels.length}`);
+                    console.log(`  Max Velocity: ${maxVal.toFixed(3)} m/s`);
+                    console.log(`  Min Velocity: ${minVal.toFixed(3)} m/s`);
+                    console.log(`  Example non-zero values (first 5):`, nonZeroVels.slice(0, 5));
+                } else {
+                    console.log(`  All ${velData.length} samples are effectively zero.`);
+                }
+            } else {
+                console.log(`[IBTParser Summary] Lap ${currentLapData.lapNumber} - ${wheelKey}: No data or empty array.`);
+            }
+        });
+    }
+
+
                         }
                         currentLap = lapNum;
                         currentLapData = this.createLapData(lapNum);
@@ -464,6 +623,11 @@
                             currentLapData.data.fuelLevel.push(getValue(rowOffset, targetVars.FuelLevel));
                         }
 
+                        if (targetVars.LFshockVel) currentLapData.data.shockVelLF.push(getValue(rowOffset, targetVars.LFshockVel));
+                        if (targetVars.RFshockVel) currentLapData.data.shockVelRF.push(getValue(rowOffset,  targetVars.RFshockVel));
+                        if (targetVars.LRshockVel) currentLapData.data.shockVelLR.push(getValue(rowOffset, targetVars.LRshockVel));
+                        if (targetVars.RRshockVel) currentLapData.data.shockVelRR.push(getValue(rowOffset, targetVars.RRshockVel));
+
                         if (lapInvalid > 0) {
                             currentLapData.lapMetadata.isValidByFlag = false;
                         }
@@ -472,6 +636,29 @@
                 if (currentLapData && currentLapData.data.distance.length > 50) {
                     currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
                     result.laps.push(currentLapData);
+
+    const wheels = ['shockVelLF', 'shockVelRF', 'shockVelLR', 'shockVelRR'];
+    wheels.forEach(wheelKey => {
+        const velData = currentLapData.data[wheelKey];
+        if (velData && velData.length > 0) {
+            const nonZeroVels = velData.filter(v => Math.abs(v) > 0.001); // Consider anything > 0.001 as "non-zero"
+            const maxVal = Math.max(...velData);
+            const minVal = Math.min(...velData);
+
+            if (nonZeroVels.length > 0) {
+                console.log(`[IBTParser Summary] Lap ${currentLapData.lapNumber} - ${wheelKey}:`);
+                console.log(`  Total samples: ${velData.length}`);
+                console.log(`  Non-zero samples (abs > 0.001): ${nonZeroVels.length}`);
+                console.log(`  Max Velocity: ${maxVal.toFixed(3)} m/s`);
+                console.log(`  Min Velocity: ${minVal.toFixed(3)} m/s`);
+                console.log(`  Example non-zero values (first 5):`, nonZeroVels.slice(0, 5));
+            } else {
+                // If all values are essentially zero
+                console.log(`[IBTParser Summary] Lap ${currentLapData.lapNumber} - ${wheelKey}: All ${velData.length} samples are effectively zero.`);
+            }
+        }
+    });
+
                 }
                 return result;
             }
@@ -485,7 +672,9 @@
                         rawLat: [], rawLon: [],
                         mapX: [], mapY: [],
                         brakeABSactive: [],
-                        fuelLevel: [] // Initialized as empty array
+                        fuelLevel: [], // Initialized as empty array
+                        shockVelLF: [], shockVelRF: [], shockVelLR: [], shockVelRR: []
+
                     },
                     lapMetadata: { 
                         isValidByFlag: true, 
@@ -674,6 +863,28 @@
                     !lap.lapMetadata.isInlap &&
                     lap.lapMetadata.isValidByFlag;
             });
+
+            const lap11 = telemetryData.find(l => l.lapNumber === 11);
+            if (lap11) {
+                console.log(`[DEBUG_VALIDITY] Lap 11 (ID: ${lap11.id}) - isConsideredValid: ${lap11.lapMetadata.isConsideredValid}`);
+                console.log(`[DEBUG_VALIDITY]   isComplete: ${lap11.lapMetadata.isComplete}`);
+                console.log(`[DEBUG_VALIDITY]   isOutlap: ${lap11.lapMetadata.isOutlap}`);
+                console.log(`[DEBUG_VALIDITY]   isInlap: ${lap11.lapMetadata.isInlap}`);
+                console.log(`[DEBUG_VALIDITY]   isValidByFlag: ${lap11.lapMetadata.isValidByFlag}`);
+                console.log(`[DEBUG_VALIDITY]   lapTime: ${lap11.lapTime}, distance.length: ${lap11.data.distance.length}`);
+
+                // Also check maxTrackDistance which influences isComplete
+                let currentMaxTrackDistance = 0;
+                telemetryData.forEach(l => {
+                    if (l.lapMetadata.isValidByFlag && l.data.distance.length > 100 && l.lapTime > MIN_VALID_LAP_TIME) {
+                        currentMaxTrackDistance = Math.max(currentMaxTrackDistance, l.data.distance[l.data.distance.length - 1]);
+                    }
+                });
+                console.log(`[DEBUG_VALIDITY]   Calculated maxTrackDistance (influencing isComplete): ${currentMaxTrackDistance}`);
+                const isFullDistanceCheck = lap11.data.distance.length > 100 && lap11.data.distance[lap11.data.distance.length - 1] > (currentMaxTrackDistance * 0.9);
+                console.log(`[DEBUG_VALIDITY]   isFullDistance check for Lap 11: ${isFullDistanceCheck}`);
+            }
+
 
             let fastestOverallValidLap = null;
 
@@ -1650,18 +1861,34 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
         // --- Charts & Map Sync ---
         function syncScales(sourceChart) {
+            // --- NEW LOGIC: If the source of the zoom/pan is the histogram,
+            // it operates independently and does not affect other charts.
+            if (sourceChart === charts.svHistogram) {
+                // For histograms, we don't use 'master zoom history' in the same way,
+                // so no need to call saveCurrentMasterZoom here.
+                return; 
+            }
+
             const xMinDistance = sourceChart.scales.x.min; 
             const xMaxDistance = sourceChart.scales.x.max; 
 
             Object.values(charts).forEach(chart => {
+                // --- NEW LOGIC: Skip the histogram chart when applying zoom/pan from other charts.
+                if (chart === charts.svHistogram) {
+                    return; // Do not apply external zoom/pan to the histogram
+                }
+
+                // If the current chart in the loop is the source chart, we don't need to update its scales
+                // as they already reflect the change that triggered this sync.
                 if (chart === sourceChart) return; 
 
+                // Existing logic for other charts (line charts and track map)
                 if (chart.config.type !== 'scatter') {
                     if (chart.options.scales && chart.options.scales.x) {
                         chart.options.scales.x.min = xMinDistance;
                         chart.options.scales.x.max = xMaxDistance;
                     }
-                } else {
+                } else { // Handle track map (scatter chart)
                     const currentRefLap = telemetryData.find(l => l.id === referenceLapId);
 
                     if (!currentRefLap || !currentRefLap.data || currentRefLap.data.distance.length === 0) {
@@ -1708,10 +1935,12 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 chart.update('none'); 
             });
 
+            // This part is specific to the delta chart (master zoom for distance-based charts)
             if (sourceChart === charts.delta) {
                 saveCurrentMasterZoom();
             }
         }
+
         
         const debouncedUpdateMapCursor = debounce((event, elements, chartInstance) => {
             if (!charts.map || !charts.map.data || !charts.map.data.datasets || charts.map.data.datasets.length === 0) {
@@ -1789,8 +2018,163 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             syncScales(masterChart);
         }
 
+function calculateSVHistogram(lap, wheelKey, minVel = -0.5, maxVel = 0.5, binSize = 0.01) {
+    const velocities = lap.data[wheelKey];
+    if (!velocities || velocities.length === 0) return [];
+
+    // 1. Filter out extreme outliers that might blow up the chart scale
+    // Valid suspension velocity is rarely above 5m/s even in extreme cases.
+    const validVelocities = velocities.filter(v => v > -5 && v < 5);
+
+    if (validVelocities.length === 0) return [];
+
+    // 2. Determine dynamic range if not provided, but cap it to reasonable limits
+    // If the car is moving, velocities are usually -0.3 to 0.3.
+    // If we use fixed -3 to 3, the graph looks thin. Let's make it tighter.
+    
+    const numBins = Math.ceil((maxVel - minVel) / binSize);
+    
+    // Initialize bins map to handle floating point keys easier
+    const binMap = new Map();
+
+    for (let i = 0; i < validVelocities.length; i++) {
+        const vel = validVelocities[i];
+        
+        if (vel >= minVel && vel < maxVel) {
+            // Snap to bin grid
+            const binIndex = Math.floor((vel - minVel) / binSize);
+            const binCenter = minVel + (binIndex * binSize) + (binSize / 2);
+            
+            // Fix floating point ugliness (e.g. 0.0100000002)
+            const cleanCenter = parseFloat(binCenter.toFixed(3));
+            
+            binMap.set(cleanCenter, (binMap.get(cleanCenter) || 0) + 1);
+        }
+    }
+
+    // Convert map to array and sort by X
+    const histogramData = Array.from(binMap, ([x, y]) => ({ x, y }))
+        .sort((a, b) => a.x - b.x);
+
+    return histogramData;
+}
+
+
+function initSVHistogramChart(canvasId, label, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) {
+        existingChart.destroy();
+    }
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: {
+            xAxisKey: 'x',
+            yAxisKey: 'y'
+        },
+        scales: {
+            x: {
+                type: 'linear',
+                offset: false,
+                title: { display: true, text: 'Suspension Velocity (m/s)', color: '#888' }, // CHANGED to #888
+                ticks: { color: '#888' },
+                grid: { color: '#333', offset: false }
+            },
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: unit, color: '#888' }, // CHANGED to #888
+                ticks: { color: '#888' },
+                grid: { color: '#333' }
+            }
+        },
+        plugins: {
+            legend: { 
+                display: true, 
+                position: 'top',  // Explicitly set position
+                align: 'center',  // Centers the legend items within the legend box
+                fullSize: true,   // IMPORTANT: Makes the legend span the full chart width
+                labels: { color: '#eee' } // KEEP legend labels light
+            },
+            title: { 
+                display: true, 
+                position: 'top',  // Explicitly set position
+                text: label, 
+                color: '#eee', // KEEP main chart title light
+                align: 'center',  // Centers the title text within the title box
+                fullSize: true    // IMPORTANT: Makes the title span the full chart width
+            },
+            tooltip: {
+                callbacks: {
+                    title: function(tooltipItems) {
+                        const binCenter = tooltipItems[0].parsed.x;
+                        const binSize = 0.01; 
+                        const binStart = binCenter - (binSize / 2);
+                        const binEnd = binCenter + (binSize / 2);
+                        return `Velocity: ${binStart.toFixed(2)} to ${binEnd.toFixed(2)} m/s`;
+                    },
+                    label: function(tooltipItem) {
+                        const datasetLabel = tooltipItem.dataset.label || '';
+                        const value = tooltipItem.parsed.y;
+                        return `${datasetLabel}: ${value} samples`;
+                    }
+                }
+            },
+            zoom: {
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: 'x', 
+                    drag: { enabled: true },
+                },
+                pan: { enabled: true, mode: 'x' }
+            }
+        }
+    };
+
+            const chart = new Chart(ctx, {
+                type: 'bar', 
+                data: { datasets: [] },
+                options: chartOptions
+            });
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
+
+
+    return new Chart(ctx, {
+        type: 'bar', 
+        data: { datasets: [] },
+        options: chartOptions
+    });
+}
+
+
+// Initialize all charts
+charts.delta = initLineChart('delta-chart', 'Time Delta (vs Reference)', 'sec');
+charts.map = initTrackMap();
+charts.speed = initLineChart('speed-chart', 'Speed', 'km/h');
+charts.inputs = initLineChart('throttle-brake-chart', 'Inputs', '%');
+charts.steering = initLineChart('steering-chart', 'Steering', 'rad');
+charts.rpm = initLineChart('rpm-gear-chart', 'RPM / Gear', 'val');
+// --- ADD THIS INITIALIZATION ---
+charts.svHistogram = initSVHistogramChart('suspension-velocity-chart', 'Suspension Velocity Histogram', 'Samples');
+// --- END OF NEW INITIALIZATION ---
+
+
         function initLineChart(canvasId, label, unit) {
             const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) {
+        existingChart.destroy();
+    }
             
             const chartOptions = { 
                 responsive: true,
@@ -1888,6 +2272,20 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 chartOptions.scales.y.max = 100;
             }
 
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: chartOptions 
+            });
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
+
+
             return new Chart(ctx, {
                 type: 'line',
                 data: { datasets: [] },
@@ -1897,7 +2295,13 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
         function initTrackMap() {
             const ctx = document.getElementById('track-map-chart').getContext('2d');
-            return new Chart(ctx, {
+
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const chart = new Chart(ctx, { // <-- Declare 'chart' here
                 type: 'scatter', 
                 data: { datasets: [] },
                 options: {
@@ -1912,7 +2316,15 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                     elements: { point: { radius: 0 }, line: { borderWidth: 2 } } 
                 }
             });
+
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById('track-map-chart').closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
         }
+
 
         // Initialize all charts
         charts.delta = initLineChart('delta-chart', 'Time Delta (vs Reference)', 'sec');
@@ -2014,6 +2426,74 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                        !charts.rpm.data.datasets.some(ds => ds.yAxisID === 'y1')) {
                 delete charts.rpm.options.scales.y1;
             }
+
+            // --- SUSPENSION VELOCITY HISTOGRAM (FIXED SCALING, RANGE, AND CENTERING) ---
+            const svDatasets = [];
+            const wheelKeys = ['shockVelLF', 'shockVelRF', 'shockVelLR', 'shockVelRR'];
+            const wheelNames = ['LF', 'RF', 'LR', 'RR'];
+            const wheelColors = { 'LF': '#007bff', 'RF': '#ffc107', 'LR': '#28a745', 'RR': '#dc3545' };
+
+            // Define a more generous, yet realistic, range for damper velocity (in m/s)
+            const HIST_MIN = -2.0; 
+            const HIST_MAX = 2.0;  
+            const HIST_BIN = 0.01; // 1cm/s resolution
+
+            let globalMinVel = Infinity;
+            let globalMaxVel = -Infinity;
+
+            selectedLaps.forEach(lap => {
+                wheelKeys.forEach((key, i) => {
+                    if (!lap.data[key]) return;
+
+                    const histData = calculateSVHistogram(lap, key, HIST_MIN, HIST_MAX, HIST_BIN);
+                    
+                    if (histData.length > 0) {
+                        const xs = histData.map(d => d.x);
+                        const minX = Math.min(...xs);
+                        const maxX = Math.max(...xs);
+                        
+                        if (minX < globalMinVel) globalMinVel = minX;
+                        if (maxX > globalMaxVel) globalMaxVel = maxX;
+
+                        svDatasets.push({
+                            label: `L${lap.lapNumber} ${wheelNames[i]}`,
+                            data: histData,
+                            backgroundColor: wheelColors[wheelNames[i]] + '80',
+                            borderColor: wheelColors[wheelNames[i]],
+                            borderWidth: 1,
+                            barPercentage: 1.0, 
+                            categoryPercentage: 1.0,
+                            lapId: lap.id
+                        });
+                    }
+                });
+            });
+
+            charts.svHistogram.data.datasets = []; // Explicitly clear
+            charts.svHistogram.data.datasets = svDatasets; // Assign new
+
+            // Set scale to be symmetrical around zero, based on the largest absolute velocity.
+            if (globalMinVel !== Infinity && globalMaxVel !== -Infinity && svDatasets.length > 0) {
+                const maxAbsoluteVelocity = Math.max(Math.abs(globalMinVel), Math.abs(globalMaxVel));
+                
+                // Calculate padding based on the determined range
+                const rangeForPadding = maxAbsoluteVelocity * 2; 
+                const padding = Math.max(rangeForPadding * 0.1, 0.05); // Minimum padding of 0.05 m/s
+                
+                charts.svHistogram.options.scales.x.min = -(maxAbsoluteVelocity + padding);
+                charts.svHistogram.options.scales.x.max = (maxAbsoluteVelocity + padding);
+            } else {
+                // Fallback defaults if no valid data found
+                charts.svHistogram.options.scales.x.min = HIST_MIN; 
+                charts.svHistogram.options.scales.x.max = HIST_MAX;
+            }
+            
+            charts.svHistogram.options.scales.y.min = 0;
+            charts.svHistogram.update();
+            // --- END SUSPENSION VELOCITY HISTOGRAM ---
+
+
+
 
             // 3. Track Map & Cursor
             const mapDatasets = selectedLaps.map(lap => ({
@@ -2148,10 +2628,16 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
             Object.values(charts).forEach(chart => {
                 if (chart.config.type !== 'scatter' && chart.options.scales && chart.options.scales.x) {
-                    chart.options.scales.x.min = undefined;
-                    chart.options.scales.x.max = undefined;
+                    // Do not reset X-axis min/max for the SV histogram here
+                    if (chart.canvas.id !== 'suspension-velocity-chart') {
+                         chart.options.scales.x.min = undefined;
+                         chart.options.scales.x.max = undefined;
+                    }
                 }
-                chart.update();
+                // Only update charts not updated already (svHistogram is updated above)
+                if (chart.canvas.id !== 'suspension-velocity-chart') {
+                    chart.update();
+                }
             });
             
             if (charts.delta) {
@@ -2161,9 +2647,20 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
         // --- Full reset of charts ---
         function performFullReset() {
-            updateCharts();
+            // Reset zoom for all charts that have the plugin, except the independent histogram
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.canvas.id !== 'suspension-velocity-chart' && chart.zoom && chart.zoom.resetZoom) {
+                    chart.zoom.resetZoom();
+                }
+            });
+            
+            // This will update all charts' data and responsive behavior should handle initial drawing
+            updateCharts(); 
             zoomHistory = []; 
         }
+
+
+
 
         function applyZoomState(min, max) {
             const masterChart = charts.delta;
@@ -2185,7 +2682,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 let isLongPress = false;
                 resetZoomTimer = setTimeout(() => {
                     isLongPress = true;
-                    performFullReset();
+                    performFullReset(); // Long press performs a full reset
                     resetZoomTimer = null;
                 }, HOLD_DURATION);
 
@@ -2195,9 +2692,10 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                         if (zoomHistory.length > 1) {
                             zoomHistory.pop();
                             const previousState = zoomHistory[zoomHistory.length - 1];
-                            applyZoomState(previousState.min, previousState.max);
+                            applyZoomState(previousState.min, previousState.max); // Short press "undoes" using history
                         } else {
-                            performFullReset();
+                            // If no history, or only initial state, perform a full reset for all zoomable charts
+                            performFullReset(); 
                         }
                     }
                     document.removeEventListener('mouseup', mouseUpHandler);
@@ -2216,6 +2714,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 document.addEventListener('mouseleave', mouseLeaveHandler);
             }
         });
+
 
         document.addEventListener('DOMContentLoaded', () => {
             const toggleTooltipsCheckbox = document.getElementById('toggle-tooltips');
