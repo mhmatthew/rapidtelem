@@ -25,7 +25,6 @@ The Rapid Telemetry Viewer is a groundbreaking, client-side, browser-based tool 
     *   **Steering Angle Chart:** Understand steering patterns.
     *   **RPM/Gear Chart:** Monitor engine RPM and gear selections.
     *   **Suspension Velocity Histogram:** Analyze damper velocities for ride quality and setup validation (X-axis symmetrical around zero).
-    *   **Combined G-Force Scatter Plot:** Visualize Lateral vs. Longitudinal G-forces for dynamic chassis behavior analysis (X/Y axes symmetrical around zero).
 *   **Dynamic Visual Aids:**
     *   **Interactive Track Map:** See your driving line, synced with cursor positions across other charts.
     *   **ABS Active Zones:** Overlay shaded regions on the throttle/brake chart to highlight ABS activation.
@@ -35,7 +34,7 @@ The Rapid Telemetry Viewer is a groundbreaking, client-side, browser-based tool 
     *   **"Placemat" Report:** Generate a printable PDF report for detailed side-by-side comparison of selected laps, including track maps with ABS zones and min-speed corner markers, and detailed sector metrics.
 *   **Enhanced User Experience:**
     *   **Intuitive Controls:** Easy file import, lap selection, and chart interaction.
-    *   **Synchronized Zoom & Pan:** Effortlessly navigate through telemetry data; zoom/pan on one distance-based chart reflects across others. G-force and damper velocity charts zoom independently.
+    *   **Synchronized Zoom & Pan:** Effortlessly navigate through telemetry data; zoom/pan on one distance-based chart reflects across others. Damper velocity chart zooms independently.
     *   **Reset Zoom Functionality:** Quickly reset chart views to auto-scaled.
     *   **Chart Fullscreen Toggle:** Expand any individual chart to fill the main view area for focused analysis without hiding the sidebar.
     *   **Responsive Design:** Adapts to various screen sizes.
