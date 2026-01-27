@@ -1,4 +1,4 @@
-# 🚀 Rapid Telemetry Viewer for iRacing by HubX
+# 🚀 Rapid Telemetry Viewer for iRacing
 
 ## Fast, Free, Local Telemetry Analysis – No Install, No Account, No Cloud!
 
