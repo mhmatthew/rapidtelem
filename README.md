@@ -56,7 +56,7 @@ This tool stands out from traditional telemetry analysis software by offering un
 
 ### 📖 How to Use
 
-1.  **Download:** Grab the `rapid_telemetry_viewer.html` file from this GitHub repository.
+1.  **Download:** Grab the `index.html` file from this GitHub repository.
 2.  **Open:** Double-click the downloaded `.html` file, or drag it into your preferred modern web browser.
 3.  **Import Data:** Click the "Import .ibt File(s)" button in the header and select one or more iRacing `.ibt` telemetry files.
 4.  **Analyze:** Your laps will appear in the sidebar. Select laps for comparison, choose a reference lap, and explore the interactive charts. Utilize the zoom, pan, and fullscreen options for detailed insights.
