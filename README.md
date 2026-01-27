@@ -4,7 +4,7 @@
 
 <img width="540" height="360" alt="image" src="https://github.com/user-attachments/assets/92f4e2ef-67dc-4acf-af89-b0017cf1b6ca" />
 
-The Rapid Telemetry Viewer is a groundbreaking, client-side, browser-based tool designed specifically for iRacing telemetry data analysis. Unlike conventional telemetry solutions, this viewer redefines accessibility and privacy, offering a powerful suite of analysis features encapsulated within a single, portable HTML file. Forget installations, subscriptions, or data uploads. Simply open the file in your web browser, import your iRacing `.ibt` files, and dive deep into your driving data instantly.
+The Rapid Telemetry Viewer is a client-side, browser-based tool designed specifically for iRacing telemetry data analysis. Unlike conventional telemetry solutions, this viewer redefines accessibility and privacy, offering a powerful suite of analysis features encapsulated within a single, portable HTML file. Forget installations, subscriptions, or data uploads. Simply open the file in your web browser, import your iRacing `.ibt` files, and dive deep into your driving data instantly.
 
 ---
 
