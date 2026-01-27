@@ -76,7 +76,6 @@ The viewer intelligently parses your `.ibt` files to extract and visualize the f
 *   `LapInvalid`, `BrakeABSactive`
 *   `FuelLevel`
 *   `LFshockVel`, `RFshockVel`, `LRshockVel`, `RRshockVel` (for damper velocity histogram)
-*   `LatAccel`, `LongAccel` (for combined G-force scatter plot)
 
 ---
 
