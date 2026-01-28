@@ -268,6 +268,18 @@
     background-color: rgba(0, 0, 0, 0.8);
 }
 
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 0;              /* remove flex gap */
+}
+
+.header-brand h1 {
+    margin: 0;
+    margin-left: 0px;    /* tiny manual spacing between logo and text */
+    font-size: 1.4em;
+}
+
 
 @media (max-width: 768px) {
     /* Layout: stack sidebar above charts instead of side-by-side */
@@ -369,9 +381,51 @@
     </style>
 </head>
 <body>
-    <header>
-        <h1>Rapid Telemetry Viewer</h1>
-        <div class="controls">
+<header>
+<div class="header-brand">
+  <svg
+    viewBox="0 0 130 40"
+    width="90"
+    height="28"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <!-- Telemetry waveform line (shifted left and scaled down vertically) -->
+    <polyline
+      points="0,28 13,24 26,30 39,20 52,22 65,15 78,18 91,14 104,17"
+      fill="none"
+      stroke="#007bff"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Stylized car silhouette (shifted and scaled for new viewBox) -->
+    <path
+      d="M5 24
+         C 12 14, 33 12, 45 14
+         L 57 15
+         C 64 16, 70 19, 74 23
+         L 72 24
+         C 68 20, 63 18, 57 19
+         L 44 20
+         C 33 17, 18 17, 9 24
+         Z"
+      fill="none"
+      stroke="#ffc107"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Wheels -->
+    <circle cx="18" cy="26" r="3" fill="#1a1a1a" stroke="#888" stroke-width="1.6"/>
+    <circle cx="40" cy="26" r="3" fill="#1a1a1a" stroke="#888" stroke-width="1.6"/>
+  </svg>
+
+  <h1>Rapid Telemetry Viewer</h1>
+</div>
+
+  <div class="controls">
             <label for="file-import" class="import-button">Import .ibt File(s)</label>
             <input type="file" id="file-import" accept=".ibt" multiple hidden>
             
