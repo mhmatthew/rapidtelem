@@ -2227,31 +2227,37 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
         }
 
         
-        const debouncedUpdateMapCursor = debounce((event, elements, chartInstance) => {
-            if (!charts.map || !charts.map.data || !charts.map.data.datasets || charts.map.data.datasets.length === 0) {
-                return;
+const debouncedUpdateMapCursor = debounce((event, elements, chartInstance) => {
+    if (!charts.map || !charts.map.data || !charts.map.data.datasets || charts.map.data.datasets.length === 0) {
+        return;
+    }
+
+    const cursorDsIndex = charts.map.data.datasets.length - 1;
+
+    if (elements && elements.length > 0) {
+        const first = elements[0];
+
+        let distance = null;
+        if (first.element && first.element.$context) {
+            const ctx = first.element.$context;
+
+            // PREFER raw.d (distance) if present (G-force scatter),
+            // then fall back to raw.x (line charts use x = distance),
+            // then parsed.x as last resort.
+            if (ctx.raw && typeof ctx.raw.d === 'number') {
+                distance = ctx.raw.d;
+            } else if (ctx.raw && typeof ctx.raw.x === 'number') {
+                distance = ctx.raw.x;
+            } else if (ctx.parsed && typeof ctx.parsed.x === 'number') {
+                distance = ctx.parsed.x;
             }
+        }
 
-            const cursorDsIndex = charts.map.data.datasets.length - 1;
-
-            if (elements && elements.length > 0) {
-                const first = elements[0];
-
-                let distance = null;
-                if (first.element && first.element.$context) {
-                    const ctx = first.element.$context;
-                    if (ctx.raw && typeof ctx.raw.x === 'number') {
-                        distance = ctx.raw.x;
-                    } else if (ctx.parsed && typeof ctx.parsed.x === 'number') {
-                        distance = ctx.parsed.x;
-                    }
-                }
-
-                if (distance == null) {
-                    const rect = chartInstance.canvas.getBoundingClientRect();
-                    const xPixel = event.clientX - rect.left;
-                    distance = chartInstance.scales.x.getValueForPixel(xPixel);
-                }
+        if (distance == null) {
+            const rect = chartInstance.canvas.getBoundingClientRect();
+            const xPixel = event.clientX - rect.left;
+            distance = chartInstance.scales.x.getValueForPixel(xPixel);
+        }
 
                 let lapForMap = telemetryData.find(l => l.id === referenceLapId);
                 if (!lapForMap && defaultVisibleLapIds.size > 0) {
@@ -2923,37 +2929,47 @@ updateDamperRecommendations();
             // --- END SUSPENSION VELOCITY HISTOGRAM ---
 
             // --- G-Force Scatter Plot (NEW BLOCK) ---
-            const gForceDatasets = [];
-            let globalMinLatG = Infinity, globalMaxLatG = -Infinity;
-            let globalMinLongG = Infinity, globalMaxLongG = -Infinity;
+const gForceDatasets = [];
+let globalMinLatG = Infinity, globalMaxLatG = -Infinity;
+let globalMinLongG = Infinity, globalMaxLongG = -Infinity;
 
-            selectedLaps.forEach(lap => {
-                // Ensure data exists before processing
-                if (!lap.data.gForceLat || !lap.data.gForceLong || lap.data.gForceLat.length === 0) return;
+// Use visible laps only
+selectedLaps.forEach(lap => {
+    if (!lap.data.gForceLat || !lap.data.gForceLong || lap.data.gForceLat.length === 0) return;
+    if (!lap.data.distance || lap.data.distance.length === 0) return;
 
-                const data = lap.data.gForceLong.map((longG, i) => {
-                    const latG = lap.data.gForceLat[i];
-                    
-                    // Update global min/max for symmetrical scaling
-                    if (longG < globalMinLongG) globalMinLongG = longG;
-                    if (longG > globalMaxLongG) globalMaxLongG = longG;
-                    if (latG < globalMinLatG) globalMinLatG = latG;
-                    if (latG > globalMaxLatG) globalMaxLatG = latG;
+    const data = [];
+    const len = Math.min(
+        lap.data.gForceLat.length,
+        lap.data.gForceLong.length,
+        lap.data.distance.length
+    );
 
-                    return { x: longG, y: latG };
-                });
+    for (let i = 0; i < len; i++) {
+        const longG = lap.data.gForceLong[i];
+        const latG  = lap.data.gForceLat[i];
+        const d     = lap.data.distance[i];  // distance along lap at this sample
 
-                gForceDatasets.push({
-                    label: `L${lap.lapNumber} G-Forces`,
-                    data: data,
-                    borderColor: lap.color,
-                    backgroundColor: lap.color + '40', // Slightly transparent points
-                    pointRadius: 1.5,
-                    pointHoverRadius: 4,
-                    lapId: lap.id
-                });
-            });
+        if (longG < globalMinLongG) globalMinLongG = longG;
+        if (longG > globalMaxLongG) globalMaxLongG = longG;
+        if (latG  < globalMinLatG)  globalMinLatG  = latG;
+        if (latG  > globalMaxLatG)  globalMaxLatG  = latG;
 
+        data.push({ x: longG, y: latG, d }); // <-- include distance
+    }
+
+    if (data.length > 0) {
+        gForceDatasets.push({
+            label: `L${lap.lapNumber} G-Forces`,
+            data,
+            borderColor: lap.color,
+            backgroundColor: lap.color + '40',
+            pointRadius: 1.5,
+            pointHoverRadius: 5,
+            lapId: lap.id
+        });
+    }
+});
 
 charts.gforces.data.datasets = []; 
 charts.gforces.data.datasets = gForceDatasets;
@@ -3148,15 +3164,18 @@ function initGForceScatterChart(canvasId, label, unit) {
         existingChart.destroy();
     }
 
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        parsing: {
-            xAxisKey: 'x',
-            yAxisKey: 'y'
-        },
-        scales: {
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    parsing: {
+        xAxisKey: 'x',
+        yAxisKey: 'y'
+    },
+    interaction: { mode: 'nearest', intersect: false },
+    onHover: (e, elements, chartInstance) => debouncedUpdateMapCursor(e, elements, chartInstance),
+    onLeave: (e, elements, chartInstance) => debouncedUpdateMapCursor(e, null, chartInstance),
+    scales: {
             x: {
                 type: 'linear',
                 position: 'bottom',
