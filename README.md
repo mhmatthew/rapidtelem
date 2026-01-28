@@ -1,6 +1,6 @@
 # 🚀 Rapid Telemetry Viewer for iRacing
 
-## Fast, Free, Local Telemetry Analysis – No Install, No Account, No Cloud! [rapidtelem](https:rapidtelem.com)
+## Fast, Free, Local Telemetry Analysis – No Install, No Account, No Cloud! <a href="https://rapidtelem.com" target="_blank">rapidtelem.com</a>
 
 <img width="540" height="360" alt="image" src="https://github.com/user-attachments/assets/92f4e2ef-67dc-4acf-af89-b0017cf1b6ca" />
 
