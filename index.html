@@ -247,6 +247,28 @@
             pointer-events: none;
         }
 
+.chart-help-icon {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    cursor: help;
+    z-index: 6;
+    user-select: none;
+}
+
+.chart-help-icon:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+
 @media (max-width: 768px) {
     /* Layout: stack sidebar above charts instead of side-by-side */
     main {
@@ -255,12 +277,9 @@
 
     #sidebar {
         width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
         border-right: none;
         border-bottom: 1px solid var(--border-color);
-        max-height: 40vh; /* let it scroll but not take the whole screen */
-        overflow-y: auto;
+        max-height: 25vh;         /* keep sidebar from taking the whole screen */
     }
 
     #chart-container {
@@ -274,7 +293,6 @@
         padding: 8px;
     }
 
-    /* Header: title on top, controls below */
     header {
         flex-direction: column;
         align-items: stretch;
@@ -287,7 +305,7 @@
         margin-bottom: 4px;
     }
 
-    /* Controls in a 2-column grid on phones */
+    /* Make controls wrap nicely in a grid-like block */
     header .controls {
         width: 100%;
         display: grid;
@@ -295,43 +313,39 @@
         gap: 6px;
     }
 
-    /* Make each control fill its grid cell */
+    /* Make buttons and label-toggles fill their cell */
     header .controls > * {
         width: 100%;
         justify-content: center;
     }
 
-    /* Compact the toggle labels (Show Tooltip, Show ABS) */
+    /* Compact the toggle labels */
     header .controls label {
         font-size: 0.8rem;
         padding: 4px 6px;
         background-color: #333;
         border-radius: 4px;
         box-sizing: border-box;
-        display: flex;
-        align-items: center;
     }
 
     header .controls label input[type="checkbox"] {
         margin-right: 4px;
     }
 
-    /* Smaller buttons on mobile */
-    .import-button,
-    button {
+    .import-button, button {
         padding: 6px 8px;
         font-size: 0.8rem;
     }
 
-    /* Keep Import button blue and center its text */
-    header .controls .import-button {
-        background-color: #007bff;
-        color: #fff;
-        display: flex;
-        align-items: center;    /* vertical centering */
-        justify-content: center;/* horizontal centering */
-        text-align: center;
-    }
+header .controls .import-button {
+    background-color: #007bff;
+    color: #fff;
+    display: flex;
+    align-items: center;    /* vertical centering */
+    justify-content: center;/* horizontal centering */
+    text-align: center;     /* fallback */
+}
+
 }
 
 @media (max-width: 480px) {
@@ -340,7 +354,6 @@
         grid-template-columns: 1fr;
     }
 }
-
 
 
 
@@ -446,18 +459,19 @@
             <div class="chart-wrapper">
                 <canvas id="rpm-gear-chart"></canvas>
             </div>
-            <div class="chart-wrapper">
-                <canvas
-  id="suspension-velocity-chart"
-  title="Suspension Velocity Histogram:
+<div class="chart-wrapper">
+    <div class="chart-help-icon"
+         title="Suspension Velocity Histogram:
 - X axis: damper shaft velocity in mm/s (negative = bump/compression, positive = rebound/extension).
 - Y axis: number of samples at that speed.
 - A smooth, roughly symmetric shape around 0 mm/s usually indicates a well-balanced damper.
 - Tall bars near 0 mm/s → damper spends most time at low speed (stiffer feel).
-- Significant bars far from 0 mm/s → frequent high-speed movement (softer or heavily worked corner)."
-></canvas>
+- Significant bars far from 0 mm/s → frequent high-speed movement (softer or heavily worked corner).">
+        ?
+    </div>
+    <canvas id="suspension-velocity-chart"></canvas>
+</div>
 
-            </div>
 <div class="chart-wrapper" id="damper-rec-wrapper" style="height:auto; padding:10px;">
 <h3
   style="margin:0 0 8px; font-size:0.95rem; color:#ccc; cursor:help;"
@@ -471,18 +485,19 @@ Use these with the text below to decide whether to soften or stiffen bump/reboun
 
     <div id="damper-rec-content" style="font-size:0.8rem; color:#aaa;"></div>
 </div>
-            <div class="chart-wrapper"> <!-- NEW G-FORCE CHART WRAPPER -->
-                <canvas
-  id="gforce-scatter-chart"
-  title="Combined G-Forces Scatter:
+<div class="chart-wrapper">
+    <div class="chart-help-icon"
+         title="Combined G-Forces Scatter:
 - Each point is one moment on track: X = Longitudinal G (braking/throttle), Y = Lateral G (cornering).
 - Negative X: braking, positive X: acceleration.
 - Negative Y: left-hand cornering load, positive Y: right-hand cornering load.
 - The outer ‘cloud’ shape shows the maximum combined grip you’re using.
-- Compare laps: denser outer points for one lap often mean better use of available grip, if the car is still stable."
-></canvas>
+- Compare laps: denser outer points for one lap often mean better use of available grip, if the car is still stable.">
+        ?
+    </div>
+    <canvas id="gforce-scatter-chart"></canvas>
+</div>
 
-            </div>
         </section>
     </main>
 
@@ -2719,14 +2734,28 @@ charts.gforces = initGForceScatterChart('gforce-scatter-chart', 'Combined G-Forc
         }
 
 
-        function toggleTooltips(enabled) {
-            Object.values(charts).forEach(chart => {
-                if (chart.options.plugins && chart.options.plugins.tooltip && chart.config.type !== 'scatter') {
-                    chart.options.plugins.tooltip.enabled = enabled;
-                    chart.update('none'); 
-                }
-            });
+function toggleTooltips(enabled) {
+    Object.values(charts).forEach(chart => {
+        if (!chart.options.plugins || !chart.options.plugins.tooltip) return;
+
+        const isGForce = chart.canvas && chart.canvas.id === 'gforce-scatter-chart';
+        const isTrackMap = chart.canvas && chart.canvas.id === 'track-map-chart';
+
+        // Never show tooltips on the track map
+        if (isTrackMap) {
+            chart.options.plugins.tooltip.enabled = false;
+            chart.update('none');
+            return;
         }
+
+        // Enable/disable on all non-map charts, including G-force
+        if (chart.config.type !== 'scatter' || isGForce) {
+            chart.options.plugins.tooltip.enabled = enabled;
+            chart.update('none');
+        }
+    });
+}
+
 
         function updateCharts() {
             const selectedLaps = telemetryData.filter(l => defaultVisibleLapIds.has(l.id));
@@ -3168,19 +3197,20 @@ function initGForceScatterChart(canvasId, label, unit) {
                 align: 'center',
                 fullSize: true
             },
-            tooltip: {
-                callbacks: {
-                    title: function(tooltipItems) {
-                        return `G-Forces`; // Shorter title for tooltip
-                    },
-                    label: function(tooltipItem) {
-                        const lapId = tooltipItem.dataset.lapId;
-                        const lap = telemetryData.find(l => l.id === lapId);
-                        const lapInfo = lap ? `L${lap.lapNumber} (${lap.filenameWithoutExt})` : '';
-                        return `${lapInfo} Lat: ${tooltipItem.parsed.y.toFixed(2)} G, Long: ${tooltipItem.parsed.x.toFixed(2)} G`;
-                    }
-                }
-            },
+tooltip: {
+    enabled: false, // start with tooltips off; checkbox will control this
+    callbacks: {
+        title: function(tooltipItems) {
+            return `G-Forces`; // Shorter title for tooltip
+        },
+        label: function(tooltipItem) {
+            const lapId = tooltipItem.dataset.lapId;
+            const lap = telemetryData.find(l => l.id === lapId);
+            const lapInfo = lap ? `L${lap.lapNumber} (${lap.filenameWithoutExt})` : '';
+            return `${lapInfo} Lat: ${tooltipItem.parsed.y.toFixed(2)} G, Long: ${tooltipItem.parsed.x.toFixed(2)} G`;
+        }
+    }
+},
             zoom: {
                 zoom: {
                     wheel: { enabled: true },
