@@ -168,6 +168,58 @@
 }
 
 
+        /* New styles for fullscreen chart toggle */
+        #chart-container {
+            position: relative; /* Needed for absolute positioning of fullscreen charts */
+        }
+
+        .chart-wrapper {
+            position: relative; /* Needed for absolute positioning of the fullscreen button */
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 3px;
+            color: white;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1; /* Prevents extra line height causing vertical misalignment */
+            z-index: 10; /* Ensure button is above chart */
+            transition: background-color 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Styles for the chart in fullscreen mode */
+        .chart-wrapper.is-fullscreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100; /* Ensure it's on top of other elements in #chart-container */
+            background-color: var(--chart-bg); /* Ensure background covers hidden charts */
+            padding: 20px; /* Adjust padding for fullscreen view */
+            box-sizing: border-box; /* Include padding in width/height calculation */
+            border-radius: 0; /* Remove rounded corners in fullscreen */
+        }
+
+        /* Hide other charts when one is fullscreen */
+        #chart-container.fullscreen-active .chart-wrapper:not(.is-fullscreen) {
+            display: none;
+        }
+
+
 
         .chart-wrapper {
             position: relative;
@@ -194,6 +246,86 @@
         .chartjs-tooltip {
             pointer-events: none;
         }
+
+@media (max-width: 768px) {
+    /* Layout: stack sidebar above charts instead of side-by-side */
+    main {
+        flex-direction: column;
+    }
+
+    #sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        max-height: 25vh;         /* keep sidebar from taking the whole screen */
+    }
+
+    #chart-container {
+        padding: 10px;            /* less padding on small screens */
+        gap: 10px;
+    }
+
+    /* Make charts taller so they’re easier to read on a narrow screen */
+    .chart-wrapper {
+        height: 260px;            /* was 200px */
+        padding: 8px;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    header h1 {
+        font-size: 1.2em;
+        text-align: left;
+        margin-bottom: 4px;
+    }
+
+    /* Make controls wrap nicely in a grid-like block */
+    header .controls {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    /* Make buttons and label-toggles fill their cell */
+    header .controls > * {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Compact the toggle labels */
+    header .controls label {
+        font-size: 0.8rem;
+        padding: 4px 6px;
+        background-color: #333;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    header .controls label input[type="checkbox"] {
+        margin-right: 4px;
+    }
+
+    .import-button, button {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    /* On very small phones, stack controls in a single column */
+    header .controls {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+
     </style>
 </head>
 <body>
@@ -264,6 +396,12 @@
                     </table>
                 </div>
             </div>
+<div>
+    <h2>Session Summary</h2>
+    <div id="summary-container" style="font-size:0.8em; color:#aaa;">
+        <span style="color:#888;">No summary available.</span>
+    </div>
+</div>
             <div>
                 <h2>Contact</h2>
                 <p style="font-size: 0.8em; color: #888;">
@@ -289,6 +427,43 @@
             <div class="chart-wrapper">
                 <canvas id="rpm-gear-chart"></canvas>
             </div>
+            <div class="chart-wrapper">
+                <canvas
+  id="suspension-velocity-chart"
+  title="Suspension Velocity Histogram:
+- X axis: damper shaft velocity in mm/s (negative = bump/compression, positive = rebound/extension).
+- Y axis: number of samples at that speed.
+- A smooth, roughly symmetric shape around 0 mm/s usually indicates a well-balanced damper.
+- Tall bars near 0 mm/s → damper spends most time at low speed (stiffer feel).
+- Significant bars far from 0 mm/s → frequent high-speed movement (softer or heavily worked corner)."
+></canvas>
+
+            </div>
+<div class="chart-wrapper" id="damper-rec-wrapper" style="height:auto; padding:10px;">
+<h3
+  style="margin:0 0 8px; font-size:0.95rem; color:#ccc; cursor:help;"
+  title="Each corner shows mean and σ (sigma) for damper velocity:
+- mean (mm/s): average shaft speed. Near 0 → balanced bump/rebound. Negative → bump bias, positive → rebound bias.
+- σ (mm/s): how wide the velocity spread is. Low σ → stiffer / less movement. High σ → softer / more movement.
+Use these with the text below to decide whether to soften or stiffen bump/rebound at each corner."
+>
+  Damper Recommendations
+</h3>
+
+    <div id="damper-rec-content" style="font-size:0.8rem; color:#aaa;"></div>
+</div>
+            <div class="chart-wrapper"> <!-- NEW G-FORCE CHART WRAPPER -->
+                <canvas
+  id="gforce-scatter-chart"
+  title="Combined G-Forces Scatter:
+- Each point is one moment on track: X = Longitudinal G (braking/throttle), Y = Lateral G (cornering).
+- Negative X: braking, positive X: acceleration.
+- Negative Y: left-hand cornering load, positive Y: right-hand cornering load.
+- The outer ‘cloud’ shape shows the maximum combined grip you’re using.
+- Compare laps: denser outer points for one lap often mean better use of available grip, if the car is still stable."
+></canvas>
+
+            </div>
         </section>
     </main>
 
@@ -300,6 +475,7 @@
         // --- Global State ---
         let telemetryData = []; // Stores ALL laps (valid, invalid, out/in)
         let charts = {};
+        let currentFullscreenChartWrapper = null;
         let referenceLapId = null; // ID of the lap selected as reference
         const defaultVisibleLapIds = new Set(); // IDs of laps checked visible by default
         const defaultColors = ['#007bff', '#ff4500', '#28a745', '#ffc107', '#17a2b8', '#6f42c1', '#e83e8c'];
@@ -312,6 +488,72 @@
 
         // --- NEW: Minimum time for a lap to be considered valid/complete ---
         const MIN_VALID_LAP_TIME = 10; // seconds.
+
+
+// SVG icons for the button
+const fullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3m-18 0V19a2 2 0 0 0 2 2h3"></path></svg>`;
+const exitFullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5a2 2 0 0 0-2 2v3m18 0V6a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3m-18 0V18a2 2 0 0 0 2 2h3"></path></svg>`;
+
+function addFullscreenButton(chartWrapper, chartInstance) {
+    const btn = document.createElement('button');
+    btn.className = 'fullscreen-btn';
+    btn.innerHTML = fullscreenIcon; // Initial icon
+    btn.title = 'Toggle Fullscreen';
+
+    btn.addEventListener('click', () => {
+        toggleChartFullscreen(chartWrapper, chartInstance, btn);
+    });
+    chartWrapper.appendChild(btn);
+}
+
+function toggleChartFullscreen(targetWrapper, chartInstance, buttonElement) {
+    const chartContainer = document.getElementById('chart-container');
+
+    // Store references to all potentially affected charts
+    const allCharts = Object.values(charts).filter(c => c && c.canvas && c.canvas.id !== 'suspension-velocity-chart' && c.canvas.id !== 'gforce-scatter-chart');
+
+
+    // If this chart is already fullscreen, exit fullscreen
+    if (targetWrapper.classList.contains('is-fullscreen')) {
+        targetWrapper.classList.remove('is-fullscreen');
+        chartContainer.classList.remove('fullscreen-active');
+        buttonElement.innerHTML = fullscreenIcon;
+        currentFullscreenChartWrapper = null;
+    } else {
+        // If another chart is fullscreen, exit that one first
+        if (currentFullscreenChartWrapper && currentFullscreenChartWrapper !== targetWrapper) {
+            currentFullscreenChartWrapper.classList.remove('is-fullscreen');
+            const otherBtn = currentFullscreenChartWrapper.querySelector('.fullscreen-btn');
+            if (otherBtn) otherBtn.innerHTML = fullscreenIcon;
+        }
+
+        // Enter fullscreen for the target chart
+        targetWrapper.classList.add('is-fullscreen');
+        chartContainer.classList.add('fullscreen-active');
+        buttonElement.innerHTML = exitFullscreenIcon;
+        currentFullscreenChartWrapper = targetWrapper;
+    }
+
+    // Crucially, trigger Chart.js to resize itself after DOM manipulation
+    // Use a small delay to ensure CSS transitions/layout changes are complete
+    // We now resize ALL relevant charts to ensure they pick up their correct container dimensions
+    setTimeout(() => {
+        allCharts.forEach(chart => {
+            // Check if the chart's wrapper is currently visible
+            const chartElement = chart.canvas;
+            const chartWrapper = chartElement.closest('.chart-wrapper');
+            if (chartWrapper && chartWrapper.offsetParent !== null) { // offsetParent is null if display: none
+                chart.resize();
+            } else {
+                // If the chart is hidden, we explicitly ensure its internal state is prepared for when it becomes visible
+                // Forcing an update can sometimes help it wake up correctly when display:block
+                chart.update('none'); 
+            }
+        });
+    }, 50); // Small delay to let CSS apply
+}
+
+
 
         // --- Utility function for debouncing ---
         function debounce(func, delay) {
@@ -357,151 +599,290 @@
         }
 
 
-        // --- IBT Parser (Now including LapInvalid and BrakeABSactive) ---
-        class IBTParser {
-            constructor(buffer) {
-                this.buffer = buffer;
-                this.view = new DataView(buffer);
-                this.header = {};
-                this.vars = [];
+// --- IBT Parser (Now including LapInvalid, BrakeABSactive, G-Forces, SessionInfo) ---
+class IBTParser {
+    constructor(buffer) {
+        this.buffer = buffer;
+        this.view = new DataView(buffer);
+        this.header = {};
+        this.vars = [];
+    }
+
+    readHeader() {
+        // Based on irsdk_header layout
+        this.header.version          = this.view.getInt32(0,  true);  // irsdk_ver
+        this.header.sessionInfoLen   = this.view.getInt32(8,  true);  // irsdk_sessionInfoLen
+        this.header.sessionInfoOffset= this.view.getInt32(12, true);  // irsdk_sessionInfoOffset
+        this.header.numVars          = this.view.getInt32(24, true);  // irsdk_numVars
+        this.header.varHeaderOffset  = this.view.getInt32(28, true);  // irsdk_varHeaderOffset
+        this.header.bufLen           = this.view.getInt32(36, true);  // irsdk_bufLen
+        this.header.bufOffset        = this.view.getInt32(52, true);  // irsdk_bufOffset
+    this.header.sessionInfoLen    = this.view.getInt32(16, true); // sessionInfoLen
+    this.header.sessionInfoOffset = this.view.getInt32(20, true); // sessionInfoOffset
+}
+
+    readVarHeaders() {
+        const decoder = new TextDecoder('windows-1252');
+        const VAR_HEADER_SIZE = 144;
+        for (let i = 0; i < this.header.numVars; i++) {
+            const offset = this.header.varHeaderOffset + (i * VAR_HEADER_SIZE);
+            const type = this.view.getInt32(offset, true);
+            const varOffset = this.view.getInt32(offset + 4, true);
+            const name = decoder.decode(new Uint8Array(this.buffer, offset + 16, 32)).replace(/\0/g, '');
+            this.vars.push({ name, type, offset: varOffset });
+        }
+    }
+
+    parse() {
+        try {
+            this.readHeader();
+            this.readVarHeaders();
+
+            const varMap = new Map();
+            this.vars.forEach(v => varMap.set(v.name, v));
+
+            // --- Read SessionInfo text (YAML/INI-style) ---
+            let sessionInfoStr = '';
+            if (this.header.sessionInfoLen > 0 && this.header.sessionInfoOffset > 0) {
+                const bytes = new Uint8Array(
+                    this.buffer,
+                    this.header.sessionInfoOffset,
+                    this.header.sessionInfoLen
+                );
+                sessionInfoStr = new TextDecoder('utf-8')
+                    .decode(bytes)
+                    .replace(/\0+$/, ''); // trim trailing nulls
             }
-            parse() {
-                try {
-                    this.readHeader();
-                    this.readVarHeaders();
-                    const varMap = new Map();
-                    this.vars.forEach(v => varMap.set(v.name, v));
-                    const requiredVars = {
-                        'Lap': 'Lap',
-                        'LapDist': 'LapDist',
-                        'Speed': 'Speed',
-                        'RPM': 'RPM',
-                        'Gear': 'Gear',
-                        'Throttle': 'Throttle',
-                        'Brake': 'Brake',
-                        'Steering': 'SteeringWheelAngle',
-                        'SessionTime': 'SessionTime',
-                        'Lat': 'Lat',
-                        'Lon': 'Lon',
-                        'LapInvalid': 'LapInvalid',
-                        'BrakeABSactive': 'BrakeABSactive',
-                        'FuelLevel': 'FuelLevel' // ADDED: FuelLevel for consumption calculation
-                    };
-                    const targetVars = {};
-                    for (const [key, ibtName] of Object.entries(requiredVars)) { if (varMap.has(ibtName)) targetVars[key] = varMap.get(ibtName); }
-                    return this.readDataBuffer(targetVars);
-                } catch (e) { throw new Error("Failed to parse IBT: " + e.message); }
-            }
-            readHeader() {
-                this.header.version = this.view.getInt32(0, true);
-                this.header.numVars = this.view.getInt32(24, true);
-                this.header.varHeaderOffset = this.view.getInt32(28, true);
-                this.header.bufLen = this.view.getInt32(36, true);
-                this.header.bufOffset = this.view.getInt32(52, true);
-            }
-            readVarHeaders() {
-                const decoder = new TextDecoder('windows-1252');
-                const VAR_HEADER_SIZE = 144;
-                for (let i = 0; i < this.header.numVars; i++) {
-                    const offset = this.header.varHeaderOffset + (i * VAR_HEADER_SIZE);
-                    const type = this.view.getInt32(offset, true);
-                    const varOffset = this.view.getInt32(offset + 4, true);
-                    const name = decoder.decode(new Uint8Array(this.buffer, offset + 16, 32)).replace(/\0/g, '');
-                    this.vars.push({ name, type, offset: varOffset });
+            this.header.sessionInfoStr = sessionInfoStr;
+
+            // --- Variable mapping (your existing requiredVars) ---
+            const requiredVars = {
+                'Lap': 'Lap',
+                'LapDist': 'LapDist',
+                'Speed': 'Speed',
+                'RPM': 'RPM',
+                'Gear': 'Gear',
+                'Throttle': 'Throttle',
+                'Brake': 'Brake',
+                'Steering': 'SteeringWheelAngle',
+                'SessionTime': 'SessionTime',
+                'Lat': 'Lat',
+                'Lon': 'Lon',
+                'LapInvalid': 'LapInvalid',
+                'BrakeABSactive': 'BrakeABSactive',
+                'FuelLevel': 'FuelLevel', // ADDED: FuelLevel for consumption calculation
+                'LFshockVel': 'LFshockVel',
+                'RFshockVel': 'RFshockVel',
+                'LRshockVel': 'LRshockVel',
+                'RRshockVel': 'RRshockVel',
+                'gForceLat': 'LatAccel',
+                'gForceLong': 'LongAccel'
+            };
+
+            const targetVars = {};
+            for (const [key, ibtName] of Object.entries(requiredVars)) {
+                if (varMap.has(ibtName)) {
+                    targetVars[key] = varMap.get(ibtName);
                 }
             }
-            readDataBuffer(targetVars) {
-                const dataStart = this.header.bufOffset;
-                const totalBytes = this.buffer.byteLength;
-                const rowCount = Math.floor((totalBytes - dataStart) / this.header.bufLen);
-                const result = { laps: [] };
-                let currentLap = -1;
-                let currentLapData = null; 
-                const getValue = (rowOffset, varDef) => {
-                    if (!varDef) return 0;
-                    const pos = rowOffset + varDef.offset;
-                    switch(varDef.type) { 
-                        case 0: return this.view.getInt8(pos); 
-                        case 1: return this.view.getUint8(pos); 
-                        case 2: return this.view.getInt32(pos, true); 
-                        case 3: return this.view.getUint32(pos, true); 
-                        case 4: return this.view.getFloat32(pos, true); 
-                        case 5: return this.view.getFloat64(pos, true); 
-                        default: return 0; 
-                    }
-                };
-                
-                for (let i = 0; i < rowCount; i++) {
-                    const rowOffset = dataStart + (i * this.header.bufLen);
-                    const lapNum = getValue(rowOffset, targetVars.Lap);
 
-                    if (lapNum !== currentLap) {
-                        if (currentLapData && currentLapData.data.distance.length > 50) {
-                            currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
-                            result.laps.push(currentLapData);
-                        }
-                        currentLap = lapNum;
-                        currentLapData = this.createLapData(lapNum);
-                    }
-                    if (currentLapData) { 
-                        const lat = getValue(rowOffset, targetVars.Lat); 
-                        const lon = getValue(rowOffset, targetVars.Lon); 
-                        const lapInvalid = getValue(rowOffset, targetVars.LapInvalid); 
-                        const brakeABSactive = getValue(rowOffset, targetVars.BrakeABSactive); 
-                        
-                        currentLapData.data.distance.push(getValue(rowOffset, targetVars.LapDist));
-                        currentLapData.data.speed.push(getValue(rowOffset, targetVars.Speed) * 3.6);
-                        currentLapData.data.rpm.push(getValue(rowOffset, targetVars.RPM));
-                        currentLapData.data.gear.push(getValue(rowOffset, targetVars.Gear));
-                        currentLapData.data.throttle.push(getValue(rowOffset, targetVars.Throttle) * 100);
-                        currentLapData.data.brake.push(getValue(rowOffset, targetVars.Brake) * 100);
-                        currentLapData.data.steering.push(getValue(rowOffset, targetVars.Steering));
-                        currentLapData.data.time.push(getValue(rowOffset, targetVars.SessionTime));
-                        currentLapData.data.rawLat.push(lat);
-                        currentLapData.data.rawLon.push(lon);
-                        currentLapData.data.brakeABSactive.push(brakeABSactive);
-                        if (targetVars.FuelLevel) { // Only push if FuelLevel var was actually found
-                            currentLapData.data.fuelLevel.push(getValue(rowOffset, targetVars.FuelLevel));
-                        }
+            const parsed = this.readDataBuffer(targetVars);
+            parsed.sessionInfoStr = sessionInfoStr; // attach for summary
+            return parsed;
+        } catch (e) {
+            throw new Error("Failed to parse IBT: " + e.message);
+        }
+    }
 
-                        if (lapInvalid > 0) {
-                            currentLapData.lapMetadata.isValidByFlag = false;
-                        }
-                    }
-                }
+    readDataBuffer(targetVars) {
+        const dataStart = this.header.bufOffset;
+        const totalBytes = this.buffer.byteLength;
+        const rowCount = Math.floor((totalBytes - dataStart) / this.header.bufLen);
+        const result = { laps: [] };
+
+        let currentLap = -1;
+        let currentLapData = null; 
+
+        const getValue = (rowOffset, varDef) => {
+            if (!varDef) return 0;
+            const pos = rowOffset + varDef.offset;
+            switch (varDef.type) { 
+                case 0: return this.view.getInt8(pos); 
+                case 1: return this.view.getUint8(pos); 
+                case 2: return this.view.getInt32(pos, true); 
+                case 3: return this.view.getUint32(pos, true); 
+                case 4: return this.view.getFloat32(pos, true); 
+                case 5: return this.view.getFloat64(pos, true); 
+                default: return 0; 
+            }
+        };
+
+        const MS2_TO_G = 1 / 9.80665;
+
+        for (let i = 0; i < rowCount; i++) {
+            const rowOffset = dataStart + (i * this.header.bufLen);
+            const lapNum = getValue(rowOffset, targetVars.Lap);
+
+            if (lapNum !== currentLap) {
                 if (currentLapData && currentLapData.data.distance.length > 50) {
-                    currentLapData.lapTime = currentLapData.data.time[currentLapData.data.time.length-1] - currentLapData.data.time[0];
+                    currentLapData.lapTime =
+                        currentLapData.data.time[currentLapData.data.time.length - 1] -
+                        currentLapData.data.time[0];
                     result.laps.push(currentLapData);
                 }
-                return result;
+                currentLap = lapNum;
+                currentLapData = this.createLapData(lapNum);
             }
-            createLapData(lapNum) {
-                return { 
-                    lapNumber: lapNum, 
-                    lapTime: 0, 
-                    data: { 
-                        distance: [], speed: [], rpm: [], gear: [], throttle: [], brake: [], 
-                        steering: [], time: [], 
-                        rawLat: [], rawLon: [],
-                        mapX: [], mapY: [],
-                        brakeABSactive: [],
-                        fuelLevel: [] // Initialized as empty array
-                    },
-                    lapMetadata: { 
-                        isValidByFlag: true, 
-                        isOutlap: false,
-                        isInlap: false,
-                        isComplete: false,
-                        isFastestInFile: false,
-                        isConsideredValid: false 
-                    },
-                    // ADDED: Placeholders for new metrics
-                    avgSpeed: 0,
-                    maxSpeed: 0,
-                    fuelUsed: null // null to indicate not available/calculable
-                };
+
+            if (currentLapData) {
+                const lat = getValue(rowOffset, targetVars.Lat); 
+                const lon = getValue(rowOffset, targetVars.Lon); 
+                const lapInvalid = getValue(rowOffset, targetVars.LapInvalid); 
+                const brakeABSactive = getValue(rowOffset, targetVars.BrakeABSactive); 
+                
+                currentLapData.data.distance.push(getValue(rowOffset, targetVars.LapDist));
+                currentLapData.data.speed.push(getValue(rowOffset, targetVars.Speed) * 3.6);
+                currentLapData.data.rpm.push(getValue(rowOffset, targetVars.RPM));
+                currentLapData.data.gear.push(getValue(rowOffset, targetVars.Gear));
+                currentLapData.data.throttle.push(getValue(rowOffset, targetVars.Throttle) * 100);
+                currentLapData.data.brake.push(getValue(rowOffset, targetVars.Brake) * 100);
+                currentLapData.data.steering.push(getValue(rowOffset, targetVars.Steering));
+                currentLapData.data.time.push(getValue(rowOffset, targetVars.SessionTime));
+                currentLapData.data.rawLat.push(lat);
+                currentLapData.data.rawLon.push(lon);
+                currentLapData.data.brakeABSactive.push(brakeABSactive);
+
+                if (targetVars.FuelLevel) {
+                    currentLapData.data.fuelLevel.push(getValue(rowOffset, targetVars.FuelLevel));
+                }
+
+                if (targetVars.LFshockVel) currentLapData.data.shockVelLF.push(getValue(rowOffset, targetVars.LFshockVel));
+                if (targetVars.RFshockVel) currentLapData.data.shockVelRF.push(getValue(rowOffset, targetVars.RFshockVel));
+                if (targetVars.LRshockVel) currentLapData.data.shockVelLR.push(getValue(rowOffset, targetVars.LRshockVel));
+                if (targetVars.RRshockVel) currentLapData.data.shockVelRR.push(getValue(rowOffset, targetVars.RRshockVel));
+
+                // G-forces in G
+                if (targetVars.gForceLat) {
+                    const latMs2 = getValue(rowOffset, targetVars.gForceLat);
+                    currentLapData.data.gForceLat.push(latMs2 * MS2_TO_G);
+                }
+                if (targetVars.gForceLong) {
+                    const longMs2 = getValue(rowOffset, targetVars.gForceLong);
+                    currentLapData.data.gForceLong.push(longMs2 * MS2_TO_G);
+                }
+
+                if (lapInvalid > 0) {
+                    currentLapData.lapMetadata.isValidByFlag = false;
+                }
             }
         }
+
+        if (currentLapData && currentLapData.data.distance.length > 50) {
+            currentLapData.lapTime =
+                currentLapData.data.time[currentLapData.data.time.length - 1] -
+                currentLapData.data.time[0];
+            result.laps.push(currentLapData);
+        }
+
+        return result;
+    }
+
+    createLapData(lapNum) {
+        return { 
+            lapNumber: lapNum, 
+            lapTime: 0, 
+            data: { 
+                distance: [], speed: [], rpm: [], gear: [], throttle: [], brake: [], 
+                steering: [], time: [], 
+                rawLat: [], rawLon: [],
+                mapX: [], mapY: [],
+                brakeABSactive: [],
+                fuelLevel: [],
+                shockVelLF: [], shockVelRF: [], shockVelLR: [], shockVelRR: [],
+                gForceLat: [], gForceLong: []
+            },
+            lapMetadata: { 
+                isValidByFlag: true, 
+                isOutlap: false,
+                isInlap: false,
+                isComplete: false,
+                isFastestInFile: false,
+                isConsideredValid: false 
+            },
+            avgSpeed: 0,
+            maxSpeed: 0,
+            fuelUsed: null
+        };
+    }
+}
+
+
+function updateSummary() {
+    const el = document.getElementById('summary-container');
+    if (!el) return;
+
+    if (telemetryData.length === 0) {
+        el.innerHTML = '<span style="color:#888;">No data loaded.</span>';
+        return;
+    }
+
+    // Group laps by filename
+    const byFile = {};
+    telemetryData.forEach(lap => {
+        if (!byFile[lap.filename]) byFile[lap.filename] = [];
+        byFile[lap.filename].push(lap);
+    });
+
+    const blocks = [];
+
+    Object.keys(byFile).forEach(filename => {
+        const laps = byFile[filename];
+
+        // Use first lap from this file for SessionInfo
+        const firstLap = laps[0];
+        const si = firstLap.sessionInfoStr || '';
+        const info = parseSessionInfo(si);
+
+        // Best valid lap in this file
+        const bestLap = laps.reduce((best, l) =>
+            (l.lapMetadata && l.lapMetadata.isConsideredValid && l.lapTime < best.lapTime ? l : best),
+            { lapTime: Infinity }
+        );
+
+        const trackName   = info.trackName   || 'Unknown';
+        const trackLength = info.trackLength || 'n/a';
+        const sessionName = info.sessionName || 'n/a';
+
+        const airTemp     = info.airTemp     || 'n/a';
+        const trackTemp   = info.trackTemp   || 'n/a';
+        const skies       = info.skies       || 'n/a';
+        const wind        = info.windVel     || 'n/a';
+        const humidity    = info.humidity    || 'n/a';
+
+        const bestLapStr = bestLap.lapTime !== Infinity
+            ? `L${bestLap.lapNumber} – ${formatTime(bestLap.lapTime)}`
+            : 'n/a';
+
+        blocks.push(`
+            <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #333;">
+                <div><strong>File:</strong> ${filename}</div>
+                <div><strong>Track:</strong> ${trackName}</div>
+                <div><strong>Length:</strong> ${trackLength}</div>
+                <div><strong>Session:</strong> ${sessionName}</div>
+                <div style="margin-top:4px;"><strong>Air Temp:</strong> ${airTemp}</div>
+                <div><strong>Track Temp:</strong> ${trackTemp}</div>
+                <div><strong>Skies:</strong> ${skies}</div>
+                <div><strong>Wind:</strong> ${wind}</div>
+                <div><strong>Humidity:</strong> ${humidity}</div>
+                <div style="margin-top:4px;"><strong>Laps Loaded (this file):</strong> ${laps.length}</div>
+                <div><strong>Best Lap (this file):</strong> ${bestLapStr}</div>
+            </div>
+        `);
+    });
+
+    el.innerHTML = blocks.join('');
+}
+
 
         // --- Application Logic ---
         function updateStatus(msg, type) {
@@ -525,6 +906,58 @@
             return lap.data.time[eIdx] - lap.data.time[sIdx];
         };
 
+function parseSessionInfo(sessionInfoStr) {
+    if (!sessionInfoStr) return {};
+
+    // Helper to get the first regex group match or null (case-insensitive)
+    function match(re) {
+        const m = sessionInfoStr.match(re);
+        return m && m[1] ? m[1].trim() : null;
+    }
+
+    const info = {};
+
+    // Track info (try several common keys)
+    info.trackName =
+        match(/TrackDisplayName:\s*([^\r\n]+)/i) ||
+        match(/TrackName:\s*([^\r\n]+)/i);
+
+    info.trackLength =
+        match(/TrackLength:\s*([^\r\n]+)/i);
+
+    info.sessionName =
+        match(/SessionName:\s*([^\r\n]+)/i) ||
+        match(/SessionType:\s*([^\r\n]+)/i);
+
+    info.sessionTimeOfDay =
+        match(/SessionTimeOfDay:\s*([^\r\n]+)/i);
+
+    // Weather – prefer *Crew variants, then fall back
+    info.airTemp =
+        match(/AirTempCrew:\s*([^\r\n]+)/i) ||
+        match(/AirTemp:\s*([^\r\n]+)/i);
+
+    info.trackTemp =
+        match(/TrackTempCrew:\s*([^\r\n]+)/i) ||
+        match(/TrackTemp:\s*([^\r\n]+)/i);
+
+    info.skies =
+        match(/Skies:\s*([^\r\n]+)/i);
+
+    info.windVel =
+        match(/WindVel:\s*([^\r\n]+)/i) ||
+        match(/WindSpeed:\s*([^\r\n]+)/i);
+
+    info.humidity =
+        match(/RelativeHumidity:\s*([^\r\n]+)/i) ||
+        match(/Humidity:\s*([^\r\n]+)/i);
+
+    return info;
+}
+
+
+
+
         // Handle Multiple Files
         document.getElementById('file-import').addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
@@ -545,13 +978,18 @@
                 try {
                     const buffer = await file.arrayBuffer();
                     const parser = new IBTParser(buffer);
-                    const parsedData = parser.parse();
-                    
-                    parsedData.laps.forEach(lap => {
-                        lap.filename = file.name;
-                        lap.filenameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name; 
-                        allRawLaps.push(lap);
-                    });
+const parsedData = parser.parse();
+const sessionInfoStr = parsedData.sessionInfoStr || '';
+
+parsedData.laps.forEach(lap => {
+    lap.filename = file.name;
+    const dotIndex = file.name.lastIndexOf('.');
+    lap.filenameWithoutExt = dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name;
+    lap.sessionInfoStr = sessionInfoStr; // attach SessionInfo to each lap from this file
+    allRawLaps.push(lap);
+});
+
+
                 } catch (err) { 
                     console.error(`Error parsing ${file.name}:`, err); 
                     updateStatus(`Error parsing ${file.name}`, 'error'); 
@@ -675,6 +1113,28 @@
                     lap.lapMetadata.isValidByFlag;
             });
 
+            const lap11 = telemetryData.find(l => l.lapNumber === 11);
+            if (lap11) {
+                console.log(`[DEBUG_VALIDITY] Lap 11 (ID: ${lap11.id}) - isConsideredValid: ${lap11.lapMetadata.isConsideredValid}`);
+                console.log(`[DEBUG_VALIDITY]   isComplete: ${lap11.lapMetadata.isComplete}`);
+                console.log(`[DEBUG_VALIDITY]   isOutlap: ${lap11.lapMetadata.isOutlap}`);
+                console.log(`[DEBUG_VALIDITY]   isInlap: ${lap11.lapMetadata.isInlap}`);
+                console.log(`[DEBUG_VALIDITY]   isValidByFlag: ${lap11.lapMetadata.isValidByFlag}`);
+                console.log(`[DEBUG_VALIDITY]   lapTime: ${lap11.lapTime}, distance.length: ${lap11.data.distance.length}`);
+
+                // Also check maxTrackDistance which influences isComplete
+                let currentMaxTrackDistance = 0;
+                telemetryData.forEach(l => {
+                    if (l.lapMetadata.isValidByFlag && l.data.distance.length > 100 && l.lapTime > MIN_VALID_LAP_TIME) {
+                        currentMaxTrackDistance = Math.max(currentMaxTrackDistance, l.data.distance[l.data.distance.length - 1]);
+                    }
+                });
+                console.log(`[DEBUG_VALIDITY]   Calculated maxTrackDistance (influencing isComplete): ${currentMaxTrackDistance}`);
+                const isFullDistanceCheck = lap11.data.distance.length > 100 && lap11.data.distance[lap11.data.distance.length - 1] > (currentMaxTrackDistance * 0.9);
+                console.log(`[DEBUG_VALIDITY]   isFullDistance check for Lap 11: ${isFullDistanceCheck}`);
+            }
+
+
             let fastestOverallValidLap = null;
 
             for (const filename in lapsByFilename) {
@@ -697,16 +1157,18 @@
             
             referenceLapId = fastestOverallValidLap ? fastestOverallValidLap.id : null;
 
-            updateLapList(); 
-            updateStatus(`Loaded ${telemetryData.length} laps from ${files.length} files.`, 'success');
-            
-            defaultVisibleLapIds.forEach(lapId => {
-                const checkbox = document.querySelector(`#lap-selector input[type="checkbox"][value="${lapId}"]`);
-                if (checkbox) checkbox.checked = true; 
-            });
+updateLapList(); 
+updateStatus(`Loaded ${telemetryData.length} laps from ${files.length} files.`, 'success');
 
-            updateCharts(); 
-            saveCurrentMasterZoom();
+defaultVisibleLapIds.forEach(lapId => {
+    const checkbox = document.querySelector(`#lap-selector input[type="checkbox"][value="${lapId}"]`);
+    if (checkbox) checkbox.checked = true; 
+});
+
+updateCharts(); 
+saveCurrentMasterZoom();
+updateSummary();
+
         });
 
         function formatTime(seconds) {
@@ -1650,18 +2112,34 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
         // --- Charts & Map Sync ---
         function syncScales(sourceChart) {
+            // --- NEW LOGIC: If the source of the zoom/pan is the histogram,
+            // it operates independently and does not affect other charts.
+            if (sourceChart === charts.svHistogram || sourceChart === charts.gforces) { 
+                // For histograms, we don't use 'master zoom history' in the same way,
+                // so no need to call saveCurrentMasterZoom here.
+                return; 
+            }
+
             const xMinDistance = sourceChart.scales.x.min; 
             const xMaxDistance = sourceChart.scales.x.max; 
 
             Object.values(charts).forEach(chart => {
+                // --- NEW LOGIC: Skip the histogram chart when applying zoom/pan from other charts.
+                if (chart === charts.svHistogram || chart === charts.gforces) { 
+                    return; // Do not apply external zoom/pan to the histogram
+                }
+
+                // If the current chart in the loop is the source chart, we don't need to update its scales
+                // as they already reflect the change that triggered this sync.
                 if (chart === sourceChart) return; 
 
+                // Existing logic for other charts (line charts and track map)
                 if (chart.config.type !== 'scatter') {
                     if (chart.options.scales && chart.options.scales.x) {
                         chart.options.scales.x.min = xMinDistance;
                         chart.options.scales.x.max = xMaxDistance;
                     }
-                } else {
+                } else { // Handle track map (scatter chart)
                     const currentRefLap = telemetryData.find(l => l.id === referenceLapId);
 
                     if (!currentRefLap || !currentRefLap.data || currentRefLap.data.distance.length === 0) {
@@ -1708,10 +2186,12 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 chart.update('none'); 
             });
 
+            // This part is specific to the delta chart (master zoom for distance-based charts)
             if (sourceChart === charts.delta) {
                 saveCurrentMasterZoom();
             }
         }
+
         
         const debouncedUpdateMapCursor = debounce((event, elements, chartInstance) => {
             if (!charts.map || !charts.map.data || !charts.map.data.datasets || charts.map.data.datasets.length === 0) {
@@ -1789,8 +2269,293 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             syncScales(masterChart);
         }
 
+function computeSVStats(rawVelocities) {
+    if (!rawVelocities || rawVelocities.length === 0) return null;
+
+    const mean = rawVelocities.reduce((s, v) => s + v, 0) / rawVelocities.length;
+    const variance = rawVelocities.reduce((s, v) => s + (v - mean) ** 2, 0) / rawVelocities.length;
+    const stdDev = Math.sqrt(variance);
+
+    let bumpCount = 0, reboundCount = 0;
+    rawVelocities.forEach(v => {
+        if (v < -0.01) bumpCount++;
+        else if (v > 0.01) reboundCount++;
+    });
+
+    const totalNonZero = bumpCount + reboundCount || 1;
+
+    return {
+        mean,
+        stdDev,
+        bumpRatio: bumpCount / totalNonZero,
+        reboundRatio: reboundCount / totalNonZero,
+        max: Math.max(...rawVelocities),
+        min: Math.min(...rawVelocities)
+    };
+}
+
+function buildDynamicDamperTargetProfile(selectedLaps) {
+    const wheels = ['LF', 'RF', 'LR', 'RR'];
+
+    let sumMean = 0;
+    let sumStdDev = 0;
+    let sumBumpRatio = 0;
+    let sumReboundRatio = 0;
+    let count = 0;
+
+    selectedLaps.forEach(lap => {
+        if (!lap.svStats) return;
+        wheels.forEach(w => {
+            const st = lap.svStats[w];
+            if (!st) return;
+            sumMean         += st.mean;
+            sumStdDev       += st.stdDev;
+            sumBumpRatio    += st.bumpRatio;
+            sumReboundRatio += st.reboundRatio;
+            count++;
+        });
+    });
+
+    if (count === 0) return null;
+
+    const avgMean         = sumMean / count;
+    const avgStdDev       = sumStdDev / count;
+    const avgBumpRatio    = sumBumpRatio / count;
+    const avgReboundRatio = sumReboundRatio / count;
+
+    return {
+        meanTarget: avgMean,
+        stdDevTarget: avgStdDev,
+        bumpRatioTarget: avgBumpRatio,
+        reboundRatioTarget: avgReboundRatio,
+
+        meanTol: 0.01,             // allowable mean offset
+        stdDevTolFraction: 0.25,   // ±25% range around target σ
+        bumpReboundBalanceTol: 0.15
+    };
+}
+
+
+function makeDamperRecommendation(stats, targetProfile) {
+    if (!stats || !targetProfile) return 'No data';
+
+    const recs = [];
+
+    // 1) Mean offset vs target
+    const meanDelta = stats.mean - targetProfile.meanTarget;
+    if (meanDelta > targetProfile.meanTol) {
+        recs.push('Shifted toward rebound vs selected-lap average. Try slightly softening rebound or stiffening bump.');
+    } else if (meanDelta < -targetProfile.meanTol) {
+        recs.push('Shifted toward bump vs selected-lap average. Try slightly softening bump or stiffening rebound.');
+    }
+
+    // 2) Spread / stdDev vs target σ
+    const stdLow  = targetProfile.stdDevTarget * (1 - targetProfile.stdDevTolFraction);
+    const stdHigh = targetProfile.stdDevTarget * (1 + targetProfile.stdDevTolFraction);
+
+    if (stats.stdDev < stdLow) {
+        recs.push('Velocity range is tighter than average; damper likely stiffer here. Try softening both bump and rebound a bit.');
+    } else if (stats.stdDev > stdHigh) {
+        recs.push('Velocity range is wider than average; damper likely softer here. Consider stiffening both bump and rebound slightly.');
+    }
+
+    // 3) Bump vs rebound time vs target
+    const bumpDelta = stats.bumpRatio - targetProfile.bumpRatioTarget;
+    if (Math.abs(bumpDelta) > targetProfile.bumpReboundBalanceTol) {
+        if (bumpDelta > 0) {
+            recs.push('Spends more time in bump than average. Try reducing bump or increasing rebound slightly.');
+        } else {
+            recs.push('Spends more time in rebound than average. Try reducing rebound or increasing bump slightly.');
+        }
+    }
+
+    if (recs.length === 0) {
+        recs.push('Damper velocity profile is close to the average of the selected laps. Only fine-tune if you feel handling issues.');
+    }
+
+    return recs.join(' ');
+}
+
+function updateDamperRecommendations() {
+    const container = document.getElementById('damper-rec-content');
+    if (!container) return;
+
+    const selectedLaps = telemetryData.filter(l => defaultVisibleLapIds.has(l.id));
+    if (selectedLaps.length === 0) {
+        container.textContent = 'No laps selected.';
+        return;
+    }
+
+    // Show recommendations for reference lap, otherwise first visible
+    const lap = telemetryData.find(l => l.id === referenceLapId) || selectedLaps[0];
+
+    if (!lap.svStats || !lap.damperRecommendations) {
+        container.textContent = 'No damper statistics available for selected lap.';
+        return;
+    }
+
+    const wheels = ['LF', 'RF', 'LR', 'RR'];
+    container.innerHTML = wheels.map(w => {
+        const stats = lap.svStats[w];
+        const rec   = lap.damperRecommendations[w] || 'No recommendation.';
+        if (!stats) return `<div><strong>${w}:</strong> No data.</div>`;
+
+        return `
+            <div style="margin-bottom:6px;">
+                <strong>${w}:</strong><br>
+<span style="color:#ccc;">mean:</span> ${(stats.mean * 1000).toFixed(1)} mm/s,
+<span style="color:#ccc;">σ:</span> ${(stats.stdDev * 1000).toFixed(1)} mm/s
+<br>
+                <span>${rec}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+
+function calculateSVHistogram(lap, wheelKey, minVel = -0.5, maxVel = 0.5, binSize = 0.01) {
+    const velocities = lap.data[wheelKey]; // m/s
+    if (!velocities || velocities.length === 0) return [];
+
+    const validVelocities = velocities.filter(v => v > -5 && v < 5);
+    if (validVelocities.length === 0) return [];
+
+    const numBins = Math.ceil((maxVel - minVel) / binSize);
+    const binMap = new Map(); // key in m/s
+
+    for (let i = 0; i < validVelocities.length; i++) {
+        const vel = validVelocities[i]; // m/s
+
+        if (vel >= minVel && vel < maxVel) {
+            const binIndex = Math.floor((vel - minVel) / binSize);
+            const binCenterMs = minVel + (binIndex * binSize) + (binSize / 2); // m/s
+            const cleanCenterMs = parseFloat(binCenterMs.toFixed(3));
+            binMap.set(cleanCenterMs, (binMap.get(cleanCenterMs) || 0) + 1);
+        }
+    }
+
+    // Output x in mm/s
+    const histogramData = Array.from(binMap, ([xMs, y]) => ({
+        x: xMs * 1000, // mm/s
+        y
+    })).sort((a, b) => a.x - b.x);
+
+    return histogramData;
+}
+
+
+
+
+function initSVHistogramChart(canvasId, label, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) {
+        existingChart.destroy();
+    }
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: {
+            xAxisKey: 'x',
+            yAxisKey: 'y'
+        },
+        scales: {
+            x: {
+                type: 'linear',
+                offset: false,
+                title: { display: true, text: 'Suspension Velocity (mm/s)', color: '#888' }, // CHANGED to #888
+                ticks: { color: '#888' },
+                grid: { color: '#333', offset: false }
+            },
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: unit, color: '#888' }, // CHANGED to #888
+                ticks: { color: '#888' },
+                grid: { color: '#333' }
+            }
+        },
+        plugins: {
+            legend: { 
+                display: true, 
+                position: 'top',  // Explicitly set position
+                align: 'center',  // Centers the legend items within the legend box
+                fullSize: true,   // IMPORTANT: Makes the legend span the full chart width
+                labels: { color: '#eee' } // KEEP legend labels light
+            },
+            title: { 
+                display: true, 
+                position: 'top',  // Explicitly set position
+                text: label, 
+                color: '#eee', // KEEP main chart title light
+                align: 'center',  // Centers the title text within the title box
+                fullSize: true    // IMPORTANT: Makes the title span the full chart width
+            },
+            tooltip: {
+                callbacks: {
+title: function(tooltipItems) {
+    const binCenterMm = tooltipItems[0].parsed.x;      // already mm/s now
+    const binSizeMm   = 0.01 * 1000;                   // if binSize was 0.01 m/s
+    const binStart = binCenterMm - (binSizeMm / 2);
+    const binEnd   = binCenterMm + (binSizeMm / 2);
+    return `Velocity: ${binStart.toFixed(0)} to ${binEnd.toFixed(0)} mm/s`;
+},
+
+                    label: function(tooltipItem) {
+                        const datasetLabel = tooltipItem.dataset.label || '';
+                        const value = tooltipItem.parsed.y;
+                        return `${datasetLabel}: ${value} samples`;
+                    }
+                }
+            },
+            zoom: {
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: 'x', 
+                    drag: { enabled: true },
+                },
+                pan: { enabled: true, mode: 'x' }
+            }
+        }
+    };
+
+            const chart = new Chart(ctx, {
+                type: 'bar', 
+                data: { datasets: [] },
+                options: chartOptions
+            });
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
+}
+
+
+// Initialize all charts
+charts.delta = initLineChart('delta-chart', 'Time Delta (vs Reference)', 'sec');
+charts.map = initTrackMap();
+charts.speed = initLineChart('speed-chart', 'Speed', 'km/h');
+charts.inputs = initLineChart('throttle-brake-chart', 'Inputs', '%');
+charts.steering = initLineChart('steering-chart', 'Steering', 'rad');
+charts.rpm = initLineChart('rpm-gear-chart', 'RPM / Gear', 'val');
+// --- ADD THIS INITIALIZATION ---
+charts.svHistogram = initSVHistogramChart('suspension-velocity-chart', 'Suspension Velocity Histogram', 'Samples');
+charts.gforces = initGForceScatterChart('gforce-scatter-chart', 'Combined G-Forces', 'G'); // NEW CHART INITIALIZATION
+// --- END OF NEW INITIALIZATION ---
+
+
         function initLineChart(canvasId, label, unit) {
             const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) {
+        existingChart.destroy();
+    }
             
             const chartOptions = { 
                 responsive: true,
@@ -1888,16 +2653,29 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 chartOptions.scales.y.max = 100;
             }
 
-            return new Chart(ctx, {
+
+            const chart = new Chart(ctx, {
                 type: 'line',
                 data: { datasets: [] },
                 options: chartOptions 
             });
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
         }
 
         function initTrackMap() {
             const ctx = document.getElementById('track-map-chart').getContext('2d');
-            return new Chart(ctx, {
+
+            const existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const chart = new Chart(ctx, { // <-- Declare 'chart' here
                 type: 'scatter', 
                 data: { datasets: [] },
                 options: {
@@ -1912,15 +2690,15 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                     elements: { point: { radius: 0 }, line: { borderWidth: 2 } } 
                 }
             });
+
+            // Get the parent .chart-wrapper element
+            const chartWrapper = document.getElementById('track-map-chart').closest('.chart-wrapper');
+            if (chartWrapper) {
+                addFullscreenButton(chartWrapper, chart);
+            }
+            return chart; // Return the chart instance
         }
 
-        // Initialize all charts
-        charts.delta = initLineChart('delta-chart', 'Time Delta (vs Reference)', 'sec');
-        charts.map = initTrackMap();
-        charts.speed = initLineChart('speed-chart', 'Speed', 'km/h');
-        charts.inputs = initLineChart('throttle-brake-chart', 'Inputs', '%');
-        charts.steering = initLineChart('steering-chart', 'Steering', 'rad');
-        charts.rpm = initLineChart('rpm-gear-chart', 'RPM / Gear', 'val');
 
         function toggleTooltips(enabled) {
             Object.values(charts).forEach(chart => {
@@ -2014,6 +2792,153 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                        !charts.rpm.data.datasets.some(ds => ds.yAxisID === 'y1')) {
                 delete charts.rpm.options.scales.y1;
             }
+
+            // --- SUSPENSION VELOCITY HISTOGRAM (FIXED SCALING, RANGE, AND CENTERING) ---
+            const svDatasets = [];
+            const wheelKeys = ['shockVelLF', 'shockVelRF', 'shockVelLR', 'shockVelRR'];
+            const wheelNames = ['LF', 'RF', 'LR', 'RR'];
+            const wheelColors = { 'LF': '#007bff', 'RF': '#ffc107', 'LR': '#28a745', 'RR': '#dc3545' };
+
+            // Define a more generous, yet realistic, range for damper velocity (in m/s)
+const HIST_MIN = -2000;    // -2.0 m/s
+const HIST_MAX =  2000;    //  2.0 m/s
+const HIST_BIN = 10;       // 10 mm/s per bin
+
+            let globalMinVel = Infinity;
+            let globalMaxVel = -Infinity;
+
+selectedLaps.forEach(lap => {
+    if (!lap.svStats) lap.svStats = {};
+
+    wheelKeys.forEach((key, i) => {
+        const rawVelocities = lap.data[key];
+        if (!rawVelocities || rawVelocities.length === 0) return;
+
+        // 1) Stats for recommendations
+        const stats = computeSVStats(rawVelocities);
+        lap.svStats[wheelNames[i]] = stats;
+
+        // 2) Histogram for plotting (keep your existing logic)
+        const histData = calculateSVHistogram(lap, key);
+        if (histData.length > 0) {
+            svDatasets.push({
+                label: `L${lap.lapNumber} ${wheelNames[i]}`,
+                data: histData,
+                backgroundColor: wheelColors[wheelNames[i]] + '80',
+                borderColor: wheelColors[wheelNames[i]],
+                borderWidth: 1,
+                barPercentage: 1,
+                categoryPercentage: 1,
+                lapId: lap.id
+            });
+        }
+    });
+});
+
+// --- Damper target + recommendations based on selected laps ---
+const dynamicTarget = buildDynamicDamperTargetProfile(selectedLaps);
+
+selectedLaps.forEach(lap => {
+    if (!lap.svStats) return;
+    if (!lap.damperRecommendations) lap.damperRecommendations = {};
+
+    ['LF', 'RF', 'LR', 'RR'].forEach(w => {
+        const stats = lap.svStats[w];
+        lap.damperRecommendations[w] = makeDamperRecommendation(stats, dynamicTarget);
+    });
+});
+
+// Update the recommendations panel
+updateDamperRecommendations();
+
+            charts.svHistogram.data.datasets = []; // Explicitly clear
+            charts.svHistogram.data.datasets = svDatasets; // Assign new
+
+            // Set scale to be symmetrical around zero, based on the largest absolute velocity.
+            if (globalMinVel !== Infinity && globalMaxVel !== -Infinity && svDatasets.length > 0) {
+                const maxAbsoluteVelocity = Math.max(Math.abs(globalMinVel), Math.abs(globalMaxVel));
+                
+                // Calculate padding based on the determined range
+                const rangeForPadding = maxAbsoluteVelocity * 2; 
+                const padding = Math.max(rangeForPadding * 0.1, 0.05); // Minimum padding of 0.05 m/s
+                
+                charts.svHistogram.options.scales.x.min = -(maxAbsoluteVelocity + padding);
+                charts.svHistogram.options.scales.x.max = (maxAbsoluteVelocity + padding);
+            } else {
+                // Fallback defaults if no valid data found
+                charts.svHistogram.options.scales.x.min = HIST_MIN; 
+                charts.svHistogram.options.scales.x.max = HIST_MAX;
+            }
+            
+            charts.svHistogram.options.scales.y.min = 0;
+            charts.svHistogram.update();
+            // --- END SUSPENSION VELOCITY HISTOGRAM ---
+
+            // --- G-Force Scatter Plot (NEW BLOCK) ---
+            const gForceDatasets = [];
+            let globalMinLatG = Infinity, globalMaxLatG = -Infinity;
+            let globalMinLongG = Infinity, globalMaxLongG = -Infinity;
+
+            selectedLaps.forEach(lap => {
+                // Ensure data exists before processing
+                if (!lap.data.gForceLat || !lap.data.gForceLong || lap.data.gForceLat.length === 0) return;
+
+                const data = lap.data.gForceLong.map((longG, i) => {
+                    const latG = lap.data.gForceLat[i];
+                    
+                    // Update global min/max for symmetrical scaling
+                    if (longG < globalMinLongG) globalMinLongG = longG;
+                    if (longG > globalMaxLongG) globalMaxLongG = longG;
+                    if (latG < globalMinLatG) globalMinLatG = latG;
+                    if (latG > globalMaxLatG) globalMaxLatG = latG;
+
+                    return { x: longG, y: latG };
+                });
+
+                gForceDatasets.push({
+                    label: `L${lap.lapNumber} G-Forces`,
+                    data: data,
+                    borderColor: lap.color,
+                    backgroundColor: lap.color + '40', // Slightly transparent points
+                    pointRadius: 1.5,
+                    pointHoverRadius: 4,
+                    lapId: lap.id
+                });
+            });
+
+
+charts.gforces.data.datasets = []; 
+charts.gforces.data.datasets = gForceDatasets;
+
+// then axis min/max logic...
+charts.gforces.update();
+
+            // Set symmetrical scales around zero for G-forces
+            if (globalMinLatG !== Infinity && globalMaxLatG !== -Infinity && gForceDatasets.length > 0) {
+                const maxAbsoluteLatG = Math.max(Math.abs(globalMinLatG), Math.abs(globalMaxLatG));
+                const maxAbsoluteLongG = Math.max(Math.abs(globalMinLongG), Math.abs(globalMaxLongG));
+
+                const paddingFactor = 0.1;
+                const latGExtent = maxAbsoluteLatG + (maxAbsoluteLatG * paddingFactor);
+                const longGExtent = maxAbsoluteLongG + (maxAbsoluteLongG * paddingFactor);
+                
+                // Use the largest of the two extents to ensure both axes are symmetrical and cover all data
+                const overallMaxAbsG = Math.max(latGExtent, longGExtent);
+
+                charts.gforces.options.scales.x.min = -overallMaxAbsG;
+                charts.gforces.options.scales.x.max = overallMaxAbsG;
+                charts.gforces.options.scales.y.min = -overallMaxAbsG;
+                charts.gforces.options.scales.y.max = overallMaxAbsG;
+            } else {
+                // Fallback defaults if no valid G-force data
+                charts.gforces.options.scales.x.min = -2;
+                charts.gforces.options.scales.x.max = 2;
+                charts.gforces.options.scales.y.min = -2;
+                charts.gforces.options.scales.y.max = 2;
+            }
+            charts.gforces.update();
+            // --- END G-Force Scatter Plot ---
+
 
             // 3. Track Map & Cursor
             const mapDatasets = selectedLaps.map(lap => ({
@@ -2148,10 +3073,16 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
             Object.values(charts).forEach(chart => {
                 if (chart.config.type !== 'scatter' && chart.options.scales && chart.options.scales.x) {
-                    chart.options.scales.x.min = undefined;
-                    chart.options.scales.x.max = undefined;
+                    // Do not reset X-axis min/max for the SV histogram here
+                    if (chart.canvas.id !== 'suspension-velocity-chart') {
+                         chart.options.scales.x.min = undefined;
+                         chart.options.scales.x.max = undefined;
+                    }
                 }
-                chart.update();
+                // Only update charts not updated already (svHistogram is updated above)
+                if (chart.canvas.id !== 'suspension-velocity-chart') {
+                    chart.update();
+                }
             });
             
             if (charts.delta) {
@@ -2159,11 +3090,121 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             }
         }
 
+
+// --- New initGForceScatterChart function ---
+function initGForceScatterChart(canvasId, label, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) {
+        existingChart.destroy();
+    }
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: {
+            xAxisKey: 'x',
+            yAxisKey: 'y'
+        },
+        scales: {
+            x: {
+                type: 'linear',
+                position: 'bottom',
+                title: { display: true, text: 'Longitudinal G (' + unit + ')', color: '#888' }, // Gray axis title
+                ticks: { color: '#888' },
+                grid: { color: '#333' }
+            },
+            y: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Lateral G (' + unit + ')', color: '#888' }, // Gray axis title
+                ticks: { color: '#888' },
+                grid: { color: '#333' }
+            }
+        },
+        elements: {
+            point: {
+                radius: 1.5, // Small points for scatter
+                hoverRadius: 4
+            },
+            line: {
+                borderWidth: 0 // No line connecting points for scatter by default
+            }
+        },
+        plugins: {
+            legend: { 
+                display: true, 
+                position: 'top',
+                align: 'center',
+                fullSize: true,
+                labels: { color: '#eee' } // Keep legend labels light
+            },
+            title: { 
+                display: true, 
+                position: 'top',
+                text: label, 
+                color: '#eee', // Keep main chart title light
+                align: 'center',
+                fullSize: true
+            },
+            tooltip: {
+                callbacks: {
+                    title: function(tooltipItems) {
+                        return `G-Forces`; // Shorter title for tooltip
+                    },
+                    label: function(tooltipItem) {
+                        const lapId = tooltipItem.dataset.lapId;
+                        const lap = telemetryData.find(l => l.id === lapId);
+                        const lapInfo = lap ? `L${lap.lapNumber} (${lap.filenameWithoutExt})` : '';
+                        return `${lapInfo} Lat: ${tooltipItem.parsed.y.toFixed(2)} G, Long: ${tooltipItem.parsed.x.toFixed(2)} G`;
+                    }
+                }
+            },
+            zoom: {
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: 'xy', // Zoom on both X and Y axes for scatter
+                    drag: { enabled: true },
+                },
+                pan: { enabled: true, mode: 'xy' } // Pan on both X and Y axes
+            }
+        }
+    };
+
+    const chart = new Chart(ctx, {
+        type: 'scatter', // Use scatter chart type
+        data: { datasets: [] },
+        options: chartOptions
+    });
+
+    const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
+    if (chartWrapper) {
+        addFullscreenButton(chartWrapper, chart);
+    }
+    return chart;
+}
+
+
+
         // --- Full reset of charts ---
         function performFullReset() {
-            updateCharts();
+            // Reset zoom for all charts that have the plugin, except the independent histogram
+            Object.values(charts).forEach(chart => {
+            if (chart && chart.canvas.id !== 'suspension-velocity-chart' && chart.canvas.id !== 'gforce-scatter-chart' && chart.zoom && chart.zoom.resetZoom) {
+                chart.zoom.resetZoom();
+                }
+            });
+            
+            // This will update all charts' data and responsive behavior should handle initial drawing
+            updateCharts(); 
             zoomHistory = []; 
         }
+
+
+
 
         function applyZoomState(min, max) {
             const masterChart = charts.delta;
@@ -2185,7 +3226,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 let isLongPress = false;
                 resetZoomTimer = setTimeout(() => {
                     isLongPress = true;
-                    performFullReset();
+                    performFullReset(); // Long press performs a full reset
                     resetZoomTimer = null;
                 }, HOLD_DURATION);
 
@@ -2195,9 +3236,10 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                         if (zoomHistory.length > 1) {
                             zoomHistory.pop();
                             const previousState = zoomHistory[zoomHistory.length - 1];
-                            applyZoomState(previousState.min, previousState.max);
+                            applyZoomState(previousState.min, previousState.max); // Short press "undoes" using history
                         } else {
-                            performFullReset();
+                            // If no history, or only initial state, perform a full reset for all zoomable charts
+                            performFullReset(); 
                         }
                     }
                     document.removeEventListener('mouseup', mouseUpHandler);
@@ -2216,6 +3258,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 document.addEventListener('mouseleave', mouseLeaveHandler);
             }
         });
+
 
         document.addEventListener('DOMContentLoaded', () => {
             const toggleTooltipsCheckbox = document.getElementById('toggle-tooltips');
