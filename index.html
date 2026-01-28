@@ -255,9 +255,12 @@
 
     #sidebar {
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         border-right: none;
         border-bottom: 1px solid var(--border-color);
-        max-height: 25vh;         /* keep sidebar from taking the whole screen */
+        max-height: 40vh; /* let it scroll but not take the whole screen */
+        overflow-y: auto;
     }
 
     #chart-container {
@@ -271,6 +274,7 @@
         padding: 8px;
     }
 
+    /* Header: title on top, controls below */
     header {
         flex-direction: column;
         align-items: stretch;
@@ -283,7 +287,7 @@
         margin-bottom: 4px;
     }
 
-    /* Make controls wrap nicely in a grid-like block */
+    /* Controls in a 2-column grid on phones */
     header .controls {
         width: 100%;
         display: grid;
@@ -291,39 +295,43 @@
         gap: 6px;
     }
 
-    /* Make buttons and label-toggles fill their cell */
+    /* Make each control fill its grid cell */
     header .controls > * {
         width: 100%;
         justify-content: center;
     }
 
-    /* Compact the toggle labels */
+    /* Compact the toggle labels (Show Tooltip, Show ABS) */
     header .controls label {
         font-size: 0.8rem;
         padding: 4px 6px;
         background-color: #333;
         border-radius: 4px;
         box-sizing: border-box;
+        display: flex;
+        align-items: center;
     }
 
     header .controls label input[type="checkbox"] {
         margin-right: 4px;
     }
 
-    .import-button, button {
+    /* Smaller buttons on mobile */
+    .import-button,
+    button {
         padding: 6px 8px;
         font-size: 0.8rem;
     }
 
-header .controls .import-button {
-    background-color: #007bff;
-    color: #fff;
-    display: flex;
-    align-items: center;    /* vertical centering */
-    justify-content: center;/* horizontal centering */
-    text-align: center;     /* fallback */
-}
-
+    /* Keep Import button blue and center its text */
+    header .controls .import-button {
+        background-color: #007bff;
+        color: #fff;
+        display: flex;
+        align-items: center;    /* vertical centering */
+        justify-content: center;/* horizontal centering */
+        text-align: center;
+    }
 }
 
 @media (max-width: 480px) {
@@ -332,6 +340,7 @@ header .controls .import-button {
         grid-template-columns: 1fr;
     }
 }
+
 
 
 
