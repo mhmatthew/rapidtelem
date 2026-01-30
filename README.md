@@ -56,6 +56,10 @@ This tool stands out from traditional telemetry analysis software by offering un
 
 ### 📖 How to Use
 
+**Check out the website:** <a href="https://rapidtelem.com" target="_blank">rapidtelem.com</a>
+
+or
+
 1.  **Download:** Grab the `index.html` file from this GitHub repository.
 2.  **Open:** Double-click the downloaded `.html` file, or drag it into your preferred modern web browser.
 3.  **Import Data:** Click the "Import .ibt File(s)" button in the header and select one or more iRacing `.ibt` telemetry files.
