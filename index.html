@@ -1205,6 +1205,18 @@ Application:
             <div class="chart-wrapper">
                 <canvas id="corner-load-all-chart"></canvas>  <!-- all selected laps -->
             </div>
+            <div class="chart-wrapper">
+                <canvas id="ride-height-lf-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="ride-height-rf-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="ride-height-lr-chart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="ride-height-rr-chart"></canvas>
+            </div>
 
         </section>
     </main>
@@ -1437,6 +1449,13 @@ Application:
                         'gForceLat': 'LatAccel',
                         'gForceLong': 'LongAccel',
 
+                        // ADD THESE:
+                        'LFRideHeight': 'LFrideHeight', // Try this first
+                        'RFRideHeight': 'RFrideHeight', // Try this first
+                        'LRRideHeight': 'LRrideHeight', // Try this first
+                        'RRRideHeight': 'LRrideHeight', // Try this first
+                        // Some cars use 'RideHeight_LF', etc. The parser helper will return null if not found.
+
                         'PlayerTrackSurface': 'PlayerTrackSurface',
 
                         // --- Tire Temp (Surface Middle) ---
@@ -1553,6 +1572,13 @@ Application:
                         currentLapData.data.gForceLong.push(longMs2 * MS2_TO_G);
                     }
 
+                    // Store in meters (iRacing default) or convert to mm immediately if preferred. 
+                    // Let's store as raw meters here to match typical data structure.
+                    if (targetVars.LFRideHeight) currentLapData.data.rideHeightLF.push(getValue(rowOffset, targetVars.LFRideHeight));
+                    if (targetVars.RFRideHeight) currentLapData.data.rideHeightRF.push(getValue(rowOffset, targetVars.RFRideHeight));
+                    if (targetVars.LRRideHeight) currentLapData.data.rideHeightLR.push(getValue(rowOffset, targetVars.LRRideHeight));
+                    if (targetVars.RRRideHeight) currentLapData.data.rideHeightRR.push(getValue(rowOffset, targetVars.RRRideHeight));
+
                     // We check for the 'LFtemp' key we defined in requiredVars (which maps to LFtempM)
                     if (targetVars.LFtemp) currentLapData.data.tempLF.push(getValue(rowOffset, targetVars.LFtemp));
                     if (targetVars.RFtemp) currentLapData.data.tempRF.push(getValue(rowOffset, targetVars.RFtemp));
@@ -1608,6 +1634,7 @@ Application:
                         brakeABSactive: [],
                         fuelLevel: [],
                         shockVelLF: [], shockVelRF: [], shockVelLR: [], shockVelRR: [],
+                        rideHeightLF: [], rideHeightRF: [], rideHeightLR: [], rideHeightRR: [],
                         gForceLat: [], gForceLong: [],
                         tempLF: [], tempRF: [], tempLR: [], tempRR: [],
 
@@ -1905,6 +1932,7 @@ Application:
             setup.Rear_HSC = rd.HighSpeedCompressionDamping || '';
             setup.Rear_LSR = rd.LowSpeedReboundDamping || '';
             setup.Rear_HSR = rd.HighSpeedReboundDamping || '';
+
 
             return setup;
         }
@@ -2211,15 +2239,19 @@ Application:
                 { header: 'LF_SpringRate', fn: l => l.setup?.LF_SpringRate ?? '' },
                 { header: 'LF_RideHeight', fn: l => l.setup?.LF_RideHeight ?? '' },
                 { header: 'LF_Camber', fn: l => l.setup?.LF_Camber ?? '' },
+                { header: 'LF_BumpRubberGap', fn: l => l.setup?.LF_BumpRubberGap ?? '' },
                 { header: 'RF_SpringRate', fn: l => l.setup?.RF_SpringRate ?? '' },
                 { header: 'RF_RideHeight', fn: l => l.setup?.RF_RideHeight ?? '' },
                 { header: 'RF_Camber', fn: l => l.setup?.RF_Camber ?? '' },
+                { header: 'RF_BumpRubberGap', fn: l => l.setup?.RF_BumpRubberGap ?? '' },
                 { header: 'LR_SpringRate', fn: l => l.setup?.LR_SpringRate ?? '' },
                 { header: 'LR_RideHeight', fn: l => l.setup?.LR_RideHeight ?? '' },
                 { header: 'LR_Camber', fn: l => l.setup?.LR_Camber ?? '' },
+                { header: 'LR_BumpRubberGap', fn: l => l.setup?.LR_BumpRubberGap ?? '' },
                 { header: 'RR_SpringRate', fn: l => l.setup?.RR_SpringRate ?? '' },
                 { header: 'RR_RideHeight', fn: l => l.setup?.RR_RideHeight ?? '' },
                 { header: 'RR_Camber', fn: l => l.setup?.RR_Camber ?? '' },
+                { header: 'RR_BumpRubberGap', fn: l => l.setup?.RR_BumpRubberGap ?? '' },
 
                 // Setup: Rear & Differential
                 { header: 'FuelLevel_Rear', fn: l => l.setup?.FuelLevel_Rear ?? '' },
@@ -4026,27 +4058,56 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
         function computeSVStats(rawVelocities) {
             if (!rawVelocities || rawVelocities.length === 0) return null;
 
+            // Standard stats
             const mean = rawVelocities.reduce((s, v) => s + v, 0) / rawVelocities.length;
             const variance = rawVelocities.reduce((s, v) => s + (v - mean) ** 2, 0) / rawVelocities.length;
             const stdDev = Math.sqrt(variance);
 
-            let bumpCount = 0, reboundCount = 0;
+            // --- NEW: Split Logic ---
+            const SPLIT_VEL = 0.040; // 40mm/s split point
+            const NOISE_FLOOR = 0.002; // 2mm/s noise floor
+
+            let lsBumpCount = 0, lsRebCount = 0;
+            let hsBumpCount = 0, hsRebCount = 0;
+
+            // Track Max velocities to detect blowing through travel
+            let maxBumpVel = 0;
+            let maxRebVel = 0;
+
             rawVelocities.forEach(v => {
-                if (v < -0.01) bumpCount++;
-                else if (v > 0.01) reboundCount++;
+                // Track peaks
+                if (v < maxBumpVel) maxBumpVel = v;
+                if (v > maxRebVel) maxRebVel = v;
+
+                // Categorize
+                if (v > NOISE_FLOOR) {
+                    // Rebound (Positive)
+                    if (v < SPLIT_VEL) lsRebCount++;
+                    else hsRebCount++;
+                } else if (v < -NOISE_FLOOR) {
+                    // Bump (Negative)
+                    if (v > -SPLIT_VEL) lsBumpCount++;
+                    else hsBumpCount++;
+                }
             });
 
-            const totalNonZero = bumpCount + reboundCount || 1;
+            const totalSamples = rawVelocities.length;
 
             return {
                 mean,
                 stdDev,
-                bumpRatio: bumpCount / totalNonZero,
-                reboundRatio: reboundCount / totalNonZero,
                 max: Math.max(...rawVelocities),
-                min: Math.min(...rawVelocities)
+                min: Math.min(...rawVelocities),
+                // New granular stats
+                lsBumpRatio: lsBumpCount / totalSamples,
+                lsRebRatio: lsRebCount / totalSamples,
+                hsBumpRatio: hsBumpCount / totalSamples,
+                hsRebRatio: hsRebCount / totalSamples,
+                maxBumpVel,
+                maxRebVel
             };
         }
+
 
         function buildDynamicDamperTargetProfile(selectedLaps) {
             const wheels = ['LF', 'RF', 'LR', 'RR'];
@@ -4129,6 +4190,53 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
             return recs.join(' ');
         }
+
+
+        function getBumpStopRecommendations(lap) {
+            const recs = [];
+            // Ensure we have ride height data
+            if (!lap || !lap.data || !lap.data.rideHeightLF || !lap.data.rideHeightLF.length) return recs;
+
+            const wheels = ['LF', 'RF', 'LR', 'RR'];
+            const minHeights = {};
+
+            // 1. Find Minimum Ride Heights (in mm)
+            wheels.forEach(w => {
+                const arr = lap.data[`rideHeight${w}`];
+                if (arr && arr.length > 0) {
+                    // Convert m to mm and find min
+                    let min = Infinity;
+                    for (let i = 0; i < arr.length; i++) {
+                        if (arr[i] < min) min = arr[i];
+                    }
+                    minHeights[w] = min * 1000; // Convert to mm
+                }
+            });
+
+            // 2. Evaluate Thresholds
+            // Critical bottoming threshold (mm). 
+            // Set to roughly 1.5mm to allow for slight tire deflection/sensor margin.
+            const BOTTOMING_THRESH = 1.5;
+
+            wheels.forEach(w => {
+                const minH = minHeights[w];
+                if (minH === undefined) return;
+
+                const paramName = `${w}_BumpRubberGap`; // e.g. LF_BumpRubberGap
+
+                if (minH < BOTTOMING_THRESH) {
+                    // Car is hitting the ground. 
+                    recs.push({
+                        param: paramName,
+                        delta: -2.0, // Decrease gap by 2mm (or add 2mm packer)
+                        explanation: `<strong>${w} Bottoming:</strong> Minimum ride height dropped to ${minH.toFixed(1)}mm. The chassis is scraping the track. <strong>Decrease Bump Rubber Gap</strong> (engage packers sooner) to support the aero load and protect the floor.`
+                    });
+                }
+            });
+
+            return recs;
+        }
+
 
         function updateDamperRecommendations() {
             const container = document.getElementById('damper-rec-content');
@@ -4305,6 +4413,10 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
         charts.tempRR = initLineChart('temp-rr-chart', 'Tire Temp RR (Surface)', '°C');
         charts.cornerLoad = initLineChart('corner-load-chart', 'Corner Loads (Reference Lap)', 'kN');
         charts.cornerLoadAll = initLineChart('corner-load-all-chart', 'Corner Loads – All Selected Laps', 'kN');
+        charts.rideHeightLF = initLineChart('ride-height-lf-chart', 'Ride Height LF (Reference Lap)', 'mm');
+        charts.rideHeightRF = initLineChart('ride-height-rf-chart', 'Ride Height RF (Reference Lap)', 'mm');
+        charts.rideHeightLR = initLineChart('ride-height-lr-chart', 'Ride Height LR (Reference Lap)', 'mm');
+        charts.rideHeightRR = initLineChart('ride-height-rr-chart', 'Ride Height RR (Reference Lap)', 'mm');
 
         // ENABLE legend for reference corner‑load chart like G‑force/histogram
         if (charts.cornerLoad && charts.cornerLoad.options.plugins) {
@@ -4354,7 +4466,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                         mode: 'nearest',
                         intersect: false,
                         caretPadding: 10,
-                        position: 'offsetCursor', 
+                        position: 'offsetCursor',
                         callbacks: {
                             title: function (tooltipItems) {
                                 if (tooltipItems.length === 0) return '';
@@ -4370,10 +4482,14 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
                                 const value = tooltipItem.parsed.y;
                                 let formattedValue = '';
-
                                 const lapInfo = `L${lap.lapNumber} (${lap.filenameWithoutExt})`;
 
-                                if (tooltipItem.dataset.label.includes('Speed')) {
+                                // Add custom formatting for Ride Height if needed
+                                if (tooltipItem.dataset.label.includes('Ride Height')) {
+                                    formattedValue = `${lapInfo} Ride Height: ${value.toFixed(1)} mm`;
+                                }
+                                // ... existing custom formatting ...
+                                else if (tooltipItem.dataset.label.includes('Speed')) {
                                     formattedValue = `${lapInfo} Speed: ${value.toFixed(1)} km/h`;
                                 } else if (tooltipItem.dataset.label.includes('Thr')) {
                                     formattedValue = `${lapInfo} Throttle: ${value.toFixed(1)} %`;
@@ -4422,11 +4538,19 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 }
             };
 
+            // CUSTOM Y-AXIS SCALING FOR RIDE HEIGHT CHARTS
+            if (canvasId.startsWith('ride-height-')) {
+                chartOptions.scales.y.min = 0; // Ride height cannot be negative
+                // Dynamic max based on typical values, or a fixed reasonable upper bound
+                chartOptions.scales.y.max = 100; // Max 50mm for example, adjust as needed
+                chartOptions.scales.y.title.text = 'Ride Height (mm)';
+                chartOptions.plugins.legend = { display: true, position: 'top', labels: { color: '#eee' } }; // Show legend for clarity
+            }
+
             if (canvasId === 'throttle-brake-chart') {
                 chartOptions.scales.y.min = 0;
                 chartOptions.scales.y.max = 100;
             }
-
 
             const chart = new Chart(ctx, {
                 type: 'line',
@@ -4437,9 +4561,32 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             const chartWrapper = document.getElementById(canvasId).closest('.chart-wrapper');
             if (chartWrapper) {
                 addFullscreenButton(chartWrapper, chart);
+                // --- START NEW CODE FOR HELP ICON ---
+                if (canvasId.startsWith('ride-height-')) {
+                    const helpIconDiv = document.createElement('div');
+                    helpIconDiv.className = 'chart-help-icon';
+                    helpIconDiv.textContent = '?';
+                    helpIconDiv.title = `Ride Height Charts:
+- Shows the vertical distance (in mm) from the car's chassis to the ground at each wheel.
+- X axis: distance (m) around the track.
+- Y axis: ride height (mm).
+
+Red Dashed Line (Chassis Scraping Threshold):
+- Indicates a critical minimum ride height (e.g., 1.0mm) where the car's chassis might physically contact the track surface. Persistent contact can cause damage or unpredictable handling.
+
+Yellow Dashed Line (Bump Stop Engagement):
+- Represents the ride height (in mm) at which the suspension's bump stops begin to engage. These provide progressive stiffness at the end of suspension travel.
+- Its value is directly read from the 'Bump Rubber Gap' setting in your car's setup (in millimeters).
+- Note: This yellow line might not be visible if the 'Bump Rubber Gap' value in the car setup is greater than the chart's maximum Y-axis value (e.g., >50mm), as it falls outside the displayed range.`;
+
+                    // Prepend the help icon to the chart wrapper
+                    chartWrapper.prepend(helpIconDiv);
+                }
+                // --- END NEW CODE FOR HELP ICON ---
             }
             return chart; // Return the chart instance
         }
+
 
         // Custom tooltip positioner: offset tooltip from the mouse
         Chart.Tooltip.positioners.offsetCursor = function (elements, position) {
@@ -4603,6 +4750,112 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             } else if (charts.rpm.options.scales.y1 &&
                 !charts.rpm.data.datasets.some(ds => ds.yAxisID === 'y1')) {
                 delete charts.rpm.options.scales.y1;
+            }
+
+            // RIDE HEIGHT CHARTS
+            const rhCharts = {
+                LF: charts.rideHeightLF,
+                RF: charts.rideHeightRF,
+                LR: charts.rideHeightLR,
+                RR: charts.rideHeightRR
+            };
+            const rhDataKeys = {
+                LF: 'rideHeightLF',
+                RF: 'rideHeightRF',
+                LR: 'rideHeightLR',
+                RR: 'rideHeightRR'
+            };
+            const rhSetupKeys = {
+                LF: 'LF_BumpRubberGap',
+                RF: 'RF_BumpRubberGap',
+                LR: 'LR_BumpRubberGap',
+                RR: 'RR_BumpRubberGap'
+            };
+
+            if (refLap) {
+                ['LF', 'RF', 'LR', 'RR'].forEach(corner => {
+                    const chart = rhCharts[corner];
+                    const dataKey = rhDataKeys[corner];
+                    const setupKey = rhSetupKeys[corner];
+
+                    if (chart && refLap.data[dataKey] && refLap.data[dataKey].length > 0) {
+                        // Ride Height data (convert meters to millimeters)
+                        chart.data.datasets = [{
+                            label: `L${refLap.lapNumber} Ride Height (${corner})`,
+                            data: refLap.data[dataKey].map((val, i) => ({ x: refLap.data.distance[i], y: val * 1000 })), // meters to mm
+                            borderColor: refLap.color,
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            tension: 0.1,
+                            lapId: refLap.id
+                        }];
+
+                        const annotations = {};
+
+                        // Add Bump Rubber Gap line if available in setup
+                        const bumpRubberGapVal = parseFloat(refLap.setup?.[setupKey]);
+                        if (!isNaN(bumpRubberGapVal)) {
+                            // The bumpRubberGapVal is usually in mm already from setup.
+                            // We need to determine the STATIC ride height where this gap is defined.
+                            // For simplicity, let's assume the bumpRubberGap itself is the *threshold*
+                            // in mm from the ground where the bump stops engage *relative to the chassis*.
+                            // A more complex model might subtract it from a static ride height, but for visualization
+                            // of a "gap" value, putting a line at that value is direct.
+
+                            annotations.bumpGapLine = {
+                                type: 'line',
+                                yMin: bumpRubberGapVal,
+                                yMax: bumpRubberGapVal,
+                                borderColor: 'rgba(255, 193, 7, 0.7)', // Accent color (yellow)
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                label: {
+                                    display: true,
+                                    content: `Bump Stop Engages (Gap: ${bumpRubberGapVal.toFixed(1)}mm)`,
+                                    position: 'start',
+                                    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                                    color: '#ffc107',
+                                    font: { size: 10 }
+                                }
+                            };
+                        }
+
+                        // Add a "chassis scraping" threshold line (e.g., 1.0mm from ground)
+                        const scrapingThreshold = 1.0; // mm
+                        annotations.scrapingLine = {
+                            type: 'line',
+                            yMin: scrapingThreshold,
+                            yMax: scrapingThreshold,
+                            borderColor: 'rgba(220, 53, 69, 0.7)', // Red for danger
+                            borderWidth: 2,
+                            borderDash: [2, 2],
+                            label: {
+                                display: true,
+                                content: `Chassis Scraping Threshold (${scrapingThreshold.toFixed(1)}mm)`,
+                                position: 'end',
+                                backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                                color: '#dc3545',
+                                font: { size: 10 }
+                            }
+                        };
+
+                        chart.options.plugins.annotation.annotations = annotations;
+                    } else if (chart) {
+                        chart.data.datasets = [];
+                        chart.options.plugins.annotation.annotations = {};
+                    }
+                    chart.update(); // Update each ride height chart individually
+                });
+            } else {
+                // Clear all ride height charts if no reference lap
+                ['LF', 'RF', 'LR', 'RR'].forEach(corner => {
+                    const chart = rhCharts[corner];
+                    if (chart) {
+                        chart.data.datasets = [];
+                        chart.options.plugins.annotation.annotations = {};
+                        chart.update();
+                    }
+                });
             }
 
             // --- SUSPENSION VELOCITY HISTOGRAM (FIXED SCALING, RANGE, AND CENTERING) ---
@@ -5752,9 +6005,30 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 // --- D. DYNAMIC CORNERING TEMP ANALYSIS ---
                 htmlSummaryOutput += buildCorneringTempSummaryHtml(refLap);
 
+                // --- E. DAMPER VELOCITY ANALYSIS (NEW) ---
+                if (refLap.svStats) {
+                    const damperRecs = getDamperRecommendations(refLap);
+                    if (damperRecs.length > 0) {
+                        htmlSummaryOutput += `<div style="font-weight:600; margin-top:12px; margin-bottom:4px; color:#a0a0a0;">Telemetry Analysis (Damper Velocities):</div>`;
+                        damperRecs.forEach(rec => allRecommendations.push(rec));
+                    } else {
+                        htmlSummaryOutput += `<div style="font-weight:600; margin-top:12px; margin-bottom:4px; color:#28a745;">Telemetry Analysis (Damper Velocities): Damper histograms show good symmetry and range.</div>`;
+                    }
+                } else {
+                    htmlSummaryOutput += `<div style="font-size:0.8em; font-style:italic; margin-top:10px; color:#888;">(Damper velocity statistics not available.)</div>`;
+                }
+
+                // --- F. BUMP STOP / RIDE HEIGHT ANALYSIS (NEW) ---
+                const bumpStopRecs = getBumpStopRecommendations(refLap);
+                if (bumpStopRecs.length > 0) {
+                    htmlSummaryOutput += `<div style="font-weight:600; margin-top:12px; margin-bottom:4px; color:#ff9900;">Telemetry Analysis (Ride Height & Bump Stops):</div>`;
+                    bumpStopRecs.forEach(rec => allRecommendations.push(rec));
+                } else {
+                    htmlSummaryOutput += `<div style="font-weight:600; margin-top:12px; margin-bottom:4px; color:#28a745;">Telemetry Analysis (Ride Height): No critical bottoming detected.</div>`;
+                }
 
 
-                // --- E. DYNAMIC BRAKING TEMP ANALYSIS PER SECTOR (NEW SECTION with comparisons) ---
+                // --- G. DYNAMIC BRAKING TEMP ANALYSIS PER SECTOR (NEW SECTION with comparisons) ---
                 let brakingPerSectorHtml = '';
                 if (refLap.data.brake && refLap.data.brake.length > 0 && refLap.data.tempLF && refLap.data.tempLF.length > 0) {
                     const maxTrackDistance = refLap.data.distance[refLap.data.distance.length - 1];
@@ -5920,51 +6194,68 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
 
                 // --- Now, process all collected recommendations and display them ---
-                // First, apply all recommendations to the proposed snapshot
                 if (allRecommendations.length > 0) {
+
+                    // 1. Apply to Snapshot (if baseline exists)
                     allRecommendations.forEach(rec => {
                         const { param, delta } = rec;
                         const baselineValue = numericOrNull(baselineSetupSnapshot[param]);
 
                         if (baselineValue !== null) {
                             const currentPropVal = numericOrNull(proposedSetupSnapshot[param]);
+                            // Apply delta
                             if (currentPropVal !== null) {
                                 proposedSetupSnapshot[param] = (currentPropVal + delta).toFixed(3);
                             } else {
-                                // If the proposed value isn't numeric but baseline was, just use baseline + delta
                                 proposedSetupSnapshot[param] = (baselineValue + delta).toFixed(3);
                             }
                         } else {
-                            // This warning now comes from autoRecommendBtn's processing, not runSetupBtn's
-                            warnings.push(`Param '${param}' not found in baseline setup for car "${carName}". Cannot apply recommendation.`);
+                            // NEW: If baseline is missing (common for dampers), we still want to visualize the change
+                            // We explicitly set the proposed value to a string indicating the change
+                            if (proposedSetupSnapshot[param] === undefined || proposedSetupSnapshot[param] === "") {
+                                const sign = delta > 0 ? "+" : "";
+                                proposedSetupSnapshot[param] = `[Rec: ${sign}${delta}]`;
+                            }
                         }
                     });
 
-                    // Now, build the detailed recommendations HTML after applying all deltas
+                    // 2. Generate HTML Display
                     htmlDetailedRecommendations += `<div style="font-weight:600; margin-top:12px; margin-bottom:4px;">Proposed Setup Changes:</div>`;
+
                     allRecommendations.forEach(rec => {
                         const { param, delta, explanation } = rec;
                         const baselineValue = numericOrNull(baselineSetupSnapshot[param]);
-                        const proposedValue = numericOrNull(proposedSetupSnapshot[param]); // Get the value after all deltas are applied
+                        const proposedValue = proposedSetupSnapshot[param];
 
-                        // Only show a detailed recommendation if there was an actual change from baseline
-                        if (baselineValue !== null && proposedValue !== null && Math.abs(proposedValue - baselineValue) > 0.001) {
-                            const actualDelta = proposedValue - baselineValue;
-                            const deltaSign = actualDelta > 0 ? '+' : '';
+                        // LOGIC UPDATE: Show recommendation if Value Changed OR if Baseline was missing/unknown
+                        const isValueChange = (baselineValue !== null && numericOrNull(proposedValue) !== null && Math.abs(proposedValue - baselineValue) > 0.001);
+                        const isMissingBaseline = (baselineValue === null);
+
+                        if (isValueChange || isMissingBaseline) {
+                            const deltaSign = delta > 0 ? '+' : '';
+
+                            // Formatting the header based on whether we have numbers or just a suggestion
+                            let headerText = "";
+                            if (isValueChange) {
+                                headerText = `${param}: ${deltaSign}${delta} (New: ${parseFloat(proposedValue).toFixed(0)})`;
+                            } else {
+                                headerText = `${param}: Recommended ${deltaSign}${delta} click(s) (Baseline unknown)`;
+                            }
+
                             htmlDetailedRecommendations += `
-                        <div style="background:#2f2f2f; padding:6px; border-radius:3px; margin-bottom:5px;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#ccc;">
-                                <span>${param}: ${deltaSign}${actualDelta.toFixed(3)} (New: ${proposedValue.toFixed(3)})</span>
+                        <div style="background:#2f2f2f; padding:6px; border-radius:3px; margin-bottom:5px; border-left: 3px solid var(--accent-color);">
+                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#ccc; font-weight:bold;">
+                                <span>${headerText}</span>
                             </div>
-                            <div style="font-size:0.7rem; color:#888; margin-top:4px;">
+                            <div style="font-size:0.7rem; color:#aaa; margin-top:4px; line-height:1.4;">
                                 ${explanation}
                             </div>
                         </div>
                     `;
                         }
-                        // No else, because if proposedValue is null or no change, we don't display a recommendation item.
                     });
                 }
+
 
 
                 if (warnings.length > 0) {
@@ -6086,7 +6377,14 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                     'BrakePressureBias': 0.30,
                     'ArbBlades_Front': 0.40,
                     'RearArbBlades': 0.40,
+                                        // NEW: Damper weights (Dampers are subtle, keep weights low)
+                    'Front_LSC': 0.25, 'Rear_LSC': 0.25,
+                    'Front_LSR': 0.25, 'Rear_LSR': 0.25,
+                    'Front_HSC': 0.15, 'Rear_HSC': 0.15, // High speed is often noisy in data
+                    'Front_HSR': 0.15, 'Rear_HSR': 0.15,
+
                     'default': 0.50             // General dampener for everything else
+
                 };
 
                 // Compare Proposed vs Baseline
@@ -6208,28 +6506,32 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 spring: 'LF_SpringRate',
                 ride: 'LF_RideHeight',
                 camber: 'LF_Camber',
-                press: 'LF_StartingPressure'
+                press: 'LF_StartingPressure',
+                bumpGap: 'LF_BumpRubberGap' 
             },
             RF: {
                 title: 'Right Front',
                 spring: 'RF_SpringRate',
                 ride: 'RF_RideHeight',
                 camber: 'RF_Camber',
-                press: 'RF_StartingPressure'
+                press: 'RF_StartingPressure',
+                bumpGap: 'RF_BumpRubberGap' 
             },
             LR: {
                 title: 'Left Rear',
                 spring: 'LR_SpringRate',
                 ride: 'LR_RideHeight',
                 camber: 'LR_Camber',
-                press: 'LR_StartingPressure'
+                press: 'LR_StartingPressure',
+                bumpGap: 'LR_BumpRubberGap' 
             },
             RR: {
                 title: 'Right Rear',
                 spring: 'RR_SpringRate',
                 ride: 'RR_RideHeight',
                 camber: 'RR_Camber',
-                press: 'RR_StartingPressure'
+                press: 'RR_StartingPressure',
+                bumpGap: 'RR_BumpRubberGap' 
             },
             CENTER: {
                 frontArb: 'ArbBlades_Front',
@@ -6238,8 +6540,20 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 diffPreload: 'DiffPreload',
                 rearWing: 'RearWingAngle',
                 fuel: 'FuelLevel_Rear'
+            },
+            // NEW: Damper Fields (by axle)
+            DAMPERS: {
+                f_lsc: 'Front_LSC',
+                f_hsc: 'Front_HSC',
+                f_lsr: 'Front_LSR',
+                f_hsr: 'Front_HSR',
+                r_lsc: 'Rear_LSC',
+                r_hsc: 'Rear_HSC',
+                r_lsr: 'Rear_LSR',
+                r_hsr: 'Rear_HSR'
             }
         };
+
 
         // Average phase-based load stats across multiple laps (weighted by sample count)
         function averagePhaseLoadAcrossLaps(laps, phaseFilterFn) {
@@ -7496,10 +7810,12 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 
             el.innerHTML = `
                   <div class="ai-setup-car-row">
+                    <!-- ... existing Front Row code ... -->
                     <div class="ai-setup-corner">
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.LF.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.LF.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.LF.ride)}
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LF.bumpGap)} 
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.LF.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.LF.press)}
                     </div>
@@ -7507,12 +7823,14 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.RF.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.RF.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.RF.ride)}
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RF.bumpGap)} 
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.RF.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.RF.press)}
                     </div>
                   </div>
 
                   <div class="ai-setup-car-center">
+                    <!-- ... existing Center blocks ... -->
                     <div class="ai-setup-center-block">
                       <div class="ai-setup-center-block-header">Front / Brakes</div>
                       ${fieldBlock('Front ARB', CAR_SETUP_FIELDS.CENTER.frontArb)}
@@ -7531,10 +7849,12 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                   </div>
 
                   <div class="ai-setup-car-row">
+                    <!-- ... existing Rear Row code ... -->
                     <div class="ai-setup-corner">
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.LR.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.LR.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.LR.ride)}
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LR.bumpGap)} 
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.LR.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.LR.press)}
                     </div>
@@ -7542,11 +7862,32 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.RR.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.RR.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.RR.ride)}
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RR.bumpGap)} 
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.RR.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.RR.press)}
                     </div>
                   </div>
+
+                  <!-- NEW: DAMPERS ROW -->
+                  <div style="margin-top:6px; font-weight:600; font-size:0.75rem; color:#888;">Dampers (Click/Comp - Rebound)</div>
+                  <div class="ai-setup-car-row">
+                    <div class="ai-setup-corner" style="background:#2a2a2a;">
+                      <div class="ai-setup-corner-header">Front Dampers</div>
+                      ${fieldBlock('LS Comp', CAR_SETUP_FIELDS.DAMPERS.f_lsc)}
+                      ${fieldBlock('HS Comp', CAR_SETUP_FIELDS.DAMPERS.f_hsc)}
+                      ${fieldBlock('LS Reb', CAR_SETUP_FIELDS.DAMPERS.f_lsr)}
+                      ${fieldBlock('HS Reb', CAR_SETUP_FIELDS.DAMPERS.f_hsr)}
+                    </div>
+                    <div class="ai-setup-corner" style="background:#2a2a2a;">
+                      <div class="ai-setup-corner-header">Rear Dampers</div>
+                      ${fieldBlock('LS Comp', CAR_SETUP_FIELDS.DAMPERS.r_lsc)}
+                      ${fieldBlock('HS Comp', CAR_SETUP_FIELDS.DAMPERS.r_hsc)}
+                      ${fieldBlock('LS Reb', CAR_SETUP_FIELDS.DAMPERS.r_lsr)}
+                      ${fieldBlock('HS Reb', CAR_SETUP_FIELDS.DAMPERS.r_hsr)}
+                    </div>
+                  </div>
                 `;
+
 
             if (isEditable) {
                 el.querySelectorAll('.ai-setup-input').forEach(inp => {
@@ -7677,6 +8018,46 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                     }
                     break;
                 }
+                // ... existing cases ...
+
+                // --- NEW DAMPER EXPLANATIONS ---
+                case 'Front_LSC':
+                case 'Rear_LSC':
+                    if (isIncrease) {
+                        explanation = `Increasing Low Speed Compression (LSC) slows down the suspension compression during driver inputs (braking, turning). This stabilizes the platform, reduces pitch/roll, and sharpens response, but reduces mechanical grip on uneven surfaces.`;
+                    } else {
+                        explanation = `Decreasing Low Speed Compression (LSC) allows faster weight transfer. This improves compliance and mechanical grip on bumpy tracks but can make the car feel lazy, roll too much, or dive excessively under braking.`;
+                    }
+                    break;
+
+                case 'Front_LSR':
+                case 'Rear_LSR':
+                    if (isIncrease) {
+                        explanation = `Increasing Low Speed Rebound (LSR) slows the extension of the spring after compression. This helps settle the car after bumps and keeps the platform stable, but too much can cause "jacking down" (suspension stays compressed) and loss of grip.`;
+                    } else {
+                        explanation = `Decreasing Low Speed Rebound (LSR) allows the wheel to return to the road surface faster after a bump. This improves traction on undulating surfaces but can make the car feel bouncy, floaty, or unstable during weight transfer.`;
+                    }
+                    break;
+
+                case 'Front_HSC':
+                case 'Rear_HSC':
+                    if (isIncrease) {
+                        explanation = `Increasing High Speed Compression (HSC) helps support the car during sharp impacts like curbs or harsh bumps. It prevents bottoming out but can make the ride harsh and cause the tires to skip or lose contact on sharp edges.`;
+                    } else {
+                        explanation = `Decreasing High Speed Compression (HSC) allows the suspension to absorb sharp bumps and curbs more easily. This improves grip over curbs but increases the risk of bottoming out the chassis on the ground.`;
+                    }
+                    break;
+
+                case 'Front_HSR':
+                case 'Rear_HSR':
+                    if (isIncrease) {
+                        explanation = `Increasing High Speed Rebound (HSR) controls the spring energy release after a large compression (big bump/curb). It prevents the car from being launched upwards but can delay the tire returning to the track surface.`;
+                    } else {
+                        explanation = `Decreasing High Speed Rebound (HSR) allows the tire to reconnect with the track surface quickly after a large bump. This improves grip recovery but can make the car unstable or bouncy over curbs if the spring extends too violently.`;
+                    }
+                    break;
+
+
                 // Add more setup parameters and their explanations as needed.
                 default:
                     explanation = `The dynamic implications for ${paramName} are complex and depend on specific car characteristics and driving style. Consult expert resources for detailed effects.`;
@@ -7684,6 +8065,114 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             }
             return explanation;
         }
+
+        // --- UPDATED: Generate Damper Setup Changes based on Velocity Histograms ---
+        function getDamperRecommendations(lap) {
+            const recs = [];
+            if (!lap || !lap.svStats) return recs;
+
+            // -- Tuning Thresholds --
+            const LS_BALANCE_TOLERANCE = 0.05; // 5% difference allowed between LS Bump/Reb time
+            const HS_ACTIVITY_THRESHOLD = 0.02; // If > 2% of lap is High Speed, check stiffness
+            const HS_VELOCITY_LIMIT = 0.150; // 150mm/s. If we exceed this, HS is likely too soft.
+
+            const axles = {
+                Front: ['LF', 'RF'],
+                Rear: ['LR', 'RR']
+            };
+
+            for (const [axle, wheels] of Object.entries(axles)) {
+                let stats = {
+                    lsBumpRatio: 0, lsRebRatio: 0,
+                    hsBumpRatio: 0, hsRebRatio: 0,
+                    maxBumpVel: 0, maxRebVel: 0
+                };
+                let count = 0;
+
+                // Average the stats across the axle (Left + Right)
+                wheels.forEach(w => {
+                    if (lap.svStats[w]) {
+                        const s = lap.svStats[w];
+                        stats.lsBumpRatio += s.lsBumpRatio;
+                        stats.lsRebRatio += s.lsRebRatio;
+                        stats.hsBumpRatio += s.hsBumpRatio;
+                        stats.hsRebRatio += s.hsRebRatio;
+                        // Take the most extreme velocity seen on the axle
+                        stats.maxBumpVel = Math.min(stats.maxBumpVel, s.maxBumpVel);
+                        stats.maxRebVel = Math.max(stats.maxRebVel, s.maxRebVel);
+                        count++;
+                    }
+                });
+
+                if (count === 0) continue;
+                // Normalize ratios
+                stats.lsBumpRatio /= count;
+                stats.lsRebRatio /= count;
+                stats.hsBumpRatio /= count;
+                stats.hsRebRatio /= count;
+
+                // --- 1. LOW SPEED ANALYSIS (Handling Balance) ---
+                // Compare time spent in Bump vs Rebound in the 0-40mm/s range.
+                // ideally, this is roughly symmetric (50/50 split of the active time).
+
+                const lsTotal = stats.lsBumpRatio + stats.lsRebRatio;
+                if (lsTotal > 0) {
+                    const lsRebShare = stats.lsRebRatio / lsTotal; // % of LS time spent in Rebound
+
+                    if (lsRebShare > (0.5 + LS_BALANCE_TOLERANCE)) {
+                        recs.push({
+                            param: `${axle}_LSR`,
+                            delta: 1,
+                            explanation: `<strong>${axle} LS Rebound Bias:</strong> In the low-speed range (0-40mm/s), the suspension spends ${(lsRebShare * 100).toFixed(0)}% of time extending. It is struggling to settle down. Stiffen <strong>Low Speed Rebound</strong>.`
+                        });
+                    } else if (lsRebShare < (0.5 - LS_BALANCE_TOLERANCE)) {
+                        recs.push({
+                            param: `${axle}_LSR`,
+                            delta: -1,
+                            explanation: `<strong>${axle} LS Bump Bias:</strong> In the low-speed range, the suspension spends mostly time compressing. This implies "packing down". Soften <strong>Low Speed Rebound</strong> to let the wheel recover.`
+                        });
+                    }
+                }
+
+                // --- 2. HIGH SPEED ANALYSIS (Bump Absorption) ---
+                // Based on peak velocities. 
+
+                // Check for "Blowing Through" HS Compression
+                // If we hit very high bump velocities (<-150mm/s), the damper isn't slowing the wheel enough on curbs.
+                if (stats.maxBumpVel < -HS_VELOCITY_LIMIT) {
+                    recs.push({
+                        param: `${axle}_HSC`,
+                        delta: 1,
+                        explanation: `<strong>${axle} Bottoming Risk:</strong> Peak bump velocity hit ${(stats.maxBumpVel * 1000).toFixed(0)} mm/s. The damper is too soft over harsh bumps/curbs. Stiffen <strong>High Speed Compression</strong> to protect the chassis.`
+                    });
+                }
+
+                // Check for "Kick" / HS Rebound
+                // If we hit very high rebound velocities (>150mm/s), the spring is firing the car up too hard after a bump.
+                if (stats.maxRebVel > HS_VELOCITY_LIMIT) {
+                    recs.push({
+                        param: `${axle}_HSR`,
+                        delta: 1,
+                        explanation: `<strong>${axle} Bouncy/Kick:</strong> Peak rebound velocity hit ${(stats.maxRebVel * 1000).toFixed(0)} mm/s. The car is being launched up after bumps. Stiffen <strong>High Speed Rebound</strong> to control the spring energy.`
+                    });
+                }
+
+                // Check for "Lock out" (Too Stiff High Speed)
+                // If HS activity is non-existent on a track that is known to be bumpy (this is a heuristic),
+                // or if sigma is very low, we might be too stiff.
+                // Here we look for VERY low usage of high speed travel.
+                if (stats.hsBumpRatio < 0.005 && stats.maxBumpVel > -0.050) {
+                    recs.push({
+                        param: `${axle}_HSC`,
+                        delta: -1,
+                        explanation: `<strong>${axle} HS Too Stiff:</strong> The suspension almost never enters high-speed bump (peak only ${(stats.maxBumpVel * 1000).toFixed(0)} mm/s). If the track is bumpy, you are likely skipping over the surface. Soften <strong>High Speed Compression</strong>.`
+                    });
+                }
+            }
+
+            return recs;
+        }
+
 
         // Add this function after CAR_SETUP_FIELDS and numericOrNull
         function getAutoRecommendations(symptom) {
