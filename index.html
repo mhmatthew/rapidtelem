@@ -4572,12 +4572,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 - Y axis: ride height (mm).
 
 Red Dashed Line (Chassis Scraping Threshold):
-- Indicates a critical minimum ride height (e.g., 1.0mm) where the car's chassis might physically contact the track surface. Persistent contact can cause damage or unpredictable handling.
-
-Yellow Dashed Line (Bump Stop Engagement):
-- Represents the ride height (in mm) at which the suspension's bump stops begin to engage. These provide progressive stiffness at the end of suspension travel.
-- Its value is directly read from the 'Bump Rubber Gap' setting in your car's setup (in millimeters).
-- Note: This yellow line might not be visible if the 'Bump Rubber Gap' value in the car setup is greater than the chart's maximum Y-axis value (e.g., >50mm), as it falls outside the displayed range.`;
+- Indicates a critical minimum ride height (e.g., 1.0mm) where the car's chassis might physically contact the track surface. Persistent contact can cause damage or unpredictable handling.`;
 
                     // Prepend the help icon to the chart wrapper
                     chartWrapper.prepend(helpIconDiv);
@@ -4765,24 +4760,16 @@ Yellow Dashed Line (Bump Stop Engagement):
                 LR: 'rideHeightLR',
                 RR: 'rideHeightRR'
             };
-            const rhSetupKeys = {
-                LF: 'LF_BumpRubberGap',
-                RF: 'RF_BumpRubberGap',
-                LR: 'LR_BumpRubberGap',
-                RR: 'RR_BumpRubberGap'
-            };
 
             if (refLap) {
                 ['LF', 'RF', 'LR', 'RR'].forEach(corner => {
                     const chart = rhCharts[corner];
                     const dataKey = rhDataKeys[corner];
-                    const setupKey = rhSetupKeys[corner];
 
                     if (chart && refLap.data[dataKey] && refLap.data[dataKey].length > 0) {
-                        // Ride Height data (convert meters to millimeters)
                         chart.data.datasets = [{
                             label: `L${refLap.lapNumber} Ride Height (${corner})`,
-                            data: refLap.data[dataKey].map((val, i) => ({ x: refLap.data.distance[i], y: val * 1000 })), // meters to mm
+                            data: refLap.data[dataKey].map((val, i) => ({ x: refLap.data.distance[i], y: val * 1000 })), // m -> mm
                             borderColor: refLap.color,
                             borderWidth: 1.5,
                             pointRadius: 0,
@@ -4792,41 +4779,13 @@ Yellow Dashed Line (Bump Stop Engagement):
 
                         const annotations = {};
 
-                        // Add Bump Rubber Gap line if available in setup
-                        const bumpRubberGapVal = parseFloat(refLap.setup?.[setupKey]);
-                        if (!isNaN(bumpRubberGapVal)) {
-                            // The bumpRubberGapVal is usually in mm already from setup.
-                            // We need to determine the STATIC ride height where this gap is defined.
-                            // For simplicity, let's assume the bumpRubberGap itself is the *threshold*
-                            // in mm from the ground where the bump stops engage *relative to the chassis*.
-                            // A more complex model might subtract it from a static ride height, but for visualization
-                            // of a "gap" value, putting a line at that value is direct.
-
-                            annotations.bumpGapLine = {
-                                type: 'line',
-                                yMin: bumpRubberGapVal,
-                                yMax: bumpRubberGapVal,
-                                borderColor: 'rgba(255, 193, 7, 0.7)', // Accent color (yellow)
-                                borderWidth: 2,
-                                borderDash: [6, 6],
-                                label: {
-                                    display: true,
-                                    content: `Bump Stop Engages (Gap: ${bumpRubberGapVal.toFixed(1)}mm)`,
-                                    position: 'start',
-                                    backgroundColor: 'rgba(255, 193, 7, 0.2)',
-                                    color: '#ffc107',
-                                    font: { size: 10 }
-                                }
-                            };
-                        }
-
-                        // Add a "chassis scraping" threshold line (e.g., 1.0mm from ground)
+                        // Keep only the red chassis scraping threshold (if you still want it)
                         const scrapingThreshold = 1.0; // mm
                         annotations.scrapingLine = {
                             type: 'line',
                             yMin: scrapingThreshold,
                             yMax: scrapingThreshold,
-                            borderColor: 'rgba(220, 53, 69, 0.7)', // Red for danger
+                            borderColor: 'rgba(220, 53, 69, 0.7)',
                             borderWidth: 2,
                             borderDash: [2, 2],
                             label: {
@@ -4844,7 +4803,7 @@ Yellow Dashed Line (Bump Stop Engagement):
                         chart.data.datasets = [];
                         chart.options.plugins.annotation.annotations = {};
                     }
-                    chart.update(); // Update each ride height chart individually
+                    chart.update();
                 });
             } else {
                 // Clear all ride height charts if no reference lap
