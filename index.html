@@ -1232,6 +1232,7 @@ Application:
         let telemetryData = []; // Stores ALL laps (valid, invalid, out/in)
         let charts = {};
         let currentFullscreenChartWrapper = null;
+        let bumpStopAnnotations = {};   // global
         let setupByBaseName = {}; // e.g. { "mysetup": { spring_F: ..., ... } }
         let referenceLapId = null; // ID of the lap selected as reference
         const defaultVisibleLapIds = new Set(); // IDs of laps checked visible by default
@@ -1446,6 +1447,11 @@ Application:
                         'LRshockVel': 'LRshockVel',
                         'RRshockVel': 'RRshockVel',
 
+                        'LFshockDefl': 'LFshockDefl',
+                        'RFshockDefl': 'RFshockDefl',
+                        'LRshockDefl': 'LRshockDefl',
+                        'RRshockDefl': 'RRshockDefl',
+
                         'gForceLat': 'LatAccel',
                         'gForceLong': 'LongAccel',
 
@@ -1562,6 +1568,11 @@ Application:
                     if (targetVars.LRshockVel) currentLapData.data.shockVelLR.push(getValue(rowOffset, targetVars.LRshockVel));
                     if (targetVars.RRshockVel) currentLapData.data.shockVelRR.push(getValue(rowOffset, targetVars.RRshockVel));
 
+                    if (targetVars.LFshockDefl) currentLapData.data.shockDeflLF.push(getValue(rowOffset, targetVars.LFshockDefl));
+                    if (targetVars.RFshockDefl) currentLapData.data.shockDeflRF.push(getValue(rowOffset, targetVars.RFshockDefl));
+                    if (targetVars.LRshockDefl) currentLapData.data.shockDeflLR.push(getValue(rowOffset, targetVars.LRshockDefl));
+                    if (targetVars.RRshockDefl) currentLapData.data.shockDeflRR.push(getValue(rowOffset, targetVars.RRshockDefl));
+
                     // G-forces in G
                     if (targetVars.gForceLat) {
                         const latMs2 = getValue(rowOffset, targetVars.gForceLat);
@@ -1634,6 +1645,8 @@ Application:
                         brakeABSactive: [],
                         fuelLevel: [],
                         shockVelLF: [], shockVelRF: [], shockVelLR: [], shockVelRR: [],
+                        shockDeflLF: [], shockDeflRF: [], shockDeflLR: [], shockDeflRR: [],
+                        bumpStopLF: [], bumpStopRF: [], bumpStopLR: [], bumpStopRR: [],
                         rideHeightLF: [], rideHeightRF: [], rideHeightLR: [], rideHeightRR: [],
                         gForceLat: [], gForceLong: [],
                         tempLF: [], tempRF: [], tempLR: [], tempRR: [],
@@ -2511,6 +2524,7 @@ Application:
 
                 computeNormalLoadsForLap(lap, vp);
                 buildLoadSummaryForLap(lap);
+                computeCornerBumpStopFlagsForLap(lap);
             });
 
 
@@ -4572,7 +4586,18 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
 - Y axis: ride height (mm).
 
 Red Dashed Line (Chassis Scraping Threshold):
-- Indicates a critical minimum ride height (e.g., 1.0mm) where the car's chassis might physically contact the track surface. Persistent contact can cause damage or unpredictable handling.`;
+- Indicates a critical minimum ride height (e.g., 1.0mm) where the car's chassis might physically contact the track surface. Persistent contact can cause damage or unpredictable handling.
+
+Shaded area = bump stop engagement at that wheel.
+- When shaded, the suspension has reached the bump stop “gap”—the extra spring (bump rubber or packer) is now supporting the car.
+- Bump stops work as stiffer secondary springs when the suspension compresses past a set point.
+- Continuous shaded regions suggest running on bump stops much of the lap, which can be undesirable.
+- Adjust bump rubber gap or main springs to tune engagement.
+
+Bump stop engagment can:
+- Protect from bottoming out
+- Change the effective spring rate/handling balance
+- Contribute to sudden understeer/oversteer if contacted hard`;
 
                     // Prepend the help icon to the chart wrapper
                     chartWrapper.prepend(helpIconDiv);
@@ -4647,6 +4672,50 @@ Red Dashed Line (Chassis Scraping Threshold):
                     chart.update('none');
                 }
             });
+        }
+
+        function computeCornerBumpStopFlagsForLap(lap) {
+            if (!lap.setup || !lap.data) return;
+
+            const gaps_mm = {
+                LF: parseFloat(lap.setup.LF_BumpRubberGap || ''),
+                RF: parseFloat(lap.setup.RF_BumpRubberGap || ''),
+                LR: parseFloat(lap.setup.LR_BumpRubberGap || ''),
+                RR: parseFloat(lap.setup.RR_BumpRubberGap || '')
+            };
+
+            const gaps_m = {
+                LF: Number.isFinite(gaps_mm.LF) ? gaps_mm.LF / 1000 : null,
+                RF: Number.isFinite(gaps_mm.RF) ? gaps_mm.RF / 1000 : null,
+                LR: Number.isFinite(gaps_mm.LR) ? gaps_mm.LR / 1000 : null,
+                RR: Number.isFinite(gaps_mm.RR) ? gaps_mm.RR / 1000 : null
+            };
+
+            const n = lap.data.distance.length;
+
+            lap.data.bumpStopLF = new Array(n).fill(0);
+            lap.data.bumpStopRF = new Array(n).fill(0);
+            lap.data.bumpStopLR = new Array(n).fill(0);
+            lap.data.bumpStopRR = new Array(n).fill(0);
+
+            for (let i = 0; i < n; i++) {
+                if (gaps_m.LF !== null && Number.isFinite(lap.data.shockDeflLF[i]) &&
+                    lap.data.shockDeflLF[i] >= gaps_m.LF) {
+                    lap.data.bumpStopLF[i] = 1;
+                }
+                if (gaps_m.RF !== null && Number.isFinite(lap.data.shockDeflRF[i]) &&
+                    lap.data.shockDeflRF[i] >= gaps_m.RF) {
+                    lap.data.bumpStopRF[i] = 1;
+                }
+                if (gaps_m.LR !== null && Number.isFinite(lap.data.shockDeflLR[i]) &&
+                    lap.data.shockDeflLR[i] >= gaps_m.LR) {
+                    lap.data.bumpStopLR[i] = 1;
+                }
+                if (gaps_m.RR !== null && Number.isFinite(lap.data.shockDeflRR[i]) &&
+                    lap.data.shockDeflRR[i] >= gaps_m.RR) {
+                    lap.data.bumpStopRR[i] = 1;
+                }
+            }
         }
 
 
@@ -4765,11 +4834,16 @@ Red Dashed Line (Chassis Scraping Threshold):
                 ['LF', 'RF', 'LR', 'RR'].forEach(corner => {
                     const chart = rhCharts[corner];
                     const dataKey = rhDataKeys[corner];
+                    if (!chart) return;
 
-                    if (chart && refLap.data[dataKey] && refLap.data[dataKey].length > 0) {
+                    if (refLap.data[dataKey] && refLap.data[dataKey].length > 0) {
+                        // 1) Ride-height dataset ONLY
                         chart.data.datasets = [{
                             label: `L${refLap.lapNumber} Ride Height (${corner})`,
-                            data: refLap.data[dataKey].map((val, i) => ({ x: refLap.data.distance[i], y: val * 1000 })), // m -> mm
+                            data: refLap.data[dataKey].map((val, i) => ({
+                                x: refLap.data.distance[i],
+                                y: val * 1000 // m → mm
+                            })),
                             borderColor: refLap.color,
                             borderWidth: 1.5,
                             pointRadius: 0,
@@ -4777,12 +4851,13 @@ Red Dashed Line (Chassis Scraping Threshold):
                             lapId: refLap.id
                         }];
 
+                        // 2) Base annotations (scraping)
                         const annotations = {};
-
-                        // Keep only the red chassis scraping threshold (if you still want it)
                         const scrapingThreshold = 1.0; // mm
                         annotations.scrapingLine = {
                             type: 'line',
+                            xMin: refLap.data.distance[0],
+                            xMax: refLap.data.distance[refLap.data.distance.length - 1],
                             yMin: scrapingThreshold,
                             yMax: scrapingThreshold,
                             borderColor: 'rgba(220, 53, 69, 0.7)',
@@ -4798,15 +4873,36 @@ Red Dashed Line (Chassis Scraping Threshold):
                             }
                         };
 
-                        chart.options.plugins.annotation.annotations = annotations;
-                    } else if (chart) {
+                        // 3) Add ONLY this corner’s bump boxes
+                        const keyPrefix = `bump${corner}`; // bumpLF, bumpRF, bumpLR, bumpRR
+                        const cornerBumpAnns = Object.fromEntries(
+                            Object.entries(bumpStopAnnotations).filter(([k]) => k.startsWith(keyPrefix))
+                        );
+
+                        chart.options.plugins.annotation.annotations = {
+                            ...annotations,
+                            ...cornerBumpAnns
+                        };
+
+                        // 4) Clamp bump boxes to this chart's Y range
+                        const yScale = chart.options.scales.y;
+                        const yMin = yScale.min ?? 0;
+                        const yMax = yScale.max ?? 100;
+                        Object.values(chart.options.plugins.annotation.annotations).forEach(ann => {
+                            if (ann.type === 'box' && ann.yMax === 9999) {
+                                ann.yMin = yMin;
+                                ann.yMax = yMax;
+                            }
+                        });
+
+                    } else {
                         chart.data.datasets = [];
                         chart.options.plugins.annotation.annotations = {};
                     }
+
                     chart.update();
                 });
             } else {
-                // Clear all ride height charts if no reference lap
                 ['LF', 'RF', 'LR', 'RR'].forEach(corner => {
                     const chart = rhCharts[corner];
                     if (chart) {
@@ -4816,6 +4912,7 @@ Red Dashed Line (Chassis Scraping Threshold):
                     }
                 });
             }
+
 
             // --- SUSPENSION VELOCITY HISTOGRAM (FIXED SCALING, RANGE, AND CENTERING) ---
             const svDatasets = [];
@@ -4897,6 +4994,65 @@ Red Dashed Line (Chassis Scraping Threshold):
             charts.svHistogram.options.scales.y.min = 0;
             charts.svHistogram.update();
             // --- END SUSPENSION VELOCITY HISTOGRAM ---
+
+
+            // 5. --- Bump stop regions from per-corner shock deflection ---
+            bumpStopAnnotations = {};
+            if (refLap &&
+                refLap.data.bumpStopLF && refLap.data.bumpStopRF &&
+                refLap.data.bumpStopLR && refLap.data.bumpStopRR) {
+
+                const dist = refLap.data.distance;
+
+                function buildSegments(flagArr, idPrefix, color) {
+                    let inSeg = false;
+                    let startDist = null;
+                    for (let i = 0; i < dist.length; i++) {
+                        const active = flagArr[i] === 1;
+                        if (active && !inSeg) {
+                            inSeg = true;
+                            startDist = dist[i];
+                        } else if (!active && inSeg) {
+                            inSeg = false;
+                            const endDist = dist[i];
+                            bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}`] = {
+                                type: 'box',
+                                xMin: startDist,
+                                xMax: endDist,
+                                yMin: 0,
+                                yMax: 9999,
+                                backgroundColor: color,
+                                borderWidth: 0,
+                                drawTime: 'beforeDatasetsDraw'
+                            };
+                        }
+                    }
+                    if (inSeg) {
+                        const endDist = dist[dist.length - 1];
+                        bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}_end`] = {
+                            type: 'box',
+                            xMin: startDist,
+                            xMax: endDist,
+                            yMin: 0,
+                            yMax: 9999,
+                            backgroundColor: color,
+                            borderWidth: 0,
+                            drawTime: 'beforeDatasetsDraw'
+                        };
+                    }
+                }
+
+                buildSegments(refLap.data.bumpStopLF, 'bumpLF', 'rgba(255,165,0,0.25)');
+                buildSegments(refLap.data.bumpStopRF, 'bumpRF', 'rgba(255,215,0,0.25)');
+                buildSegments(refLap.data.bumpStopLR, 'bumpLR', 'rgba(128,0,255,0.20)');
+                buildSegments(refLap.data.bumpStopRR, 'bumpRR', 'rgba(0,128,255,0.20)');
+            }
+
+            // AFTER building bumpStopAnnotations
+            Object.values(bumpStopAnnotations).forEach(ann => {
+                ann.type = 'box';          // force box
+                ann.borderWidth = ann.borderWidth ?? 0;
+            });
 
             // --- G-Force Scatter Plot (NEW BLOCK) ---
             const gForceDatasets = [];
