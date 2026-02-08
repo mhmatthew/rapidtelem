@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Analyze iRacing telemetry online: review ride height, bump stops, ABS, damper stats, tire temps & more. Compare laps and setups to improve your racing.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rapid Telemetry Viewer</title>
     <style>
@@ -38,9 +39,17 @@
             flex-shrink: 0;
         }
 
-        h1 { margin: 0; font-size: 1.5em; }
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
 
-        .controls { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
 
         .import-button, button {
             background-color: var(--primary-color);
@@ -53,7 +62,9 @@
             transition: background-color 0.2s;
         }
 
-        .import-button:hover, button:hover { background-color: #0056b3; }
+            .import-button:hover, button:hover {
+                background-color: #0056b3;
+            }
 
         main {
             display: flex;
@@ -73,16 +84,20 @@
             gap: 20px;
         }
 
-        #sidebar h2 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 5px;
-            font-size: 1.1em;
-            color: var(--text-color-light);
+            #sidebar h2 {
+                margin-top: 0;
+                margin-bottom: 10px;
+                border-bottom: 1px solid var(--border-color);
+                padding-bottom: 5px;
+                font-size: 1.1em;
+                color: var(--text-color-light);
+            }
+
+        #lap-selector {
+            max-height: 250px;
+            overflow-y: auto;
         }
 
-        #lap-selector { max-height: 250px; overflow-y: auto; }
         .lap-item {
             display: flex;
             align-items: center;
@@ -94,16 +109,52 @@
             font-size: 0.85em;
             border-left: 3px solid transparent;
         }
-        .lap-item:hover { background-color: #444; }
-        .lap-item.is-reference { border-left-color: var(--accent-color); background-color: #3a3a3a; }
-        
-        .lap-file-label { font-size: 0.8em; color: #888; display: block; width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        .lap-status { font-size: 0.7em; margin-left: auto; text-align: right; color: #aaa; }
-        .lap-status span { padding: 2px 5px; border-radius: 3px; }
-        .lap-status .invalid { background-color: rgba(220, 53, 69, 0.2); color: #ff8089; }
-        .lap-status .outin { background-color: rgba(255, 193, 7, 0.2); color: #ffc107; }
-        .lap-status .complete { background-color: rgba(40, 167, 69, 0.2); color: #80ff97; }
+
+            .lap-item:hover {
+                background-color: #444;
+            }
+
+            .lap-item.is-reference {
+                border-left-color: var(--accent-color);
+                background-color: #3a3a3a;
+            }
+
+        .lap-file-label {
+            font-size: 0.8em;
+            color: #888;
+            display: block;
+            width: 100px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lap-status {
+            font-size: 0.7em;
+            margin-left: auto;
+            text-align: right;
+            color: #aaa;
+        }
+
+            .lap-status span {
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+            .lap-status .invalid {
+                background-color: rgba(220, 53, 69, 0.2);
+                color: #ff8089;
+            }
+
+            .lap-status .outin {
+                background-color: rgba(255, 193, 7, 0.2);
+                color: #ffc107;
+            }
+
+            .lap-status .complete {
+                background-color: rgba(40, 167, 69, 0.2);
+                color: #80ff97;
+            }
 
         input[type="radio"].ref-radio {
             appearance: none;
@@ -114,20 +165,34 @@
             cursor: pointer;
             outline: none;
         }
-        input[type="radio"].ref-radio:checked {
-            border-color: var(--accent-color);
-            background-color: var(--accent-color);
-            box-shadow: 0 0 5px var(--accent-color);
-        }
+
+            input[type="radio"].ref-radio:checked {
+                border-color: var(--accent-color);
+                background-color: var(--accent-color);
+                box-shadow: 0 0 5px var(--accent-color);
+            }
 
         .sector-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85em;
         }
-        .sector-table th { text-align: left; color: #aaa; padding: 4px; }
-        .sector-table td { padding: 4px; border-bottom: 1px solid #333; cursor: pointer; }
-        .sector-table tr:hover { background-color: #333; }
+
+            .sector-table th {
+                text-align: left;
+                color: #aaa;
+                padding: 4px;
+            }
+
+            .sector-table td {
+                padding: 4px;
+                border-bottom: 1px solid #333;
+                cursor: pointer;
+            }
+
+            .sector-table tr:hover {
+                background-color: #333;
+            }
 
         #track-map-wrapper {
             height: 250px;
@@ -147,25 +212,25 @@
             background-color: #222;
         }
 
-#import-coffee, #buy-coffee, #buy-coffee-btn { 
-  margin-left: 1px;
-  text-decoration: none; /* Removes underline if using anchor */
-  display: inline-flex; /* Aligns items horizontally */
-  align-items: center; /* Vertically centers content */
-  gap: 6px; /* Space between icon and text */
-  padding: 6px 10px; /* Reduced padding for a smaller height */
-  border: none; /* Removes border */
-  border-radius: 4px; /* Matches button corners */
-  background-color: #007bff; /* Matches existing button styles */
-  color: white; /* Text color */
-  font-size: 14px; /* Ensure font size matches others */
-  cursor: pointer; /* Show pointer on hover */
-  transition: background-color 0.2s; /* Smooth hover effect */
-}
+        #import-coffee, #buy-coffee, #buy-coffee-btn {
+            margin-left: 1px;
+            text-decoration: none; /* Removes underline if using anchor */
+            display: inline-flex; /* Aligns items horizontally */
+            align-items: center; /* Vertically centers content */
+            gap: 6px; /* Space between icon and text */
+            padding: 6px 10px; /* Reduced padding for a smaller height */
+            border: none; /* Removes border */
+            border-radius: 4px; /* Matches button corners */
+            background-color: #007bff; /* Matches existing button styles */
+            color: white; /* Text color */
+            font-size: 14px; /* Ensure font size matches others */
+            cursor: pointer; /* Show pointer on hover */
+            transition: background-color 0.2s; /* Smooth hover effect */
+        }
 
-#buy-coffee-btn:hover {
-  background-color: #0056b3; /* Darkens background on hover */
-}
+            #buy-coffee-btn:hover {
+                background-color: #0056b3; /* Darkens background on hover */
+            }
 
 
         /* New styles for fullscreen chart toggle */
@@ -196,9 +261,9 @@
             transition: background-color 0.2s;
         }
 
-        .fullscreen-btn:hover {
-            background-color: rgba(0, 0, 0, 0.7);
-        }
+            .fullscreen-btn:hover {
+                background-color: rgba(0, 0, 0, 0.7);
+            }
 
         /* Styles for the chart in fullscreen mode */
         .chart-wrapper.is-fullscreen {
@@ -232,53 +297,82 @@
             box-sizing: border-box;
         }
 
-        canvas { width: 100% !important; height: 100% !important; }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
 
-        .status { padding: 10px; border-radius: 4px; font-size: 0.9em; }
-        .info { background-color: rgba(0, 123, 255, 0.2); color: #80bdff; }
-        .error { background-color: rgba(220, 53, 69, 0.2); color: #ff8089; }
-        .success { background-color: rgba(40, 167, 69, 0.2); color: #80ff97; }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #1a1a1a; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        .info {
+            background-color: rgba(0, 123, 255, 0.2);
+            color: #80bdff;
+        }
+
+        .error {
+            background-color: rgba(220, 53, 69, 0.2);
+            color: #ff8089;
+        }
+
+        .success {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #80ff97;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
 
         .chartjs-tooltip {
             pointer-events: none;
         }
 
-.chart-help-icon {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    font-size: 11px;
-    line-height: 18px;
-    text-align: center;
-    cursor: help;
-    z-index: 6;
-    user-select: none;
-}
+        .chart-help-icon {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            cursor: help;
+            z-index: 6;
+            user-select: none;
+        }
 
-.chart-help-icon:hover {
-    background-color: rgba(0, 0, 0, 0.8);
-}
+            .chart-help-icon:hover {
+                background-color: rgba(0, 0, 0, 0.8);
+            }
 
-.header-brand {
-    display: flex;
-    align-items: center;
-    gap: 0;              /* remove flex gap */
-}
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0; /* remove flex gap */
+        }
 
-.header-brand h1 {
-    margin: 0;
-    margin-left: 0px;    /* tiny manual spacing between logo and text */
-    font-size: 1.4em;
-}
+            .header-brand h1 {
+                margin: 0;
+                margin-left: 0px; /* tiny manual spacing between logo and text */
+                font-size: 1.4em;
+            }
 
         .ai-setup-modal {
             background: #252526;
@@ -861,7 +955,7 @@
                     display: none !important;
                 }
 
-            /* 
+            /*
                Updated @page: Removed fixed height to prevent cutting off bottom content.
                Set to 'auto' or standard size so the printer driver handles the length.
             */
@@ -872,103 +966,99 @@
         }
 
 
-@media (max-width: 768px) {
-    /* Layout: stack sidebar above charts instead of side-by-side */
-    main {
-        flex-direction: column;
-    }
+        @media (max-width: 768px) {
+            /* Layout: stack sidebar above charts instead of side-by-side */
+            main {
+                flex-direction: column;
+            }
 
-    #sidebar {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        max-height: 40vh; /* let it scroll but not take the whole screen */
-        overflow-y: auto;
-    }
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                max-height: 40vh; /* let it scroll but not take the whole screen */
+                overflow-y: auto;
+            }
 
-    #chart-container {
-        padding: 10px;            /* less padding on small screens */
-        gap: 10px;
-    }
+            #chart-container {
+                padding: 10px; /* less padding on small screens */
+                gap: 10px;
+            }
 
-    /* Make charts taller so they’re easier to read on a narrow screen */
-    .chart-wrapper {
-        height: 260px;            /* was 200px */
-        padding: 8px;
-    }
+            /* Make charts taller so they’re easier to read on a narrow screen */
+            .chart-wrapper {
+                height: 260px; /* was 200px */
+                padding: 8px;
+            }
 
-    /* Header: title on top, controls below */
-    header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
+            /* Header: title on top, controls below */
+            header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
 
-    header h1 {
-        font-size: 1.2em;
-        text-align: left;
-        margin-bottom: 4px;
-    }
+                header h1 {
+                    font-size: 1.2em;
+                    text-align: left;
+                    margin-bottom: 4px;
+                }
 
-    /* Controls in a 2-column grid on phones */
-    header .controls {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-    }
+                /* Controls in a 2-column grid on phones */
+                header .controls {
+                    width: 100%;
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 6px;
+                }
 
-    /* Make each control fill its grid cell */
-    header .controls > * {
-        width: 100%;
-        justify-content: center;
-    }
+                    /* Make each control fill its grid cell */
+                    header .controls > * {
+                        width: 100%;
+                        justify-content: center;
+                    }
 
-    /* Compact the toggle labels (Show Tooltip, Show ABS) */
-    header .controls label {
-        font-size: 0.8rem;
-        padding: 4px 6px;
-        background-color: #333;
-        border-radius: 4px;
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-    }
+                    /* Compact the toggle labels (Show Tooltip, Show ABS) */
+                    header .controls label {
+                        font-size: 0.8rem;
+                        padding: 4px 6px;
+                        background-color: #333;
+                        border-radius: 4px;
+                        box-sizing: border-box;
+                        display: flex;
+                        align-items: center;
+                    }
 
-    header .controls label input[type="checkbox"] {
-        margin-right: 4px;
-    }
+                        header .controls label input[type="checkbox"] {
+                            margin-right: 4px;
+                        }
 
-    /* Smaller buttons on mobile */
-    .import-button,
-    button {
-        padding: 6px 8px;
-        font-size: 0.8rem;
-    }
+            /* Smaller buttons on mobile */
+            .import-button,
+            button {
+                padding: 6px 8px;
+                font-size: 0.8rem;
+            }
 
-    /* Keep Import button blue and center its text */
-    header .controls .import-button {
-        background-color: #007bff;
-        color: #fff;
-        display: flex;
-        align-items: center;    /* vertical centering */
-        justify-content: center;/* horizontal centering */
-        text-align: center;
-    }
-}
+            /* Keep Import button blue and center its text */
+            header .controls .import-button {
+                background-color: #007bff;
+                color: #fff;
+                display: flex;
+                align-items: center; /* vertical centering */
+                justify-content: center; /* horizontal centering */
+                text-align: center;
+            }
+        }
 
-@media (max-width: 480px) {
-    /* On very small phones, stack controls in a single column */
-    header .controls {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-
-
+        @media (max-width: 480px) {
+            /* On very small phones, stack controls in a single column */
+            header .controls {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1007,7 +1097,11 @@
                 <circle cx="40" cy="26" r="3" fill="#1a1a1a" stroke="#888" stroke-width="1.6" />
             </svg>
 
-            <h1>Rapid Telemetry Viewer</h1>
+            <h1 style="margin-right: 36px;">Rapid Telemetry Viewer</h1>
+            <p class="page-description" style="color:#aaa; font-size:0.75em; margin: 2px 0 0 0;">
+                Analyze iRacing telemetry online: review ride height, bump stops, ABS, dampers, tires & more.<br />
+                Compare laps and setups to improve your racing.
+            </p>
         </div>
 
         <div class="controls">
