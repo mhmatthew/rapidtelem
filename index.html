@@ -6494,6 +6494,9 @@ Bump stop engagment can:
                 let fastestLapCount = 0;
                 let fastestLapFileName = '';
 
+                // Array to store all variant results for display
+                let allVariantResults = [];
+
                 // Iterate through all stored setup variants
                 for (const key in trainingSetupVariants) {
                     const variant = trainingSetupVariants[key];
@@ -6505,6 +6508,13 @@ Bump stop engagment can:
                     if (validLaps.length > 0) {
                         const sumLapTime = validLaps.reduce((sum, r) => sum + parseFloat(r.lapTime), 0);
                         const avgLapTime = sumLapTime / validLaps.length;
+
+                        // Store result for the list
+                        allVariantResults.push({
+                            key: key,
+                            avgTime: avgLapTime,
+                            count: validLaps.length
+                        });
 
                         if (avgLapTime < minAvgLapTime) {
                             minAvgLapTime = avgLapTime;
@@ -6530,6 +6540,26 @@ Bump stop engagment can:
                 // Re-render the proposed car grid with the new values
                 renderSetupCar('ai-setup-car-proposed', proposedSetupSnapshot, baselineSetupSnapshot, true);
 
+                // Sort all results by time for the display list
+                allVariantResults.sort((a, b) => a.avgTime - b.avgTime);
+
+                // Generate HTML for the comparison list
+                let comparisonListHtml = '<div style="margin-top:10px; border-top:1px solid #444; padding-top:5px;"><strong style="font-size:0.75rem; color:#aaa;">Comparison of Loaded Setups:</strong><table style="width:100%; font-size:0.75rem; color:#ccc; margin-top:4px;">';
+
+                allVariantResults.forEach(res => {
+                    const isFastest = res.key === fastestVariantKey;
+                    const rowStyle = isFastest ? 'color:#28a745; font-weight:bold;' : 'color:#888;';
+                    const marker = isFastest ? '★ ' : '';
+
+                    comparisonListHtml += `
+                        <tr style="${rowStyle}">
+                            <td style="padding:2px 0;">${marker}${res.key}</td>
+                            <td style="text-align:right; padding:2px 0;">${formatTime(res.avgTime)}</td>
+                            <td style="text-align:right; padding:2px 0; font-size:0.7rem;">(${res.count} laps)</td>
+                        </tr>`;
+                });
+                comparisonListHtml += '</table></div>';
+
                 // Provide feedback to the user
                 let feedbackHtml = `
                     <div style="background:#28a745; color:white; padding:8px; border-radius:3px; margin-bottom:10px; font-weight:bold;">
@@ -6538,16 +6568,16 @@ Bump stop engagment can:
                     <div style="font-size:0.8rem; color:#ccc; margin-bottom:8px;">
                         The AI analyzed your loaded data and found that setup variant
                         <strong>"${fastestVariantKey}"</strong> (from file: ${fastestLapFileName})
-                        resulted in the fastest average lap time of <strong>${minAvgLapTime.toFixed(3)}s</strong>
+                        resulted in the fastest average lap time of <strong>${formatTime(minAvgLapTime)}</strong>
                         over ${fastestLapCount} laps.
                         <br><br>
                         This setup has been loaded into the "Proposed Changes" column.
-                        Compare it against your current baseline to see the differences and then click
-                        "Analyze Proposed Changes" to evaluate the predicted impact.
                     </div>
+                    ${comparisonListHtml}
                 `;
                 setupResultEl.innerHTML = feedbackHtml;
             });
+
 
             document.getElementById('reset-proposed-ai').addEventListener('click', () => {
                 if (!baselineSetupSnapshot) {
@@ -8227,45 +8257,51 @@ Bump stop engagment can:
                     }
                     break;
                 }
-                // ... existing cases ...
 
-                // --- NEW DAMPER EXPLANATIONS ---
+                // --- NEW DAMPER EXPLANATIONS (UPDATED: 0 is Max Damping/Stiff, Higher is Softer) ---
                 case 'Front_LSC':
                 case 'Rear_LSC':
                     if (isIncrease) {
-                        explanation = `Increasing Low Speed Compression (LSC) slows down the suspension compression during driver inputs (braking, turning). This stabilizes the platform, reduces pitch/roll, and sharpens response, but reduces mechanical grip on uneven surfaces.`;
+                        // Moving away from 0 -> Softer
+                        explanation = `Increasing Low Speed Compression (LSC) click count opens the valve, <strong>softening</strong> the damping. This allows faster weight transfer and improves mechanical grip on bumps, but makes the car pitch/roll more and feel lazier.`;
                     } else {
-                        explanation = `Decreasing Low Speed Compression (LSC) allows faster weight transfer. This improves compliance and mechanical grip on bumpy tracks but can make the car feel lazy, roll too much, or dive excessively under braking.`;
+                        // Moving toward 0 -> Stiffer
+                        explanation = `Decreasing Low Speed Compression (LSC) click count closes the valve, <strong>stiffening</strong> the damping. This stabilizes the platform, sharpens steering response, and reduces dive, but lowers mechanical grip on uneven surfaces.`;
                     }
                     break;
 
                 case 'Front_LSR':
                 case 'Rear_LSR':
                     if (isIncrease) {
-                        explanation = `Increasing Low Speed Rebound (LSR) slows the extension of the spring after compression. This helps settle the car after bumps and keeps the platform stable, but too much can cause "jacking down" (suspension stays compressed) and loss of grip.`;
+                        // Moving away from 0 -> Softer
+                        explanation = `Increasing Low Speed Rebound (LSR) click count <strong>softens</strong> the damping. This allows the wheel to return to the road surface faster after compression, improving traction, but can make the car feel bouncy or unstable during weight transfer.`;
                     } else {
-                        explanation = `Decreasing Low Speed Rebound (LSR) allows the wheel to return to the road surface faster after a bump. This improves traction on undulating surfaces but can make the car feel bouncy, floaty, or unstable during weight transfer.`;
+                        // Moving toward 0 -> Stiffer
+                        explanation = `Decreasing Low Speed Rebound (LSR) click count <strong>stiffens</strong> the damping. This slows spring extension, helping settle the car after bumps and stabilizing the platform, but too much can cause "jacking down" (loss of grip) over chatter.`;
                     }
                     break;
 
                 case 'Front_HSC':
                 case 'Rear_HSC':
                     if (isIncrease) {
-                        explanation = `Increasing High Speed Compression (HSC) helps support the car during sharp impacts like curbs or harsh bumps. It prevents bottoming out but can make the ride harsh and cause the tires to skip or lose contact on sharp edges.`;
+                        // Moving away from 0 -> Softer
+                        explanation = `Increasing High Speed Compression (HSC) click count <strong>softens</strong> the response to sharp impacts. This improves compliance over curbs and sharp bumps, but increases the risk of the chassis bottoming out on big hits.`;
                     } else {
-                        explanation = `Decreasing High Speed Compression (HSC) allows the suspension to absorb sharp bumps and curbs more easily. This improves grip over curbs but increases the risk of bottoming out the chassis on the ground.`;
+                        // Moving toward 0 -> Stiffer
+                        explanation = `Decreasing High Speed Compression (HSC) click count <strong>stiffens</strong> the response to sharp impacts. This helps support the car on curbs and prevents bottoming out, but can make the ride harsh and cause tires to skip.`;
                     }
                     break;
 
                 case 'Front_HSR':
                 case 'Rear_HSR':
                     if (isIncrease) {
-                        explanation = `Increasing High Speed Rebound (HSR) controls the spring energy release after a large compression (big bump/curb). It prevents the car from being launched upwards but can delay the tire returning to the track surface.`;
+                        // Moving away from 0 -> Softer
+                        explanation = `Increasing High Speed Rebound (HSR) click count <strong>softens</strong> the extension after deep compression. This allows the tire to reconnect with the track quickly after a big bump, improving recovery, but can make the car unstable/bouncy if the spring shoots back too fast.`;
                     } else {
-                        explanation = `Decreasing High Speed Rebound (HSR) allows the tire to reconnect with the track surface quickly after a large bump. This improves grip recovery but can make the car unstable or bouncy over curbs if the spring extends too violently.`;
+                        // Moving toward 0 -> Stiffer
+                        explanation = `Decreasing High Speed Rebound (HSR) click count <strong>stiffens</strong> the extension after deep compression. This controls the release of spring energy after big bumps, preventing the car from being launched upward, but may delay traction recovery.`;
                     }
                     break;
-
 
                 // Add more setup parameters and their explanations as needed.
                 default:
@@ -8276,6 +8312,7 @@ Bump stop engagment can:
         }
 
         // --- UPDATED: Generate Damper Setup Changes based on Velocity Histograms ---
+        // UPDATED LOGIC: 0 is Max Damping (Stiff). Higher Value is Less Damping (Soft).
         function getDamperRecommendations(lap) {
             const recs = [];
             if (!lap || !lap.svStats) return recs;
@@ -8322,7 +8359,6 @@ Bump stop engagment can:
 
                 // --- 1. LOW SPEED ANALYSIS (Handling Balance) ---
                 // Compare time spent in Bump vs Rebound in the 0-40mm/s range.
-                // ideally, this is roughly symmetric (50/50 split of the active time).
 
                 const lsTotal = stats.lsBumpRatio + stats.lsRebRatio;
                 if (lsTotal > 0) {
@@ -8331,56 +8367,51 @@ Bump stop engagment can:
                     if (lsRebShare > (0.5 + LS_BALANCE_TOLERANCE)) {
                         recs.push({
                             param: `${axle}_LSR`,
-                            delta: 1,
-                            explanation: `<strong>${axle} LS Rebound Bias:</strong> In the low-speed range (0-40mm/s), the suspension spends ${(lsRebShare * 100).toFixed(0)}% of time extending. It is struggling to settle down. Stiffen <strong>Low Speed Rebound</strong>.`
+                            delta: -1, // Stiffen: Reduce clicks (move toward 0)
+                            explanation: `<strong>${axle} LS Rebound Bias:</strong> In the low-speed range, the suspension spends ${(lsRebShare * 100).toFixed(0)}% of time extending. It is struggling to settle down. <strong>Stiffen Low Speed Rebound</strong> (lower value).`
                         });
                     } else if (lsRebShare < (0.5 - LS_BALANCE_TOLERANCE)) {
                         recs.push({
                             param: `${axle}_LSR`,
-                            delta: -1,
-                            explanation: `<strong>${axle} LS Bump Bias:</strong> In the low-speed range, the suspension spends mostly time compressing. This implies "packing down". Soften <strong>Low Speed Rebound</strong> to let the wheel recover.`
+                            delta: 1, // Soften: Increase clicks (move away from 0)
+                            explanation: `<strong>${axle} LS Bump Bias:</strong> In the low-speed range, the suspension spends mostly time compressing ("packing down"). <strong>Soften Low Speed Rebound</strong> (higher value) to let the wheel recover.`
                         });
                     }
                 }
 
                 // --- 2. HIGH SPEED ANALYSIS (Bump Absorption) ---
-                // Based on peak velocities. 
 
                 // Check for "Blowing Through" HS Compression
-                // If we hit very high bump velocities (<-150mm/s), the damper isn't slowing the wheel enough on curbs.
                 if (stats.maxBumpVel < -HS_VELOCITY_LIMIT) {
                     recs.push({
                         param: `${axle}_HSC`,
-                        delta: 1,
-                        explanation: `<strong>${axle} Bottoming Risk:</strong> Peak bump velocity hit ${(stats.maxBumpVel * 1000).toFixed(0)} mm/s. The damper is too soft over harsh bumps/curbs. Stiffen <strong>High Speed Compression</strong> to protect the chassis.`
+                        delta: -1, // Stiffen: Reduce clicks
+                        explanation: `<strong>${axle} Bottoming Risk:</strong> Peak bump velocity hit ${(stats.maxBumpVel * 1000).toFixed(0)} mm/s. The damper is too soft over harsh bumps. <strong>Stiffen High Speed Compression</strong> (lower value).`
                     });
                 }
 
                 // Check for "Kick" / HS Rebound
-                // If we hit very high rebound velocities (>150mm/s), the spring is firing the car up too hard after a bump.
                 if (stats.maxRebVel > HS_VELOCITY_LIMIT) {
                     recs.push({
                         param: `${axle}_HSR`,
-                        delta: 1,
-                        explanation: `<strong>${axle} Bouncy/Kick:</strong> Peak rebound velocity hit ${(stats.maxRebVel * 1000).toFixed(0)} mm/s. The car is being launched up after bumps. Stiffen <strong>High Speed Rebound</strong> to control the spring energy.`
+                        delta: -1, // Stiffen: Reduce clicks
+                        explanation: `<strong>${axle} Bouncy/Kick:</strong> Peak rebound velocity hit ${(stats.maxRebVel * 1000).toFixed(0)} mm/s. The car is being launched up after bumps. <strong>Stiffen High Speed Rebound</strong> (lower value).`
                     });
                 }
 
                 // Check for "Lock out" (Too Stiff High Speed)
-                // If HS activity is non-existent on a track that is known to be bumpy (this is a heuristic),
-                // or if sigma is very low, we might be too stiff.
-                // Here we look for VERY low usage of high speed travel.
                 if (stats.hsBumpRatio < 0.005 && stats.maxBumpVel > -0.050) {
                     recs.push({
                         param: `${axle}_HSC`,
-                        delta: -1,
-                        explanation: `<strong>${axle} HS Too Stiff:</strong> The suspension almost never enters high-speed bump (peak only ${(stats.maxBumpVel * 1000).toFixed(0)} mm/s). If the track is bumpy, you are likely skipping over the surface. Soften <strong>High Speed Compression</strong>.`
+                        delta: 1, // Soften: Increase clicks
+                        explanation: `<strong>${axle} HS Too Stiff:</strong> The suspension almost never enters high-speed bump. If the track is bumpy, you are likely skipping over the surface. <strong>Soften High Speed Compression</strong> (higher value).`
                     });
                 }
             }
 
             return recs;
         }
+
 
 
         // Add this function after CAR_SETUP_FIELDS and numericOrNull
