@@ -1272,10 +1272,12 @@ Application:
             <div class="chart-wrapper">
                 <div class="chart-help-icon"
                      title="Combined G-Forces Scatter:
-- Each point is one moment on track: X = Longitudinal G (braking/throttle), Y = Lateral G (cornering).
-- Negative X: braking, positive X: acceleration.
-- Negative Y: left-hand cornering load, positive Y: right-hand cornering load.
-- The outer ‘cloud’ shape shows the maximum combined grip you’re using.
+- Each point is one moment on track: X = Lateral G (left/right), Y = Longitudinal G (braking/accel).
+- Positve X: Turning Left → Lateral G greater than 0  (postive X)
+- Negative X: Turning Right → Lateral G less than 0  (negative X)
+- Positive Y: Accelerating → Longitudinal G greater than 0 (postive Y)
+- Negative Y: Braking → Longitudinal G less than 0 (negative Y)
+- The outer ‘cloud’ shows the combined grip you’re using.
 - Compare laps: denser outer points for one lap often mean better use of available grip, if the car is still stable.">
                     ?
                 </div>
@@ -5166,17 +5168,23 @@ Bump stop engagment can:
                 );
 
                 for (let i = 0; i < len; i++) {
-                    const longG = lap.data.gForceLong[i];
-                    const latG = lap.data.gForceLat[i];
-                    const d = lap.data.distance[i];  // distance along lap at this sample
+                    const latG = lap.data.gForceLat[i];   // lateral G (left/right)
+                    const longG = lap.data.gForceLong[i];  // longitudinal G (brake/accel)
+                    const d = lap.data.distance[i];
 
-                    if (longG < globalMinLongG) globalMinLongG = longG;
-                    if (longG > globalMaxLongG) globalMaxLongG = longG;
-                    if (latG < globalMinLatG) globalMinLatG = latG;
-                    if (latG > globalMaxLatG) globalMaxLatG = latG;
+                    // X = lateral G, Y = longitudinal G
+                    const plotX = latG;
+                    const plotY = longG;
 
-                    data.push({ x: longG, y: latG, d }); // <-- include distance
+                    if (plotX < globalMinLatG) globalMinLatG = plotX;
+                    if (plotX > globalMaxLatG) globalMaxLatG = plotX;
+                    if (plotY < globalMinLongG) globalMinLongG = plotY;
+                    if (plotY > globalMaxLongG) globalMaxLongG = plotY;
+
+                    data.push({ x: plotX, y: plotY, d });
                 }
+
+
 
                 if (data.length > 0) {
                     gForceDatasets.push({
@@ -5197,30 +5205,33 @@ Bump stop engagment can:
             // then axis min/max logic...
             charts.gforces.update();
 
-            // Set symmetrical scales around zero for G-forces
+            // Set X symmetrical around 0, Y centered at -1 G
             if (globalMinLatG !== Infinity && globalMaxLatG !== -Infinity && gForceDatasets.length > 0) {
                 const maxAbsoluteLatG = Math.max(Math.abs(globalMinLatG), Math.abs(globalMaxLatG));
                 const maxAbsoluteLongG = Math.max(Math.abs(globalMinLongG), Math.abs(globalMaxLongG));
 
                 const paddingFactor = 0.1;
-                const latGExtent = maxAbsoluteLatG + (maxAbsoluteLatG * paddingFactor);
-                const longGExtent = maxAbsoluteLongG + (maxAbsoluteLongG * paddingFactor);
+                const latGExtent = maxAbsoluteLatG * (1 + paddingFactor);
+                const longGExtent = maxAbsoluteLongG * (1 + paddingFactor);
 
-                // Use the largest of the two extents to ensure both axes are symmetrical and cover all data
                 const overallMaxAbsG = Math.max(latGExtent, longGExtent);
 
+                // X: still symmetric around 0
                 charts.gforces.options.scales.x.min = -overallMaxAbsG;
                 charts.gforces.options.scales.x.max = overallMaxAbsG;
-                charts.gforces.options.scales.y.min = -overallMaxAbsG;
-                charts.gforces.options.scales.y.max = overallMaxAbsG;
+
+                // Y: symmetric around -1 instead of 0
+                charts.gforces.options.scales.y.min = -1 - overallMaxAbsG;
+                charts.gforces.options.scales.y.max = -1 + overallMaxAbsG;
             } else {
-                // Fallback defaults if no valid G-force data
                 charts.gforces.options.scales.x.min = -2;
                 charts.gforces.options.scales.x.max = 2;
-                charts.gforces.options.scales.y.min = -2;
-                charts.gforces.options.scales.y.max = 2;
+                // Default Y centered on -1 with total span 4 => [-3, 1]
+                charts.gforces.options.scales.y.min = -3;
+                charts.gforces.options.scales.y.max = 1;
             }
             charts.gforces.update();
+
             // --- END G-Force Scatter Plot ---
 
 
@@ -5456,14 +5467,14 @@ Bump stop engagment can:
                     x: {
                         type: 'linear',
                         position: 'bottom',
-                        title: { display: true, text: 'Longitudinal G (' + unit + ')', color: '#888' }, // Gray axis title
+                        title: { display: true, text: 'Lateral G (left/right)', color: '#888' },
                         ticks: { color: '#888' },
                         grid: { color: '#333' }
                     },
                     y: {
                         type: 'linear',
                         position: 'left',
-                        title: { display: true, text: 'Lateral G (' + unit + ')', color: '#888' }, // Gray axis title
+                        title: { display: true, text: 'Longitudinal G (brake/accel)', color: '#888' },
                         ticks: { color: '#888' },
                         grid: { color: '#333' }
                     }
