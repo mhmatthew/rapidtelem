@@ -93,6 +93,13 @@
                 color: var(--text-color-light);
             }
 
+            #sidebar .import-button {
+                display: inline-flex;
+                justify-content: center; /* horizontal centering /
+  align-items: center;     / vertical centering */
+                text-align: center;
+            }
+
         #lap-selector {
             max-height: 250px;
             overflow-y: auto;
@@ -666,6 +673,331 @@
         }
 
 
+        /* Give the 3D card a fixed height like other charts */
+        #car-3d-wrapper {
+            position: relative;
+        }
+
+        /* 3D canvas area fills the wrapper minus the title line */
+        #car-3d-container {
+            width: 100%;
+            height: calc(100% - 24px); /* ~title height; tweak if needed */
+            box-sizing: border-box;
+        }
+
+        /* HUD: hidden by default */
+        #car-3d-hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            display: none; /* <= important */
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+            box-sizing: border-box;
+            font-family: 'Monospace', 'Segoe UI', sans-serif;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+
+        .hud-section {
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent background */
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+
+        .hud-top-left, .hud-top-right {
+            position: absolute;
+            top: 41px;
+        }
+
+        .hud-top-left {
+            left: 20px;
+        }
+
+        .hud-top-right {
+            right: 20px;
+        }
+
+        .hud-top-center {
+            position: absolute;
+            top: 41px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #hud-gforce-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px; /* Adjust size as needed */
+            height: 10px; /* Adjust size as needed */
+            background-color: red; /* Or any color you prefer */
+            border-radius: 50%;
+        }
+
+
+        #hud-abs-indicator {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .hud-abs-off {
+            background: rgba(255,255,255,0.1);
+            color: #ccc;
+        }
+
+        .hud-abs-on {
+            background: #dc3545;
+            color: #fff;
+            box-shadow: 0 0 6px rgba(220,53,69,0.8);
+        }
+
+        #hud-bump-lf, #hud-bump-rf, #hud-bump-lr, #hud-bump-rr {
+            display: inline-block;
+            margin-left: 4px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .hud-bump-off {
+            background: rgba(255,255,255,0.05);
+            color: #aaa;
+        }
+
+        .hud-bump-on {
+            background: #ffc107;
+            color: #000;
+            box-shadow: 0 0 4px rgba(255,193,7,0.9);
+        }
+
+        .hud-bottom-left, .hud-bottom-right {
+            position: absolute;
+            bottom: 23px;
+        }
+
+        .hud-bottom-left {
+            left: 20px;
+        }
+
+        .hud-bottom-right {
+            right: 20px;
+        }
+
+
+        .hud-data-item {
+            margin-bottom: 2px;
+        }
+
+            .hud-data-item span {
+                font-weight: bold;
+                color: var(--accent-color); /* Highlight data values */
+            }
+
+        #hud-delta {
+            color: #fff; /* Default delta color */
+        }
+
+            #hud-delta.faster {
+                color: #28a745;
+            }
+            /* Green for faster */
+            #hud-delta.slower {
+                color: #dc3545;
+            }
+        /* Red for slower */
+
+
+        /* Tire temperature display */
+        .hud-tire-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1); /* Separator */
+        }
+
+            .hud-tire-group:last-child {
+                border-bottom: none;
+            }
+
+        .hud-tire-label {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-right: 8px;
+            width: 30px; /* Fixed width for labels */
+        }
+
+        .hud-tire-temp-optimal {
+            color: #28a745;
+        }
+        /* Green */
+        .hud-tire-temp-warm {
+            color: #ffc107;
+        }
+        /* Yellow */
+        .hud-tire-temp-hot {
+            color: #dc3545;
+        }
+        /* Red */
+        .hud-tire-temp-cold {
+            color: #6fa8dc;
+        }
+        /* Blue */
+
+
+        /* Input Bars (Throttle/Brake) */
+        .hud-center-bottom {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end; /* Align elements to the bottom */
+            gap: 20px;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 10px 15px;
+            border-radius: 6px;
+        }
+
+        .hud-input-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hud-input-bar-label {
+            font-size: 0.75em;
+            text-align: center;
+            color: #ccc;
+        }
+
+        .hud-input-bar-container {
+            width: 100px; /* Fixed width for the bar container */
+            height: 15px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .hud-input-bar {
+            height: 100%;
+            width: 0%; /* Will be updated by JS */
+            transition: width 0.05s linear; /* Smooth animation for bar fill */
+            border-radius: 3px;
+        }
+
+        .hud-brake {
+            background-color: #dc3545;
+        }
+        /* Red for brake */
+        .hud-throttle {
+            background-color: #28a745;
+        }
+        /* Green for throttle */
+
+        /* Steering Wheel */
+        .hud-steering-wheel {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff; /* Steering wheel color */
+            transition: transform 0.05s linear; /* Smooth steering rotation */
+        }
+
+        .steering-icon {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* G-Force Meter */
+        .hud-gforce-meter {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gforce-bg {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background-color: rgba(255,255,255,0.4);
+        }
+
+            .gforce-bg::before { /* Horizontal line */
+                content: '';
+                position: absolute;
+                width: 100%;
+                height: 2px;
+                background-color: rgba(255,255,255,0.4);
+                top: 50%;
+                left: 0;
+                transform: translateY(-50%);
+            }
+
+        .gforce-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #007bff; /* Blue dot */
+            box-shadow: 0 0 5px rgba(0,123,255,0.7);
+            transform: translate(-50%, -50%); /* Center the dot */
+            transition: transform 0.05s linear;
+        }
+
+        /* Only show HUD when the 3D wrapper is fullscreen */
+        #car-3d-wrapper.is-fullscreen #car-3d-hud {
+            display: flex; /* <= important */
+            font-size: 1.1em;
+            padding: 25px;
+        }
+
+        #car-3d-wrapper.is-fullscreen .hud-section {
+            padding: 10px 15px;
+        }
+
+        #car-3d-wrapper.is-fullscreen .hud-center-bottom {
+            bottom: 25px;
+            padding: 12px 20px;
+        }
+
+        #car-3d-wrapper.is-fullscreen .hud-input-bar-container {
+            width: 120px;
+            height: 18px;
+        }
+
+        #car-3d-wrapper.is-fullscreen .hud-steering-wheel {
+            width: 100px;
+            height: 100px;
+        }
+
+        #car-3d-wrapper.is-fullscreen .hud-gforce-meter {
+            width: 100px;
+            height: 100px;
+        }
+
+
         /* Responsive adjustments for smaller screens (existing media queries might need tweaks) */
         @media (max-width: 1250px) { /* Adjust breakpoint as needed for the new modal width */
             .ai-setup-modal {
@@ -1059,6 +1391,8 @@
                 grid-template-columns: 1fr;
             }
         }
+
+
     </style>
 </head>
 <body>
@@ -1211,6 +1545,19 @@
                     <button id="open-setup-assistant">AI Setup Assistant</button>
                     <button id="open-pit-card-modal">Pit Card</button>
                     <button id="export-lap-report" style="background-color: #17a2b8;">Export Full Lap Report (CSV)</button>
+
+                    <!-- NEW: 3D Car Viewer elements -->
+                    <label for="car-import" class="import-button btn-3d-import">Import Car (GLB)</label>
+                    <input type="file" id="car-import" accept=".glb" hidden>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                        <button id="play-3d-lap" class="btn-3d-play">Play 3D</button>
+                        <button id="pause-3d-lap">Pause</button>
+                        <button id="loop-3d-lap">Loop: Off</button>
+                        <button id="toggle-follow-camera">Follow Cam: Off</button>
+                        <button id="set-cockpit-cam" title="Position camera with mouse, then click to Pin">Pin Cockpit View</button>
+                    </div>
+                    <!-- END NEW 3D Car Viewer elements -->
+
                 </div>
             </div>
             <div>
@@ -1221,7 +1568,7 @@
                 </p>
                 <p style="font-size: 0.8em; color: #888; margin-top: 5px;">
                     Explore the project on GitHub: <br>
-                                                   <a href="https://github.com/mhmatthew/rapidtelem" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none;">github.com/mhmatthew/rapidtelem</a>
+                    <a href="https://github.com/mhmatthew/rapidtelem" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none;">github.com/mhmatthew/rapidtelem</a>
                 </p>
             </div>
         </aside>
@@ -1241,6 +1588,143 @@
             </div>
             <div class="chart-wrapper">
                 <canvas id="rpm-gear-chart"></canvas>
+            </div>
+            <div class="chart-wrapper" id="car-3d-wrapper">
+                <div style="font-size: 0.8rem; font-weight: bold; color: #ccc; margin-bottom: 4px;">
+                    3D Car View (pitch / roll / driving line)
+                </div>
+                <div id="car-3d-container"></div>
+                <!-- 3D Viewer HUD Overlay -->
+                <div id="car-3d-hud">
+                    <div class="hud-section hud-top-left">
+                        <div class="hud-data-item">Speed: <span id="hud-speed">--</span> kph</div>
+                        <div class="hud-data-item">Gear: <span id="hud-gear">N</span></div>
+                        <div class="hud-data-item">RPM: <span id="hud-rpm">--</span></div>
+                        <div class="hud-data-item">
+                            ABS:
+                            <span id="hud-abs-indicator" class="hud-abs-off">OFF</span>
+                        </div>
+                    </div>
+
+                    <div class="hud-section hud-top-right">
+                        <div class="hud-data-item">Time: <span id="hud-time">--.--</span></div>
+                        <div class="hud-data-item">Dist: <span id="hud-distance">--</span> m</div>
+                        <div class="hud-data-item">Elev: <span id="hud-elevation">--</span> m</div>
+                        <div class="hud-data-item">Delta: <span id="hud-delta">--.--</span></div>
+                    </div>
+
+                    <div class="hud-section hud-top-center">
+                        <div class="hud-data-item">
+                            Bump Stops:
+                            <span id="hud-bump-lf" class="hud-bump-off">LF</span>
+                            <span id="hud-bump-rf" class="hud-bump-off">RF</span>
+                            <span id="hud-bump-lr" class="hud-bump-off">LR</span>
+                            <span id="hud-bump-rr" class="hud-bump-off">RR</span>
+                        </div>
+                    </div>
+
+                    <div class="hud-section hud-bottom-left">
+                        <div class="hud-tire-group">
+                            <div class="hud-tire-label">LF</div>
+                            <div class="hud-data-item">Temp: <span id="hud-temp-lf">--</span>°C</div>
+                        </div>
+                        <div class="hud-tire-group">
+                            <div class="hud-tire-label">LR</div>
+                            <div class="hud-data-item">Temp: <span id="hud-temp-lr">--</span>°C</div>
+                        </div>
+                    </div>
+
+                    <div class="hud-section hud-bottom-right">
+                        <div class="hud-tire-group">
+                            <div class="hud-tire-label">RF</div>
+                            <div class="hud-data-item">Temp: <span id="hud-temp-rf">--</span>°C</div>
+                        </div>
+                        <div class="hud-tire-group">
+                            <div class="hud-tire-label">RR</div>
+                            <div class="hud-data-item">Temp: <span id="hud-temp-rr">--</span>°C</div>
+                        </div>
+                    </div>
+
+                    <div class="hud-center-bottom">
+                        <div class="hud-input-bars">
+                            <div class="hud-input-bar-label">Brake</div>
+                            <div class="hud-input-bar-container">
+                                <div id="hud-brake-bar" class="hud-input-bar hud-brake"></div>
+                            </div>
+                            <div class="hud-input-bar-label">Throttle</div>
+                            <div class="hud-input-bar-container">
+                                <div id="hud-throttle-bar" class="hud-input-bar hud-throttle"></div>
+                            </div>
+                        </div>
+                        <div id="hud-steering-wheel" class="hud-steering-wheel">
+                            <svg viewBox="0 0 100 100" class="steering-icon">
+                                <!-- Outer rim (flattened top and bottom) -->
+                                <path d="
+            M 30 15
+            L 70 15
+            C 85 15, 95 30, 95 50
+            C 95 70, 85 85, 70 85
+            L 30 85
+            C 15 85, 5 70, 5 50
+            C 5 30, 15 15, 30 15
+            Z"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="6"
+                                      stroke-linejoin="round" />
+
+                                <!-- Inner rim (cutout) -->
+                                <path d="
+            M 32 25
+            L 68 25
+            C 78 25, 85 35, 85 50
+            C 85 65, 78 75, 68 75
+            L 32 75
+            C 22 75, 15 65, 15 50
+            C 15 35, 22 25, 32 25
+            Z"
+                                      fill="#111"
+                                      stroke="currentColor"
+                                      stroke-width="2" />
+
+                                <!-- Top spoke -->
+                                <path d="M 50 25 L 50 40"
+                                      stroke="currentColor"
+                                      stroke-width="8"
+                                      stroke-linecap="round" />
+
+                                <!-- Bottom-left spoke -->
+                                <path d="M 35 65 L 45 55"
+                                      stroke="currentColor"
+                                      stroke-width="8"
+                                      stroke-linecap="round" />
+
+                                <!-- Bottom-right spoke -->
+                                <path d="M 65 65 L 55 55"
+                                      stroke="currentColor"
+                                      stroke-width="8"
+                                      stroke-linecap="round" />
+
+                                <!-- Center hub -->
+                                <circle cx="50" cy="50" r="10"
+                                        fill="#111"
+                                        stroke="currentColor"
+                                        stroke-width="3" />
+
+                                <!-- Logo placeholder -->
+                                <rect x="45" y="45" width="10" height="10"
+                                      rx="2" ry="2"
+                                      fill="currentColor" />
+                            </svg>
+                        </div>
+
+
+                        <div class="hud-gforce-meter">
+                            <div class="gforce-bg"></div>
+                            <div id="hud-gforce-dot" class="gforce-dot"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="chart-wrapper">
                 <div class="chart-help-icon"
@@ -1322,12 +1806,58 @@ Application:
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 
+    <!-- Three.js Libraries -->
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/"
+          }
+        }
+    </script>
+
+    <!-- Module Script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Create a mutable object by cloning the module namespace
+        //    (Namespace objects are read-only, so we copy properties to a new object)
+        const THREE_GLOBAL = { ...THREE };
+
+        // 2. Add GLTFLoader to this new object
+        THREE_GLOBAL.GLTFLoader = GLTFLoader;
+        THREE_GLOBAL.OrbitControls = OrbitControls;
+
+        // 3. Assign to window.THREE so existing code finds it
+        window.THREE = THREE_GLOBAL;
+
+        console.log('Three.js r176 & GLTFLoader successfully loaded');
+    </script>
+
 
     <script>
         // --- Global State ---
         let telemetryData = []; // Stores ALL laps (valid, invalid, out/in)
         let charts = {};
         let currentFullscreenChartWrapper = null;
+                // --- 3D Car View State ---
+        let carScene, carCamera, carRenderer;
+        let carMesh = null;
+        let carStreamlines = []; // optional “CFD” lines
+        let carCurrentLap = null;
+        let carRacingLines = []; // NEW: To hold THREE.Line objects for racing lines
+        let carControls = null;
+        let isFollowCameraEnabled = false; // Add this new global variable
+        let isCockpitCamEnabled = false;
+        let cockpitRelativePos = null; // Initialize to null
+        let cockpitRelativeRot = null; // Initialize to null
+        let followCamPos = null;
+        let followCamTarget = null;
+        const FOLLOW_CAM_POS_LERP = 0.12;    // position smoothing [0..1]
+        const FOLLOW_CAM_LOOK_LERP = 0.18;   // look-at smoothing [0..1]
+        let lastCarWorldPos = null;
         let bumpStopAnnotations = {};   // global
         let setupByBaseName = {}; // e.g. { "mysetup": { spring_F: ..., ... } }
         let referenceLapId = null; // ID of the lap selected as reference
@@ -1362,6 +1892,45 @@ Application:
             });
             chartWrapper.appendChild(btn);
         }
+
+        // --- 3D Car Fullscreen Toggle ---
+        function toggleCar3DFullscreen(buttonElement) {
+            const wrapper = document.getElementById('car-3d-wrapper');
+            const chartContainer = document.getElementById('chart-container');
+
+            const entering = !wrapper.classList.contains('is-fullscreen');
+
+            if (entering) {
+                // Exit any existing fullscreen chart
+                if (currentFullscreenChartWrapper && currentFullscreenChartWrapper !== wrapper) {
+                    currentFullscreenChartWrapper.classList.remove('is-fullscreen');
+                    const otherBtn = currentFullscreenChartWrapper.querySelector('.fullscreen-btn');
+                    if (otherBtn) otherBtn.innerHTML = fullscreenIcon;
+                }
+
+                wrapper.classList.add('is-fullscreen');
+                chartContainer.classList.add('fullscreen-active');
+                buttonElement.innerHTML = exitFullscreenIcon;
+                currentFullscreenChartWrapper = wrapper;
+            } else {
+                wrapper.classList.remove('is-fullscreen');
+                chartContainer.classList.remove('fullscreen-active');
+                buttonElement.innerHTML = fullscreenIcon;
+                currentFullscreenChartWrapper = null;
+            }
+
+            // Resize Three.js renderer to new container size
+            if (carRenderer && carCamera) {
+                const container = document.getElementById('car-3d-container');
+                const width = container.clientWidth;
+                const height = container.clientHeight || 300; // fallback
+
+                carRenderer.setSize(width, height);
+                carCamera.aspect = width / height;
+                carCamera.updateProjectionMatrix();
+            }
+        }
+
 
         function toggleChartFullscreen(targetWrapper, chartInstance, buttonElement) {
             const chartContainer = document.getElementById('chart-container');
@@ -1410,7 +1979,794 @@ Application:
             }, 50); // Small delay to let CSS apply
         }
 
+        function getSampleIndexForDistance(lap, distance) {
+            if (!lap || !lap.data || !lap.data.distance || !lap.data.distance.length) return 0;
+            const arr = lap.data.distance;
 
+            let lo = 0, hi = arr.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (arr[mid] < distance) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
+
+        // ... (inside your <script> tags, before `updateCharts()`) ...
+
+        function update3DRacingLines(visibleLaps) {
+            // Remove any existing racing lines from the scene
+            carRacingLines.forEach(line => carScene.remove(line));
+            carRacingLines = [];
+
+            if (!carScene) return;
+
+            // Define a small offset above the ground to prevent Z-fighting with the ground plane
+            const LINE_HEIGHT_OFFSET = 0.01; // meters
+
+            visibleLaps.forEach(lap => {
+                const points = [];
+                // Collect points and filter out invalid/zero coordinates
+                for (let i = 0; i < lap.data.mapX.length; i++) {
+                    const x = lap.data.mapX[i];
+                    const y = lap.data.mapY[i];
+                    const zElev = lap.data.mapZ ? lap.data.mapZ[i] : 0; // elevation (m)
+
+                    if (x !== 0 || y !== 0) {
+                        // X: as before, Z: lateral, Y: elevation
+                        points.push(new THREE.Vector3(
+                            lap.data.mapX[i],
+                            lap.data.mapZ[i],     // meters = elevation
+                            -lap.data.mapY[i]
+                        ));
+                    }
+                }
+
+
+                if (points.length < 2) return; // Need at least two points to draw a line
+
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: new THREE.Color(lap.color),
+                    linewidth: 2 // Note: linewidth property is not supported in WebGL core profile for LineBasicMaterial
+                                 // For varying line widths, you would need to use Line2/LineGeometry from Three.js examples.
+                                 // For simplicity, we'll keep it as 1px for now unless you integrate Line2.
+                });
+
+                const line = new THREE.Line(geometry, material);
+                carScene.add(line);
+                carRacingLines.push(line);
+
+            });
+        }
+
+
+        function initCarScene() {
+            const container = document.getElementById('car-3d-container');
+            if (!container) return;
+
+            // Initialize Three.js objects once THREE is available
+            cockpitRelativePos = new THREE.Vector3();
+            cockpitRelativeRot = new THREE.Quaternion();
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            carRenderer = new THREE.WebGLRenderer({ antialias: true });
+            carRenderer.setSize(width, height);
+            carRenderer.setPixelRatio(window.devicePixelRatio || 1);
+            container.appendChild(carRenderer.domElement);
+
+            const wrapper = document.getElementById('car-3d-wrapper');
+            if (wrapper && !wrapper.querySelector('.fullscreen-btn')) {
+                const btn = document.createElement('button');
+                btn.className = 'fullscreen-btn';
+                btn.innerHTML = fullscreenIcon;
+                btn.title = 'Toggle Fullscreen 3D View';
+                btn.addEventListener('click', () => toggleCar3DFullscreen(btn));
+                wrapper.appendChild(btn);
+            }
+
+            carScene = new THREE.Scene();
+            carScene.background = new THREE.Color(0x111111);
+
+            carCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            carCamera.position.set(0, 1.2, 4);
+            carScene.add(carCamera);
+
+            // Mouse camera controls
+            carControls = new THREE.OrbitControls(carCamera, carRenderer.domElement);
+            carControls.target.set(0, 0.5, 0);   // look-at point (adjust if needed)
+            carControls.enableDamping = true;
+            carControls.dampingFactor = 0.1;
+            carControls.enablePan = true;
+            carControls.enableZoom = true;
+
+            // Simple lighting
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            keyLight.position.set(3, 5, 5);
+            carScene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-3, 3, -5);
+            carScene.add(fillLight);
+
+            const ambient = new THREE.AmbientLight(0x404040);
+            carScene.add(ambient);
+
+            // --- ADD GROUND PLANE FOR VISUAL REFERENCE ---
+            // const groundGeometry = new THREE.PlaneGeometry(100, 100); // Large enough plane
+            // const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+            // const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            // ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+            // ground.position.y = 0; // The ground is at Y=0 in scene coordinates
+            // carScene.add(ground);
+
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                'car.glb',
+                (gltf) => {
+                    carMesh = gltf.scene;
+                    carScene.add(carMesh);
+
+                    // --- center & scale model ---
+                    const box = new THREE.Box3().setFromObject(carMesh);
+                    const size = new THREE.Vector3();
+                    const center = new THREE.Vector3();
+                    box.getSize(size);
+                    box.getCenter(center);
+
+                    // Move model so its base (lowest point after scaling) aligns with Y=0.
+                    const modelMinY = box.min.y;
+                    carMesh.position.sub(center);
+                    carMesh.position.y -= modelMinY;
+
+                    // normalize size
+                    const maxSize = Math.max(size.x, size.y, size.z);
+                    if (maxSize > 0) {
+                        const desiredSize = 2.5;
+                        const scale = desiredSize / maxSize;
+                        carMesh.scale.setScalar(scale);
+                    }
+
+                    // --- INITIAL CAMERA & CONTROLS CENTERED ON CAR ---
+                    const carWorldPos = new THREE.Vector3(); // THREE is now defined here
+                    carMesh.getWorldPosition(carWorldPos);
+
+                    // Place camera slightly behind and above the car
+                    carCamera.position.copy(carWorldPos).add(new THREE.Vector3(0, 1.5, -4));
+                    carCamera.lookAt(carWorldPos);
+                    carCamera.updateProjectionMatrix();
+
+                    if (carControls) {
+                        carControls.target.copy(carWorldPos);
+                        carControls.update();
+                    }
+
+                    // Initialize lastCarWorldPos ONLY AFTER carMesh is loaded and THREE is available
+                    lastCarWorldPos = carWorldPos.clone(); // THIS IS THE CRITICAL CHANGE
+
+                    if (typeof buildCarStreamlines === 'function') {
+                        buildCarStreamlines();
+                    }
+                },
+                undefined,
+                (err) => console.error('Error loading car.glb', err)
+            );
+
+            animateCarScene();
+        }
+
+
+        function animateCarScene() {
+            requestAnimationFrame(animateCarScene);
+
+            if (!carRenderer || !carCamera || !carMesh) return;
+
+            const carWorldPosition = new THREE.Vector3();
+            carMesh.getWorldPosition(carWorldPosition);
+
+            // This block continuously updates OrbitControls's target to follow the car.
+            // This is done regardless of `isFollowCameraEnabled` state, so that when
+            // OrbitControls is enabled, its target is always synchronized with the car's position.
+            if (lastCarWorldPos) { // Ensure lastCarWorldPos is initialized
+                const delta = new THREE.Vector3().subVectors(carWorldPosition, lastCarWorldPos);
+                if (delta.lengthSq() > 0.0001) { // Only update if there's significant movement
+                    if (carControls && carControls.enabled) {
+                        carControls.target.add(delta);
+                        // When OrbitControls is active and its target moves, also move the camera
+                        // by the same delta to maintain its relative position and orientation around the target.
+                        carCamera.position.add(delta);
+                    }
+                }
+            }
+            lastCarWorldPos = carWorldPosition.clone(); // Update for the next frame
+
+            if (isCockpitCamEnabled) {
+                // COCKPIT MODE: rigidly lock camera to car mesh using saved offsets
+
+                // 1. Apply Relative Position: Car Matrix * SavedLocalPos
+                const newPos = cockpitRelativePos.clone().applyMatrix4(carMesh.matrixWorld);
+                carCamera.position.copy(newPos);
+
+                // 2. Apply Relative Rotation: Car Quat * SavedLocalQuat
+                const newRot = carMesh.quaternion.clone().multiply(cockpitRelativeRot);
+                carCamera.quaternion.copy(newRot);
+
+            } else if (isFollowCameraEnabled) {
+                if (carControls) {
+                    carControls.enabled = false; // Disable OrbitControls when follow cam is on
+                }
+
+                // Only use yaw for the camera offset to avoid pitch/roll jitter
+                const carQuat = new THREE.Quaternion();
+                carMesh.getWorldQuaternion(carQuat);
+
+                const euler = new THREE.Euler().setFromQuaternion(carQuat, 'YXZ');
+                const yawOnlyQuat = new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(0, euler.y, 0, 'YXZ')
+                );
+
+                // “Ideal” camera position & look-at, in car space
+                const desiredOffset = new THREE.Vector3(0, 2.0, -8); // higher & farther = more “drone”
+                desiredOffset.applyQuaternion(yawOnlyQuat);
+                const desiredPos = carWorldPosition.clone().add(desiredOffset);
+
+                const lookOffset = new THREE.Vector3(0, 1.0, 6);     // look slightly ahead of car
+                lookOffset.applyQuaternion(yawOnlyQuat);
+                const desiredLook = carWorldPosition.clone().add(lookOffset);
+
+                // Initialise smoothed state on first frame
+                if (!followCamPos) {
+                    followCamPos = desiredPos.clone();
+                }
+                if (!followCamTarget) {
+                    followCamTarget = desiredLook.clone();
+                }
+
+                // Smoothly interpolate towards desired position / target
+                followCamPos.lerp(desiredPos, FOLLOW_CAM_POS_LERP);
+                followCamTarget.lerp(desiredLook, FOLLOW_CAM_LOOK_LERP);
+
+                carCamera.position.copy(followCamPos);
+                carCamera.lookAt(followCamTarget);
+
+            } else {
+                if (carControls) {
+                    carControls.enabled = true;
+                    carControls.update();
+                }
+            }
+
+            carRenderer.render(carScene, carCamera);
+        }
+
+
+
+        function formatHudTime(seconds) {
+            if (!Number.isFinite(seconds) || seconds < 0) return '--:--:--';
+
+            const totalSeconds = Math.floor(seconds);
+            const minutes = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            const centis = Math.floor((seconds - totalSeconds) * 100); // hundredths
+
+            const mm = String(minutes).padStart(2, '0');
+            const ss = String(secs).padStart(2, '0');
+            const cc = String(centis).padStart(2, '0');
+
+            // MM:SS:ss
+            return `${mm}:${ss}:${cc}`;
+        }
+
+
+        // NEW: Helper function to get an interpolated value from a telemetry array
+        // at a specific distance within a lap.
+        function getInterpolatedValue(lapData, targetDistance, dataKey) {
+            if (!lapData || !lapData.distance || lapData.distance.length === 0 || !lapData[dataKey]) {
+                return null;
+            }
+
+            const distances = lapData.distance;
+            const values = lapData[dataKey];
+
+            // Find the index of the first point whose distance is >= targetDistance
+            let i = 0;
+            while (i < distances.length && distances[i] < targetDistance) {
+                i++;
+            }
+
+            // Handle edge cases
+            if (i === 0) return values[0]; // Before first sample
+            if (i >= distances.length) return values[values.length - 1]; // After last sample
+
+            // Interpolate between samples[i-1] and samples[i]
+            const d1 = distances[i - 1];
+            const v1 = values[i - 1];
+            const d2 = distances[i];
+            const v2 = values[i];
+
+            if (d1 === d2) return v1; // Avoid division by zero if distances are identical
+
+            const ratio = (targetDistance - d1) / (d2 - d1);
+            return v1 + (v2 - v1) * ratio;
+        }
+
+
+        function updateCarOrientationFromTelemetry(lap, index) {
+            if (!carMesh || !lap || !lap.data || !lap.data.rideHeightLF || !lap.data.rawAlt) return; // Ensure rawAlt exists
+            if (index < 0 || index >= lap.data.rideHeightLF.length) return;
+
+            // Existing calculation of pitch and roll from ride heights:
+            const hLF = lap.data.rideHeightLF[index]; // ride height in meters
+            const hRF = lap.data.rideHeightRF[index];
+            const hLR = lap.data.rideHeightLR[index];
+            const hRR = lap.data.rideHeightRR[index];
+
+            const avgFront = (hLF + hRF) / 2;
+            const avgRear = (hLR + hRR) / 2;
+            const avgLeft = (hLF + hLR) / 2;
+            const avgRight = (hRF + hRR) / 2;
+            const overallAvgHeight = (avgFront + avgRear) / 2;
+
+            const WHEELBASE = 2.6;
+            const TRACK_WIDTH = 1.6;
+
+            // Pitch from suspension squat/dive (relative to car's own frame)
+            const suspensionPitchRad = Math.atan2(avgRear - avgFront, WHEELBASE);
+
+            // Roll from body lean (relative to car's own frame)
+            const suspensionRollRad = Math.atan2(avgRight - avgLeft, TRACK_WIDTH);
+
+            // --- Track Pitch Calculation ---
+            let trackPitchRad = 0;
+            // Use mapZ for 3D scene elevation, which is globally relative
+            const currentSceneElev = lap.data.mapZ[index];
+
+            if (index + 1 < lap.data.mapX.length) {
+                const nextSceneElev = lap.data.mapZ[index + 1]; // Use mapZ for next point elevation
+
+                const deltaX_world = lap.data.mapX[index + 1] - lap.data.mapX[index];
+                const deltaZ_world = -(lap.data.mapY[index + 1] - lap.data.mapY[index]);
+                const deltaElev_world = nextSceneElev - currentSceneElev; // Vertical change in scene's Y-axis
+
+                const horizontalDistance = Math.sqrt(deltaX_world * deltaX_world + deltaZ_world * deltaZ_world);
+
+                if (horizontalDistance > 0.01) {
+                    trackPitchRad = Math.atan2(deltaElev_world, horizontalDistance);
+                }
+            }
+            // --- End Track Pitch Calculation ---
+
+            // Car position: Base height on current track elevation (from mapZ) + overall suspension height
+            carMesh.position.x = lap.data.mapX[index];
+            carMesh.position.z = -lap.data.mapY[index];
+            carMesh.position.y = currentSceneElev + overallAvgHeight; // <--- USE mapZ FOR 3D Y POSITION
+
+            // --- Car Yaw (heading along track) ---
+            let trackYaw = 0;
+            if (index + 1 < lap.data.mapX.length) {
+                const dx = lap.data.mapX[index + 1] - lap.data.mapX[index];
+                const dy = lap.data.mapY[index + 1] - lap.data.mapY[index];
+
+                if (dx !== 0 || dy !== 0) {
+                    trackYaw = Math.atan2(dx, -dy);
+                }
+            }
+
+            // Add small yaw from lateral G *on top* of track orientation
+            const latG = lap.data.gForceLat && lap.data.gForceLat[index] || 0;
+            const additionalYawFromLatG = Math.sign(latG) * Math.min(Math.abs(latG) * 0.05, 0.1);
+
+            // --- COMBINE ALL ROTATIONS ---
+            carMesh.rotation.order = 'YXZ'; // Yaw (Y), then Pitch (X), then Roll (Z)
+
+            carMesh.rotation.y = trackYaw + additionalYawFromLatG;
+            carMesh.rotation.x = -(trackPitchRad + suspensionPitchRad); // Negative for nose up on uphill / squat
+            carMesh.rotation.z = suspensionRollRad; // Positive for car leaning left (right side high)
+
+            // Streamline opacity update
+            const speed = lap.data.speed[index]; // km/h
+            const flowStrength = Math.min(speed / 250, 1.0); // 0..1 (from 0 to 250 km/h)
+            carStreamlines.forEach(line => {
+                line.material.opacity = 0.2 + 0.8 * flowStrength;
+            });
+
+            const currentDistance = lap.data.distance[index];
+            const currentTime = lap.data.time[index] - lap.data.time[0]; // Lap elapsed time
+
+            // Reference lap data for comparison
+            let refLapData = null;
+            let refTime = null;
+            let delta = null;
+
+            if (referenceLapId !== null && referenceLapId !== lap.id) {
+                const refLap = telemetryData.find(l => l.id === referenceLapId);
+                if (refLap && refLap.data.distance.length > 0) {
+                    refLapData = refLap.data;
+                    const refLapStart = refLapData.time[0];
+                    refTime = getInterpolatedValue(refLapData, currentDistance, 'time') - refLapStart;
+                    if (refTime !== null) {
+                        delta = currentTime - refTime;
+                    }
+                }
+            } else {
+                // If the current lap IS the reference lap, delta is always 0
+                delta = 0;
+            }
+
+
+            // Update Text Readouts
+            document.getElementById('hud-speed').textContent = lap.data.speed[index].toFixed(0);
+            document.getElementById('hud-gear').textContent = lap.data.gear[index] === 0 ? 'N' : lap.data.gear[index];
+            document.getElementById('hud-rpm').textContent = lap.data.rpm[index].toFixed(0);
+            document.getElementById('hud-time').textContent = formatHudTime(currentTime);
+            document.getElementById('hud-distance').textContent = currentDistance.toFixed(0);
+
+            // For the HUD's "Elev" display, continue to use rawAlt:
+            const hudElevEl = document.getElementById('hud-elevation');
+            if (hudElevEl) {
+                // This displays the smoothed ABSOLUTE GPS altitude, not the scene's relative elevation
+                const currentAbsoluteElev = lap.data.rawAlt ? lap.data.rawAlt[index] : 0;
+                hudElevEl.textContent = currentAbsoluteElev.toFixed(1);
+            }
+
+
+            const hudDeltaEl = document.getElementById('hud-delta');
+            if (hudDeltaEl) { // Added null check for hudDeltaEl
+                if (delta !== null) {
+                    const sign = delta > 0 ? '+' : '';
+                    hudDeltaEl.textContent = `${sign}${delta.toFixed(2)}`;
+                    hudDeltaEl.className = ''; // Reset class
+                    if (delta > 0.05) hudDeltaEl.classList.add('slower');
+                    else if (delta < -0.05) hudDeltaEl.classList.add('faster');
+                } else {
+                    hudDeltaEl.textContent = '--.--';
+                    hudDeltaEl.className = '';
+                }
+            }
+
+
+            // Update Tire Temperatures (with color coding)
+            const wheels = [
+                { key: 'LF', id: 'lf' },
+                { key: 'RF', id: 'rf' },
+                { key: 'LR', id: 'lr' },
+                { key: 'RR', id: 'rr' },
+            ];
+
+            const tempThresholds = {
+                cold: 60, optimal: 80, warm: 95, hot: 110
+            };
+
+            wheels.forEach(wheel => {
+                const dataKey = `temp${wheel.key}`;           // tempLF, tempRF, ...
+                const rawTemp = lap.data[dataKey] ? lap.data[dataKey][index] : undefined;
+                const tempEl = document.getElementById(`hud-temp-${wheel.id}`); // hud-temp-lf, etc.
+
+                if (tempEl) {
+                    if (typeof rawTemp === 'number' && rawTemp > 0) {
+                        tempEl.textContent = rawTemp.toFixed(0);
+                        tempEl.className = '';
+                        if (rawTemp < tempThresholds.cold) tempEl.classList.add('hud-tire-temp-cold');
+                        else if (rawTemp < tempThresholds.optimal) tempEl.classList.add('hud-tire-temp-optimal');
+                        else if (rawTemp < tempThresholds.warm) tempEl.classList.add('hud-tire-temp-warm');
+                        else tempEl.classList.add('hud-tire-temp-hot');
+                    } else {
+                        tempEl.textContent = '--';
+                        tempEl.className = '';
+                    }
+                }
+            });
+
+            // Update Input Bars (Throttle/Brake)
+            // Added checks for element existence
+            const throttleBar = document.getElementById('hud-throttle-bar');
+            if (throttleBar) {
+                throttleBar.style.width = `${lap.data.throttle[index].toFixed(0)}%`;
+            }
+            const brakeBar = document.getElementById('hud-brake-bar');
+            if (brakeBar) {
+                brakeBar.style.width = `${lap.data.brake[index].toFixed(0)}%`;
+            }
+
+            // Update Steering Wheel
+            const steeringWheel = document.getElementById('hud-steering-wheel');
+            if (steeringWheel) {
+                const steeringRad = lap.data.steering[index]; // Radians
+                const steeringDeg = steeringRad * (180 / Math.PI); // Convert to degrees
+                steeringWheel.style.transform = `rotate(${-steeringDeg.toFixed(0)}deg)`; // Negate the angle
+            }
+
+            // Update G-Force Meter
+            const gForceDot = document.getElementById('hud-gforce-dot');
+            if (gForceDot) {
+                const latG = lap.data.gForceLat[index] || 0; // lateral
+                const longG = lap.data.gForceLong[index] || 0; // longitudinal
+
+                const G_SCALE = 20;
+
+                // Use same axes as scatter:
+                // X = lateral G (left/right)
+                // Y = longitudinal G (brake/accel)
+                //
+                // Screen coordinates: positive Y is down, so we invert for display:
+                //  - longG > 0 (accelerating)  -> dot visually down
+                //  - longG < 0 (braking)       -> dot visually up
+                const dotX = latG * G_SCALE;
+                const dotY = -longG * G_SCALE;
+
+                const maxRadius = 38;
+                const distance = Math.sqrt(dotX * dotX + dotY * dotY);
+                if (distance > maxRadius) {
+                    const scaleFactor = maxRadius / distance;
+                    gForceDot.style.transform =
+                        `translate(${dotX * scaleFactor}px, ${dotY * scaleFactor}px)`;
+                } else {
+                    gForceDot.style.transform = `translate(${dotX}px, ${dotY}px)`;
+                }
+                // --- ABS Indicator ---
+                const absEl = document.getElementById('hud-abs-indicator');
+                if (absEl && lap.data.brakeABSactive && lap.data.brakeABSactive.length > index) {
+                    const absActive = lap.data.brakeABSactive[index] > 0;
+                    absEl.textContent = absActive ? 'ABS' : 'OFF';
+                    absEl.classList.toggle('hud-abs-on', absActive);
+                    absEl.classList.toggle('hud-abs-off', !absActive);
+                }
+
+                // --- Bump Stop Indicators per corner ---
+                // These arrays are filled by computeCornerBumpStopFlagsForLap(lap)
+                const bumpMap = [
+                    { key: 'bumpStopLF', elId: 'hud-bump-lf' },
+                    { key: 'bumpStopRF', elId: 'hud-bump-rf' },
+                    { key: 'bumpStopLR', elId: 'hud-bump-lr' },
+                    { key: 'bumpStopRR', elId: 'hud-bump-rr' }
+                ];
+
+                bumpMap.forEach(b => {
+                    const el = document.getElementById(b.elId);
+                    const arr = lap.data[b.key];
+                    if (!el || !arr || arr.length <= index) return;
+
+                    const engaged = arr[index] === 1;
+                    el.classList.toggle('hud-bump-on', engaged);
+                    el.classList.toggle('hud-bump-off', !engaged);
+                });
+            }
+        }
+
+        function setReferenceLap(id) {
+            referenceLapId = id;
+            defaultVisibleLapIds.add(id);
+            carCurrentLap = telemetryData.find(l => l.id === id) || null;  // NEW
+            updateLapList();
+            const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
+            if (checkbox) checkbox.checked = true;
+            updateCharts();
+        }
+
+
+
+        carCurrentLap = telemetryData.find(l => defaultVisibleLapIds.has(l.id)) || null;
+
+        let carPlayAnimationId = null;
+        let is3DAnimationPlaying = false;
+        let is3DPaused = false;
+        let is3DLooping = false;
+        let current3DLap = null;
+        let current3DFrame = 0;
+        let current3DStartTime = 0;
+        let current3DTimeOffset = 0; // elapsed sim time at pause
+
+
+        function play3DLap(lap, resume = false) {
+            if (!lap || !lap.data || !lap.data.time.length) return;
+            if (!carMesh) return;
+
+            cancelAnimationFrame(carPlayAnimationId);
+
+            current3DLap = lap;
+
+            const times = lap.data.time;
+            const t0 = times[0];
+            const tEnd = times[times.length - 1];
+
+            if (!resume) {
+                // fresh play from beginning
+                current3DFrame = 0;
+                current3DTimeOffset = 0;
+
+                const carWorldPos = new THREE.Vector3();
+                carMesh.getWorldPosition(carWorldPos);
+                lastCarWorldPos = carWorldPos.clone();
+                if (carControls) {
+                    carControls.target.copy(carWorldPos);
+                    carControls.update();
+                }
+
+                // reset follow-cam smoothing
+                followCamPos = null;
+                followCamTarget = null;
+            }
+
+            is3DPaused = false;
+            is3DAnimationPlaying = true;
+            current3DStartTime = performance.now() - current3DTimeOffset * 1000;
+
+            function step(now) {
+                if (!is3DAnimationPlaying || is3DPaused) return;
+
+                const simT = (now - current3DStartTime) / 1000 + t0;
+                current3DTimeOffset = simT - t0;
+
+                // --- FIXED LOOPING LOGIC HERE ---
+                if (simT > tEnd) {
+                    if (is3DLooping) {
+                        // start a completely fresh play and stop this loop
+                        play3DLap(lap, false);
+                        return;
+                    } else {
+                        is3DAnimationPlaying = false;
+                        return;
+                    }
+                }
+                // ---------------------------------
+
+                while (current3DFrame + 1 < times.length && times[current3DFrame + 1] <= simT) {
+                    current3DFrame++;
+                }
+
+                updateCarOrientationFromTelemetry(lap, current3DFrame);
+                updateTrackMapCursorFrom3D(lap, current3DFrame);
+
+                carPlayAnimationId = requestAnimationFrame(step);
+            }
+
+            carPlayAnimationId = requestAnimationFrame(step);
+        }
+
+
+        const playBtn = document.getElementById('play-3d-lap');
+        const pauseBtn = document.getElementById('pause-3d-lap');
+        const loopBtn = document.getElementById('loop-3d-lap');
+
+        if (playBtn) {
+            playBtn.addEventListener('click', () => {
+                const lap =
+                    current3DLap ||
+                    carCurrentLap ||
+                    telemetryData.find(l => l.id === referenceLapId) ||
+                    telemetryData.find(l => defaultVisibleLapIds.has(l.id));
+
+                if (!lap) {
+                    alert('No lap selected for 3D playback.');
+                    return;
+                }
+
+                if (is3DPaused && current3DLap === lap) {
+                    // resume
+                    play3DLap(lap, true);
+                } else {
+                    // start from beginning
+                    play3DLap(lap, false);
+                }
+
+                // ensure Pause button text is correct
+                if (pauseBtn) pauseBtn.textContent = 'Pause';
+            });
+        }
+
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => {
+                if (!is3DAnimationPlaying || !current3DLap) return;
+
+                is3DPaused = !is3DPaused;
+
+                if (is3DPaused) {
+                    cancelAnimationFrame(carPlayAnimationId);
+                    pauseBtn.textContent = 'Resume';
+                } else {
+                    pauseBtn.textContent = 'Pause';
+                    play3DLap(current3DLap, true);
+                }
+            });
+        }
+
+        if (loopBtn) {
+            loopBtn.addEventListener('click', () => {
+                is3DLooping = !is3DLooping;
+                loopBtn.textContent = `Loop: ${is3DLooping ? 'On' : 'Off'}`;
+            });
+        }
+
+
+        function buildCarStreamlines() {
+            if (!carMesh) return;
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00aaff,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            // Example: over roof
+            const roofGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-0.8, 0.7, 1.0),
+                new THREE.Vector3(-0.4, 0.8, 0.5),
+                new THREE.Vector3(0.0, 0.85, 0.0),
+                new THREE.Vector3(0.4, 0.8, -0.5),
+                new THREE.Vector3(0.8, 0.7, -1.0),
+            ]);
+            const roofLine = new THREE.Line(roofGeo, material.clone());
+            carMesh.add(roofLine);
+            carStreamlines.push(roofLine);
+
+            // add more lines along sides, diffuser, etc
+        }
+
+        document.getElementById('car-import').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const arrayBuffer = ev.target.result;
+                const loader = new THREE.GLTFLoader();
+
+                loader.parse(
+                    arrayBuffer,
+                    '',
+                    (gltf) => {
+                        // remove previous mesh
+                        if (carMesh && carScene) carScene.remove(carMesh);
+
+                        carMesh = gltf.scene;
+                        carScene.add(carMesh);
+
+                        // --- center & scale new mesh ---
+                        const box = new THREE.Box3().setFromObject(carMesh);
+                        const size = new THREE.Vector3();
+                        const center = new THREE.Vector3();
+                        box.getSize(size);
+                        box.getCenter(center);
+
+                        // move model so its center is at origin
+                        carMesh.position.sub(center);
+
+                        // normalize size so it fits nicely in view
+                        const maxSize = Math.max(size.x, size.y, size.z);
+                        if (maxSize > 0) {
+                            const desiredSize = 2.5;   // scene units
+                            const scale = desiredSize / maxSize;
+                            carMesh.scale.setScalar(scale);
+                        }
+
+                        // frame camera (initial position only, it will follow later)
+                        carCamera.position.set(0, 1.2, 4);
+                        carCamera.lookAt(0, 0, 0);
+                        carCamera.updateProjectionMatrix();
+                        const carWorldPos = new THREE.Vector3();
+                        carMesh.getWorldPosition(carWorldPos);
+                        carCamera.position.copy(carWorldPos).add(new THREE.Vector3(0, 1.5, -4));
+                        carCamera.lookAt(carWorldPos);
+                        carCamera.updateProjectionMatrix();
+                        if (carControls) {
+                            carControls.target.copy(carWorldPos);
+                            carControls.update();
+                            }
+                        lastCarWorldPos = carWorldPos.clone();
+
+                        // optional CFD lines
+                        if (typeof buildCarStreamlines === 'function') {
+                            buildCarStreamlines();
+                        }
+                    },
+                    (err) => console.error('Error parsing uploaded glb:', err)
+                );
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
 
         // --- Utility function for debouncing ---
         function debounce(func, delay) {
@@ -1531,6 +2887,8 @@ Application:
                         'SessionTime': 'SessionTime',
                         'Lat': 'Lat',
                         'Lon': 'Lon',
+                        'Alt': resolveVarName('GPS Altitude', 'Alt'), 
+
 
                         // Use LapInvalidated primarily
                         'LapInvalid': resolveVarName('LapInvalidated', 'LapInvalid'),
@@ -1564,7 +2922,7 @@ Application:
                         'LFtemp': 'LFtempM',
                         'RFtemp': 'RFtempM',
                         'LRtemp': 'LRtempM',
-                        'RRtemp': 'RRtempM', 
+                        'RRtemp': 'RRtempM',
 
                         // Pit‑stall wear (only valid in stall)
                         'LFwearL': 'LFwearL',
@@ -1639,6 +2997,7 @@ Application:
                     const time = getValue(rowOffset, targetVars.SessionTime);
                     const lat = getValue(rowOffset, targetVars.Lat);
                     const lon = getValue(rowOffset, targetVars.Lon);
+                    const alt = getValue(rowOffset, targetVars.Alt); 
                     const lapInvalid = getValue(rowOffset, targetVars.LapInvalid);
                     const brakeABSactive = getValue(rowOffset, targetVars.BrakeABSactive);
                     const trackSurface = getValue(rowOffset, targetVars.PlayerTrackSurface);
@@ -1653,6 +3012,7 @@ Application:
                     currentLapData.data.steering.push(getValue(rowOffset, targetVars.Steering));
                     currentLapData.data.rawLat.push(lat);
                     currentLapData.data.rawLon.push(lon);
+                    currentLapData.data.rawAlt.push(alt); 
                     currentLapData.data.brakeABSactive.push(brakeABSactive);
 
                     if (targetVars.FuelLevel) {
@@ -1679,7 +3039,7 @@ Application:
                         currentLapData.data.gForceLong.push(longMs2 * MS2_TO_G);
                     }
 
-                    // Store in meters (iRacing default) or convert to mm immediately if preferred. 
+                    // Store in meters (iRacing default) or convert to mm immediately if preferred.
                     // Let's store as raw meters here to match typical data structure.
                     if (targetVars.LFRideHeight) currentLapData.data.rideHeightLF.push(getValue(rowOffset, targetVars.LFRideHeight));
                     if (targetVars.RFRideHeight) currentLapData.data.rideHeightRF.push(getValue(rowOffset, targetVars.RFRideHeight));
@@ -1737,6 +3097,7 @@ Application:
                         distance: [], speed: [], rpm: [], gear: [], throttle: [], brake: [],
                         steering: [], time: [],
                         rawLat: [], rawLon: [],
+                        rawAlt: [],  
                         mapX: [], mapY: [],
                         brakeABSactive: [],
                         fuelLevel: [],
@@ -2543,36 +3904,62 @@ Application:
             const EARTH_RADIUS = 6371000;
             let globalOriginLat = null;
             let globalOriginLon = null;
+            // The globalOriginAlt is declared in global scope; ensure it's reset/initialized properly
+            globalOriginAlt = null; // Reset for new file import
+
+            // Smooth altitude data before processing coordinates
+            allRawLaps.forEach(lap => {
+                if (lap.data.rawAlt && lap.data.rawAlt.length > 0) {
+                    lap.data.rawAlt = smoothDataArray(lap.data.rawAlt, 30);
+                }
+            });
 
             for (const lap of allRawLaps) {
                 for (let i = 0; i < lap.data.rawLat.length; i++) {
-                    if (lap.data.rawLat[i] !== 0 && lap.data.rawLon[i] !== 0) {
+                    // Find the first non-zero Lat/Lon/Alt point to set the global origin
+                    if (lap.data.rawLat[i] !== 0 && lap.data.rawLon[i] !== 0 && lap.data.rawAlt[i] !== 0) {
                         globalOriginLat = lap.data.rawLat[i];
                         globalOriginLon = lap.data.rawLon[i];
+                        globalOriginAlt = lap.data.rawAlt[i]; // <--- SET GLOBAL ORIGIN ALT HERE
                         break;
                     }
                 }
                 if (globalOriginLat !== null) break;
             }
 
-            // Calculate mapX and mapY for all laps using the global origin
+            // After parsing: lap.data.rawAlt is in meters from IBT
             allRawLaps.forEach(lap => {
                 lap.data.mapX = [];
                 lap.data.mapY = [];
+                lap.data.mapZ = []; // elevation in meters, relative to scene ground (globalOriginAlt)
+
+                // The original `originAlt` logic is no longer needed because we have `globalOriginAlt`.
+                // Remove the `originAlt` declaration and the conditional assignment.
+                // It should look like this:
+
                 for (let i = 0; i < lap.data.rawLat.length; i++) {
                     const lat = lap.data.rawLat[i];
                     const lon = lap.data.rawLon[i];
+                    const alt = lap.data.rawAlt[i];   // This is the smoothed raw GPS altitude
 
                     let x = 0, y = 0;
                     if (globalOriginLat !== null) {
                         x = (lon - globalOriginLon) * (Math.PI / 180) * EARTH_RADIUS * Math.cos(globalOriginLat * Math.PI / 180);
                         y = (lat - globalOriginLat) * (Math.PI / 180) * EARTH_RADIUS;
                     }
+
                     lap.data.mapX.push(x);
                     lap.data.mapY.push(y);
+
+                    // --- CRITICAL CHANGE: Calculate mapZ relative to the global scene origin altitude ---
+                    const sceneAlt = (globalOriginAlt !== null) ? (alt - globalOriginAlt) : 0;
+                    lap.data.mapZ.push(sceneAlt);
+                    // --- END CRITICAL CHANGE ---
                 }
-                delete lap.data.rawLat;
-                delete lap.data.rawLon;
+
+                delete lap.data.rawLat; // Still safe to delete as mapX/Y are derived
+                delete lap.data.rawLon; // Still safe to delete
+                // Do NOT delete lap.data.rawAlt as it's used by the HUD
             });
             // --- END GLOBAL MAP COORDINATE CALCULATION ---
 
@@ -2716,6 +4103,30 @@ Application:
             updateSummary();
 
         });
+
+        // A simple moving average smoother
+        function smoothDataArray(data, windowSize) {
+            if (!data || data.length < windowSize) return data;
+
+            const smoothed = [];
+            const halfWindow = Math.floor(windowSize / 2);
+
+            for (let i = 0; i < data.length; i++) {
+                let sum = 0;
+                let count = 0;
+
+                // Sum values within the window
+                for (let j = i - halfWindow; j <= i + halfWindow; j++) {
+                    if (j >= 0 && j < data.length) {
+                        sum += data[j];
+                        count++;
+                    }
+                }
+                smoothed.push(sum / count);
+            }
+            return smoothed;
+        }
+
 
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds) || seconds === Infinity) return "--:--.--";
@@ -4143,6 +5554,21 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             }
         }, 50);
 
+        function updateTrackMapCursorFrom3D(lap, index) {
+            if (!charts.map || !charts.map.data || !charts.map.data.datasets) return;
+            if (!lap || !lap.data || !lap.data.mapX || !lap.data.mapY) return;
+            if (index < 0 || index >= lap.data.mapX.length) return;
+
+            const cursorDsIndex = charts.map.data.datasets.length - 1; // last dataset = "Cursor"
+            const x = lap.data.mapX[index];
+            const y = lap.data.mapY[index];
+
+            charts.map.data.datasets[cursorDsIndex].data = [{ x, y }];
+            charts.map.data.datasets[cursorDsIndex].pointBackgroundColor = lap.color;
+            charts.map.data.datasets[cursorDsIndex].pointBorderColor = lap.color;
+            charts.map.update('none');
+        }
+
 
         function panAllChartsX(stepFraction = 0.1, direction = 1) {
             const masterChart = charts.delta;
@@ -4324,7 +5750,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
             });
 
             // 2. Evaluate Thresholds
-            // Critical bottoming threshold (mm). 
+            // Critical bottoming threshold (mm).
             // Set to roughly 1.5mm to allow for slight tire deflection/sensor margin.
             const BOTTOMING_THRESH = 1.5;
 
@@ -4335,7 +5761,7 @@ ${mapsHtml || '<p class="small">Track maps not available.</p>'}
                 const paramName = `${w}_BumpRubberGap`; // e.g. LF_BumpRubberGap
 
                 if (minH < BOTTOMING_THRESH) {
-                    // Car is hitting the ground. 
+                    // Car is hitting the ground.
                     recs.push({
                         param: paramName,
                         delta: -2.0, // Decrease gap by 2mm (or add 2mm packer)
@@ -5185,7 +6611,6 @@ Bump stop engagment can:
                 }
 
 
-
                 if (data.length > 0) {
                     gForceDatasets.push({
                         label: `L${lap.lapNumber} G-Forces`,
@@ -5421,7 +6846,7 @@ Bump stop engagment can:
 
             charts.cornerLoadAll.data.datasets = loadAllDatasets;
 
-
+            update3DRacingLines(selectedLaps);
 
             Object.values(charts).forEach(chart => {
                 if (chart.config.type !== 'scatter' && chart.options.scales && chart.options.scales.x) {
@@ -5638,7 +7063,118 @@ Bump stop engagment can:
             // NEW: placemat button
             document.getElementById('print-placemat')
                 .addEventListener('click', openPlacematReport);
+
+            // --- INITIALISE 3D CAR VIEW HERE ---
+            initCarScene();
+
+            // NEW: Add event listener for the toggle follow camera button
+            const toggleFollowCamBtn = document.getElementById('toggle-follow-camera');
+            if (toggleFollowCamBtn) {
+                toggleFollowCamBtn.addEventListener('click', () => {
+                    if (!carMesh) { // Make sure the car model is loaded before trying to toggle camera
+                        console.warn("Car model not yet loaded.");
+                        return;
+                    }
+
+                    isFollowCameraEnabled = !isFollowCameraEnabled;
+                    toggleFollowCamBtn.textContent = `Follow Cam: ${isFollowCameraEnabled ? 'On' : 'Off'}`;
+
+                    const carWorldPosition = new THREE.Vector3();
+                    carMesh.getWorldPosition(carWorldPosition);
+
+                    if (isFollowCameraEnabled) {
+                        // When ENABLING follow camera:
+                        // Disable OrbitControls so our manual positioning takes over.
+                        if (carControls) {
+                            carControls.enabled = false;
+                        }
+                        // The `animateCarScene` loop will now continuously update the camera position
+                        // relative to the car's orientation.
+                        // We don't need to explicitly set camera.position here, as animateCarScene will do it next frame.
+                        // However, it's good practice to align controls.target with the car's current position
+                        // so that if we switch back to OrbitControls, it has a sensible starting point.
+                        if (carControls) {
+                            carControls.target.copy(carWorldPosition);
+                            // No need for carControls.update() here, as it's disabled.
+                        }
+
+                    } else {
+                        // When DISABLING follow camera:
+                        // 1. Enable OrbitControls.
+                        if (carControls) {
+                            carControls.enabled = true;
+                        }
+
+                        // 2. Set OrbitControls's target to the car's current position.
+                        carControls.target.copy(carWorldPosition);
+
+                        // 3. Set a reasonable camera position relative to the car's current position
+                        //    so that OrbitControls starts from a good view, not far away.
+                        //    This will be a fixed "behind and slightly above" view in world coordinates.
+                        //    Adjust the Vector3 values (x, y, z) if you want a different default view.
+                        //    For example: (0, 1.5, -4) means 1.5m above the car's pivot, 4m behind it in world Z.
+                        carCamera.position.copy(carWorldPosition)
+                            .add(new THREE.Vector3(0, 1.5, -4));
+
+                        // 4. IMPORTANT: Call controls.update() after manually changing camera.position and controls.target.
+                        //    This synchronizes OrbitControls's internal state with the new camera position.
+                        carControls.update();
+                    }
+                });
+            }
         });
+
+        // --- ADD THIS LISTENER ---
+        const setCockpitBtn = document.getElementById('set-cockpit-cam');
+        if (setCockpitBtn) {
+            setCockpitBtn.addEventListener('click', () => {
+                if (!carMesh) return;
+
+                if (!isCockpitCamEnabled) {
+                    // 1. ENABLE COCKPIT MODE
+                    isCockpitCamEnabled = true;
+
+                    // Disable Follow Cam if it was on
+                    if (isFollowCameraEnabled) {
+                        isFollowCameraEnabled = false;
+                        document.getElementById('toggle-follow-camera').textContent = 'Follow Cam: Off';
+                    }
+
+                    // Disable Mouse Controls so view is locked
+                    if (carControls) carControls.enabled = false;
+
+                    // --- CALCULATE RELATIVE POSITION ---
+                    // Convert current Camera World Position -> Car Local Space
+                    cockpitRelativePos.copy(carCamera.position);
+                    carMesh.worldToLocal(cockpitRelativePos);
+
+                    // --- CALCULATE RELATIVE ROTATION ---
+                    // Relative Quat = Inverse(CarWorldQuat) * CameraWorldQuat
+                    const carQuatInverse = carMesh.quaternion.clone().invert();
+                    cockpitRelativeRot.copy(carQuatInverse).multiply(carCamera.quaternion);
+
+                    setCockpitBtn.textContent = "Unpin Cockpit View";
+                    setCockpitBtn.style.backgroundColor = "#dc3545"; // Red to indicate 'Stop'
+                } else {
+                    // 2. DISABLE COCKPIT MODE
+                    isCockpitCamEnabled = false;
+
+                    // Re-enable mouse controls
+                    if (carControls) {
+                        carControls.enabled = true;
+                        // Reset target to car so we don't snap away wildly
+                        const carPos = new THREE.Vector3();
+                        carMesh.getWorldPosition(carPos);
+                        carControls.target.copy(carPos);
+                        carControls.update();
+                    }
+
+                    setCockpitBtn.textContent = "Pin Cockpit View";
+                    setCockpitBtn.style.backgroundColor = ""; // Reset color
+                }
+            });
+        }
+        // --- END NEW LISTENER ---
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') {
@@ -5676,8 +7212,8 @@ Bump stop engagment can:
             const setupModal = document.getElementById('setup-modal');
             const setupResultEl = document.getElementById('setup-result');
             const aiLoadMeta = document.getElementById('ai-load-meta');
-            const aiLoadBraking = document.getElementById('ai-load-braking');  
-            const aiLoadCornering = document.getElementById('ai-load-cornering'); 
+            const aiLoadBraking = document.getElementById('ai-load-braking');
+            const aiLoadCornering = document.getElementById('ai-load-cornering');
             const aiLoadToggle = document.getElementById('ai-load-toggle');
             const aiLoadDetails = document.getElementById('ai-load-details');
 
@@ -6617,7 +8153,7 @@ Bump stop engagment can:
                 let changeCount = 0; // Track number of active changes
 
                 // 1. Define Weights to dampen exaggerated regression models
-                // Values < 1.0 reduce the impact. Aero needs heavy dampening as regression 
+                // Values < 1.0 reduce the impact. Aero needs heavy dampening as regression
                 // often over-correlates drag with total lap time.
                 const paramWeights = {
                     'RearWingAngle': 0.10,      // Heavily dampen wing (prevents +8s errors)
@@ -6670,7 +8206,7 @@ Bump stop engagment can:
                     // strictly based on noisy linear regression
                     const MAX_SINGLE_IMPACT = 1.2;
                     if (Math.abs(rawPrediction) > 10) {
-                        // If raw prediction is absurd (e.g. 10s), the model is likely broken. 
+                        // If raw prediction is absurd (e.g. 10s), the model is likely broken.
                         // Crush the weight significantly.
                         weight *= 0.05;
                     }
@@ -6757,7 +8293,7 @@ Bump stop engagment can:
                 ride: 'LF_RideHeight',
                 camber: 'LF_Camber',
                 press: 'LF_StartingPressure',
-                bumpGap: 'LF_BumpRubberGap' 
+                bumpGap: 'LF_BumpRubberGap'
             },
             RF: {
                 title: 'Right Front',
@@ -6765,7 +8301,7 @@ Bump stop engagment can:
                 ride: 'RF_RideHeight',
                 camber: 'RF_Camber',
                 press: 'RF_StartingPressure',
-                bumpGap: 'RF_BumpRubberGap' 
+                bumpGap: 'RF_BumpRubberGap'
             },
             LR: {
                 title: 'Left Rear',
@@ -6773,7 +8309,7 @@ Bump stop engagment can:
                 ride: 'LR_RideHeight',
                 camber: 'LR_Camber',
                 press: 'LR_StartingPressure',
-                bumpGap: 'LR_BumpRubberGap' 
+                bumpGap: 'LR_BumpRubberGap'
             },
             RR: {
                 title: 'Right Rear',
@@ -6781,7 +8317,7 @@ Bump stop engagment can:
                 ride: 'RR_RideHeight',
                 camber: 'RR_Camber',
                 press: 'RR_StartingPressure',
-                bumpGap: 'RR_BumpRubberGap' 
+                bumpGap: 'RR_BumpRubberGap'
             },
             CENTER: {
                 frontArb: 'ArbBlades_Front',
@@ -8065,7 +9601,7 @@ Bump stop engagment can:
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.LF.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.LF.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.LF.ride)}
-                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LF.bumpGap)} 
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LF.bumpGap)}
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.LF.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.LF.press)}
                     </div>
@@ -8073,7 +9609,7 @@ Bump stop engagment can:
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.RF.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.RF.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.RF.ride)}
-                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RF.bumpGap)} 
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RF.bumpGap)}
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.RF.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.RF.press)}
                     </div>
@@ -8104,7 +9640,7 @@ Bump stop engagment can:
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.LR.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.LR.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.LR.ride)}
-                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LR.bumpGap)} 
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.LR.bumpGap)}
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.LR.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.LR.press)}
                     </div>
@@ -8112,7 +9648,7 @@ Bump stop engagment can:
                       <div class="ai-setup-corner-header">${CAR_SETUP_FIELDS.RR.title}</div>
                       ${fieldBlock('Spring', CAR_SETUP_FIELDS.RR.spring)}
                       ${fieldBlock('Ride H.', CAR_SETUP_FIELDS.RR.ride)}
-                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RR.bumpGap)} 
+                      ${fieldBlock('Bump Gap', CAR_SETUP_FIELDS.RR.bumpGap)}
                       ${fieldBlock('Camber', CAR_SETUP_FIELDS.RR.camber)}
                       ${fieldBlock('Press.', CAR_SETUP_FIELDS.RR.press)}
                     </div>
