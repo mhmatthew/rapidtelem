@@ -2538,12 +2538,81 @@ Application:
         function setReferenceLap(id) {
             referenceLapId = id;
             defaultVisibleLapIds.add(id);
-            carCurrentLap = telemetryData.find(l => l.id === id) || null;  // NEW
+            // This line correctly updates which lap is considered the 'current' one for 3D
+            carCurrentLap = telemetryData.find(l => l.id === id) || null;
             updateLapList();
             const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
             if (checkbox) checkbox.checked = true;
-            updateCharts();
+            updateCharts(); // This refreshes 2D charts and 3D racing lines.
+
+            // --- IMPORTANT NEW/UPDATED LOGIC FOR STATIC CAR PLACEMENT & CAMERA TARGET ---
+            if (carMesh) { // Only attempt to update if the car model is loaded
+                if (carCurrentLap && carCurrentLap.data.mapX.length > 0) {
+                    // Instantly place the car at the start (index 0) of the new reference lap
+                    // This moves the car mesh to the correct world coordinates (mapX, mapY, mapZ)
+                    updateCarOrientationFromTelemetry(carCurrentLap, 0);
+                    carMesh.visible = true; // Ensure the car is visible
+
+                    // Also, ensure the OrbitControls target is updated to look at the new car position
+                    // This is crucial for when OrbitControls is active (i.e., not follow-cam/cockpit)
+                    if (carControls) {
+                        const carWorldPos = new THREE.Vector3();
+                        carMesh.getWorldPosition(carWorldPos); // Get the car's *new* world position
+                        carControls.target.copy(carWorldPos);
+                        carControls.update(); // Update controls to reflect the new target and potentially camera
+                    }
+
+                    // Reset camera states for a clean start if follow-cam/cockpit are later enabled
+                    followCamPos = null;
+                    followCamTarget = null;
+                    // Also explicitly disable cockpit cam if it was on, to default back to OrbitControls
+                    isCockpitCamEnabled = false;
+                    const setCockpitBtn = document.getElementById('set-cockpit-cam');
+                    if (setCockpitBtn) {
+                        setCockpitBtn.textContent = "Pin Cockpit View";
+                        setCockpitBtn.style.backgroundColor = "";
+                    }
+
+                } else {
+                    // If no valid reference lap is selected (e.g., all unchecked), hide the car
+                    carMesh.visible = false;
+                }
+            }
+            // --- END NEW/UPDATED LOGIC FOR STATIC CAR PLACEMENT ---
+
+            // --- Existing logic for if 3D animation was already playing ---
+            // This block will override the static placement if animation was active
+            if (is3DAnimationPlaying) {
+                // Ensure the previous animation loop is stopped
+                cancelAnimationFrame(carPlayAnimationId);
+                carPlayAnimationId = null; // Clear the animation ID
+                is3DPaused = false;         // Reset paused state
+
+                // Start a new animation with the new reference lap
+                if (carCurrentLap) { // Only play if there's a valid current lap
+                    play3DLap(carCurrentLap, false); // Start from beginning of the new lap
+
+                    // Ensure the play/pause button texts are correct
+                    const playBtn = document.getElementById('play-3d-lap');
+                    if (playBtn) playBtn.textContent = 'Play 3D'; // It will now start playing, so button should show 'Play'
+                    const pauseBtn = document.getElementById('pause-3d-lap');
+                    if (pauseBtn) pauseBtn.textContent = 'Pause';
+                } else {
+                    // If no valid lap is selected as reference, ensure animation state is off
+                    is3DAnimationPlaying = false;
+                    // carMesh.visible is already handled above
+
+                    // Reset play/pause buttons
+                    const playBtn = document.getElementById('play-3d-lap');
+                    if (playBtn) playBtn.textContent = 'Play 3D';
+                    const pauseBtn = document.getElementById('pause-3d-lap');
+                    if (pauseBtn) pauseBtn.textContent = 'Pause';
+                }
+            }
         }
+
+
+
 
 
 
@@ -2560,70 +2629,86 @@ Application:
 
 
         function play3DLap(lap, resume = false) {
+            // Ensure a valid lap and car mesh exist
             if (!lap || !lap.data || !lap.data.time.length) return;
             if (!carMesh) return;
 
+            // Stop any existing animation loop
             cancelAnimationFrame(carPlayAnimationId);
 
+            // Set the global current3DLap to the lap being played
             current3DLap = lap;
 
             const times = lap.data.time;
-            const t0 = times[0];
-            const tEnd = times[times.length - 1];
+            const t0 = times[0]; // Start time of the lap
+            const tEnd = times[times.length - 1]; // End time of the lap
 
             if (!resume) {
-                // fresh play from beginning
+                // If not resuming, start from the beginning of the lap
                 current3DFrame = 0;
-                current3DTimeOffset = 0;
+                current3DTimeOffset = 0; // Reset time offset
 
+                // Reset the car's world position and the camera target
                 const carWorldPos = new THREE.Vector3();
-                carMesh.getWorldPosition(carWorldPos);
-                lastCarWorldPos = carWorldPos.clone();
+                carMesh.getWorldPosition(carWorldPos); // Get current position from carMesh (might be old)
+                lastCarWorldPos = carWorldPos.clone(); // Initialize last position for OrbitControls delta calculation
                 if (carControls) {
-                    carControls.target.copy(carWorldPos);
+                    carControls.target.copy(carWorldPos); // Set OrbitControls target to car's initial position
                     carControls.update();
                 }
 
-                // reset follow-cam smoothing
+                // Reset follow-cam smoothing state
                 followCamPos = null;
                 followCamTarget = null;
             }
 
+            // Set animation flags
             is3DPaused = false;
             is3DAnimationPlaying = true;
+            // Calculate when the animation started, adjusting for any previous offset if resuming
             current3DStartTime = performance.now() - current3DTimeOffset * 1000;
 
             function step(now) {
+                // Stop if animation is paused or explicitly stopped
                 if (!is3DAnimationPlaying || is3DPaused) return;
 
+                // Calculate current simulation time based on real-world time and lap start time
                 const simT = (now - current3DStartTime) / 1000 + t0;
-                current3DTimeOffset = simT - t0;
+                current3DTimeOffset = simT - t0; // Update offset for potential pausing
 
-                // --- FIXED LOOPING LOGIC HERE ---
+                // Handle looping logic
                 if (simT > tEnd) {
                     if (is3DLooping) {
-                        // start a completely fresh play and stop this loop
-                        play3DLap(lap, false);
-                        return;
+                        // If looping, restart the lap from the beginning
+                        play3DLap(current3DLap, false); // Pass current3DLap to restart
+                        return; // Exit this frame's step as a new one will begin
                     } else {
+                        // If not looping, stop the animation
                         is3DAnimationPlaying = false;
+                        // Optionally reset car position or visibility here if desired
+                        // For example: carMesh.visible = false;
                         return;
                     }
                 }
-                // ---------------------------------
 
-                while (current3DFrame + 1 < times.length && times[current3DFrame + 1] <= simT) {
+                // Advance the current3DFrame to match the simulation time
+                // This finds the closest telemetry data point for the current simulation time
+                while (current3DFrame + 1 < current3DLap.data.time.length && current3DLap.data.time[current3DFrame + 1] <= simT) {
                     current3DFrame++;
                 }
 
-                updateCarOrientationFromTelemetry(lap, current3DFrame);
-                updateTrackMapCursorFrom3D(lap, current3DFrame);
+                // Update the 3D car's orientation and HUD using the global current3DLap
+                updateCarOrientationFromTelemetry(current3DLap, current3DFrame); // <<< FIXED LINE HERE
+                updateTrackMapCursorFrom3D(current3DLap, current3DFrame);
 
+                // Request the next animation frame
                 carPlayAnimationId = requestAnimationFrame(step);
             }
 
+            // Start the animation loop
             carPlayAnimationId = requestAnimationFrame(step);
         }
+
 
 
         const playBtn = document.getElementById('play-3d-lap');
@@ -4192,18 +4277,13 @@ Application:
                 defaultVisibleLapIds.delete(id);
                 if (referenceLapId === id) {
                     referenceLapId = null;
+                    carCurrentLap = null;
+                    if (carMesh) carMesh.visible = false;
+                    is3DAnimationPlaying = false;
+                    cancelAnimationFrame(carPlayAnimationId);
                 }
             }
             updateLapList();
-            updateCharts();
-        }
-
-        function setReferenceLap(id) {
-            referenceLapId = id;
-            defaultVisibleLapIds.add(id);
-            updateLapList();
-            const checkbox = document.querySelector(`input[type="checkbox"][value="${id}"]`);
-            if (checkbox) checkbox.checked = true;
             updateCharts();
         }
 
