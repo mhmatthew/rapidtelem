@@ -6357,6 +6357,64 @@ Bump stop engagment can:
             const selectedLaps = telemetryData.filter(l => defaultVisibleLapIds.has(l.id));
             const refLap = telemetryData.find(l => l.id === referenceLapId);
 
+            // 5. --- Bump stop regions from per-corner shock deflection ---
+            bumpStopAnnotations = {};
+            if (refLap &&
+                refLap.data.bumpStopLF && refLap.data.bumpStopRF &&
+                refLap.data.bumpStopLR && refLap.data.bumpStopRR) {
+
+                const dist = refLap.data.distance;
+
+                function buildSegments(flagArr, idPrefix, color) {
+                    let inSeg = false;
+                    let startDist = null;
+                    for (let i = 0; i < dist.length; i++) {
+                        const active = flagArr[i] === 1;
+                        if (active && !inSeg) {
+                            inSeg = true;
+                            startDist = dist[i];
+                        } else if (!active && inSeg) {
+                            inSeg = false;
+                            const endDist = dist[i];
+                            bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}`] = {
+                                type: 'box',
+                                xMin: startDist,
+                                xMax: endDist,
+                                yMin: 0,
+                                yMax: 9999,
+                                backgroundColor: color,
+                                borderWidth: 0,
+                                drawTime: 'beforeDatasetsDraw'
+                            };
+                        }
+                    }
+                    if (inSeg) {
+                        const endDist = dist[dist.length - 1];
+                        bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}_end`] = {
+                            type: 'box',
+                            xMin: startDist,
+                            xMax: endDist,
+                            yMin: 0,
+                            yMax: 9999,
+                            backgroundColor: color,
+                            borderWidth: 0,
+                            drawTime: 'beforeDatasetsDraw'
+                        };
+                    }
+                }
+
+                buildSegments(refLap.data.bumpStopLF, 'bumpLF', 'rgba(255,165,0,0.25)');
+                buildSegments(refLap.data.bumpStopRF, 'bumpRF', 'rgba(255,215,0,0.25)');
+                buildSegments(refLap.data.bumpStopLR, 'bumpLR', 'rgba(128,0,255,0.20)');
+                buildSegments(refLap.data.bumpStopRR, 'bumpRR', 'rgba(0,128,255,0.20)');
+            }
+
+            // AFTER building bumpStopAnnotations
+            Object.values(bumpStopAnnotations).forEach(ann => {
+                ann.type = 'box';          // force box
+                ann.borderWidth = ann.borderWidth ?? 0;
+            });
+
             const sectorData = calculateSectors(selectedLaps, refLap);
             if (refLap) updateSectorTable(sectorData);
             else document.getElementById('sector-body').innerHTML =
@@ -6628,65 +6686,6 @@ Bump stop engagment can:
             charts.svHistogram.options.scales.y.min = 0;
             charts.svHistogram.update();
             // --- END SUSPENSION VELOCITY HISTOGRAM ---
-
-
-            // 5. --- Bump stop regions from per-corner shock deflection ---
-            bumpStopAnnotations = {};
-            if (refLap &&
-                refLap.data.bumpStopLF && refLap.data.bumpStopRF &&
-                refLap.data.bumpStopLR && refLap.data.bumpStopRR) {
-
-                const dist = refLap.data.distance;
-
-                function buildSegments(flagArr, idPrefix, color) {
-                    let inSeg = false;
-                    let startDist = null;
-                    for (let i = 0; i < dist.length; i++) {
-                        const active = flagArr[i] === 1;
-                        if (active && !inSeg) {
-                            inSeg = true;
-                            startDist = dist[i];
-                        } else if (!active && inSeg) {
-                            inSeg = false;
-                            const endDist = dist[i];
-                            bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}`] = {
-                                type: 'box',
-                                xMin: startDist,
-                                xMax: endDist,
-                                yMin: 0,
-                                yMax: 9999,
-                                backgroundColor: color,
-                                borderWidth: 0,
-                                drawTime: 'beforeDatasetsDraw'
-                            };
-                        }
-                    }
-                    if (inSeg) {
-                        const endDist = dist[dist.length - 1];
-                        bumpStopAnnotations[`${idPrefix}_${startDist.toFixed(3)}_end`] = {
-                            type: 'box',
-                            xMin: startDist,
-                            xMax: endDist,
-                            yMin: 0,
-                            yMax: 9999,
-                            backgroundColor: color,
-                            borderWidth: 0,
-                            drawTime: 'beforeDatasetsDraw'
-                        };
-                    }
-                }
-
-                buildSegments(refLap.data.bumpStopLF, 'bumpLF', 'rgba(255,165,0,0.25)');
-                buildSegments(refLap.data.bumpStopRF, 'bumpRF', 'rgba(255,215,0,0.25)');
-                buildSegments(refLap.data.bumpStopLR, 'bumpLR', 'rgba(128,0,255,0.20)');
-                buildSegments(refLap.data.bumpStopRR, 'bumpRR', 'rgba(0,128,255,0.20)');
-            }
-
-            // AFTER building bumpStopAnnotations
-            Object.values(bumpStopAnnotations).forEach(ann => {
-                ann.type = 'box';          // force box
-                ann.borderWidth = ann.borderWidth ?? 0;
-            });
 
             // --- G-Force Scatter Plot (NEW BLOCK) ---
             const gForceDatasets = [];
