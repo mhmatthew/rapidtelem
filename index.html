@@ -3264,6 +3264,7 @@ Application:
                 const trackTemp = info.trackTemp || 'n/a';
                 const skies = info.skies || 'n/a';
                 const wind = info.windVel || 'n/a';
+                const windDir = info.windDir || '';
                 const humidity = info.humidity || 'n/a';
 
                 const bestLapStr = bestLap.lapTime !== Infinity
@@ -3279,7 +3280,7 @@ Application:
                             <div style="margin-top:4px;"><strong>Air Temp:</strong> ${airTemp}</div>
                             <div><strong>Track Temp:</strong> ${trackTemp}</div>
                             <div><strong>Skies:</strong> ${skies}</div>
-                            <div><strong>Wind:</strong> ${wind}</div>
+                            <div><strong>Wind:</strong> ${wind} ${windDir ? `(${windDir})` : ''}</div>
                             <div><strong>Humidity:</strong> ${humidity}</div>
                             <div style="margin-top:4px;"><strong>Laps Loaded (this file):</strong> ${laps.length}</div>
                             <div><strong>Best Lap (this file):</strong> ${bestLapStr}</div>
@@ -3524,25 +3525,56 @@ Application:
                 match(/SessionTimeOfDay:\s*([^\r\n]+)/i);
 
             // Weather – prefer *Crew variants, then fall back
-            info.airTemp =
-                match(/AirTempCrew:\s*([^\r\n]+)/i) ||
-                match(/AirTemp:\s*([^\r\n]+)/i);
+            // --- UPDATED PARSING LOGIC START ---
 
-            info.trackTemp =
-                match(/TrackTempCrew:\s*([^\r\n]+)/i) ||
-                match(/TrackTemp:\s*([^\r\n]+)/i);
+            // 1. Get the structured YAML objects for reliability
+            const weekend = doc?.WeekendInfo || {};
+            const conditions = weekend.TrackConditions || {};
 
-            info.skies =
-                match(/Skies:\s*([^\r\n]+)/i);
+            // 2. Air & Track Temps (Fixing the "n/a" issue)
+            info.airTemp = conditions.AirTemp || match(/AirTempCrew:\s*([^\r\n]+)/i) || match(/AirTemp:\s*([^\r\n]+)/i);
 
-            info.windVel =
-                match(/WindVel:\s*([^\r\n]+)/i) ||
-                match(/WindSpeed:\s*([^\r\n]+)/i);
+            info.trackTemp = conditions.TrackTemp || weekend.TrackSurfaceTemp || match(/TrackTempCrew:\s*([^\r\n]+)/i) || match(/TrackTemp:\s*([^\r\n]+)/i);
 
-            info.humidity =
-                match(/RelativeHumidity:\s*([^\r\n]+)/i) ||
-                match(/Humidity:\s*([^\r\n]+)/i);
-            // --- END Existing info extraction ---
+            // 3. Skies & Humidity
+            info.skies = conditions.Skies || match(/Skies:\s*([^\r\n]+)/i);
+            info.humidity = conditions.RelativeHumidity || match(/RelativeHumidity:\s*([^\r\n]+)/i) || match(/Humidity:\s*([^\r\n]+)/i);
+
+            // 4. Wind Speed (m/s to kph)
+            let rawWind = conditions.WindVel || match(/WindVel:\s*([^\r\n]+)/i) || match(/WindSpeed:\s*([^\r\n]+)/i);
+            if (rawWind) {
+                const windMs = parseFloat(rawWind);
+                if (!isNaN(windMs)) {
+                    info.windVel = (windMs * 3.6).toFixed(1) + " km/h";
+                } else {
+                    info.windVel = rawWind;
+                }
+            } else {
+                info.windVel = 'n/a';
+            }
+
+            // 5. Wind Direction (Radians to Degrees)
+            // Try to find WindDir in YAML or via Regex
+            let rawDir = conditions.WindDir || match(/WindDir:\s*([^\r\n]+)/i);
+
+            if (rawDir) {
+                const rad = parseFloat(rawDir);
+                if (!isNaN(rad)) {
+                    // Convert Radians to Degrees
+                    let deg = rad * (180 / Math.PI);
+
+                    // Normalize to 0-360 range (handles negative results if any)
+                    deg = (deg % 360 + 360) % 360;
+
+                    info.windDir = deg.toFixed(0) + "°";
+                } else {
+                    info.windDir = "";
+                }
+            } else {
+                info.windDir = "";
+            }
+            // --- UPDATED PARSING LOGIC END ---
+
 
 
             // --- NEW/UPDATED: Extract Car Name for specific targets ---
