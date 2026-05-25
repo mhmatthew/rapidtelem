@@ -201,13 +201,14 @@
                 background-color: #333;
             }
 
-        #track-map-wrapper {
-            height: 250px;
-            background-color: var(--chart-bg);
-            border-radius: 6px;
-            padding: 5px;
-            margin-bottom: 10px;
-        }
+#track-map-wrapper {
+    height: 300px; /* Increase this slightly if needed */
+    width: 100%;   /* sidebar width is 350px, so 300px height is nearly square */
+    background-color: var(--chart-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
 
         #chart-container {
             flex-grow: 1;
@@ -1914,50 +1915,43 @@
                         chart.options.scales.x.min = xMinDistance;
                         chart.options.scales.x.max = xMaxDistance;
                     }
-                } else { // Handle track map (scatter chart)
-                    const currentRefLap = telemetryData.find(l => l.id === referenceLapId);
+} else { 
+    const currentRefLap = telemetryData.find(l => l.id === referenceLapId);
+    if (!currentRefLap || !currentRefLap.data || currentRefLap.data.distance.length === 0) {
+        // ... (existing reset logic)
+    } else {
+        let mapPointsInView = [];
+        for (let i = 0; i < currentRefLap.data.distance.length; i++) {
+            const dist = currentRefLap.data.distance[i];
+            if (dist >= xMinDistance && dist <= xMaxDistance) {
+                mapPointsInView.push({ x: currentRefLap.data.mapX[i], y: currentRefLap.data.mapY[i] });
+            }
+        }
 
-                    if (!currentRefLap || !currentRefLap.data || currentRefLap.data.distance.length === 0) {
-                        chart.options.scales.x.min = undefined;
-                        chart.options.scales.x.max = undefined;
-                        chart.options.scales.y.min = undefined;
-                        chart.options.scales.y.max = undefined;
-                    } else {
-                        let mapPointsInView = [];
-                        for (let i = 0; i < currentRefLap.data.distance.length; i++) {
-                            const dist = currentRefLap.data.distance[i];
-                            if (dist >= xMinDistance && dist <= xMaxDistance) {
-                                mapPointsInView.push({
-                                    x: currentRefLap.data.mapX[i],
-                                    y: currentRefLap.data.mapY[i]
-                                });
-                            }
-                        }
+        if (mapPointsInView.length > 0) {
+            let minX = Math.min(...mapPointsInView.map(p => p.x));
+            let maxX = Math.max(...mapPointsInView.map(p => p.x));
+            let minY = Math.min(...mapPointsInView.map(p => p.y));
+            let maxY = Math.max(...mapPointsInView.map(p => p.y));
 
-                        if (mapPointsInView.length > 0) {
-                            let newMinMapX = Math.min(...mapPointsInView.map(p => p.x));
-                            let newMaxMapX = Math.max(...mapPointsInView.map(p => p.x));
-                            let newMinMapY = Math.min(...mapPointsInView.map(p => p.y));
-                            let newMaxMapY = Math.max(...mapPointsInView.map(p => p.y));
+            let rangeX = maxX - minX;
+            let rangeY = maxY - minY;
 
-                            const rangeX = newMaxMapX - newMinMapX;
-                            const rangeY = newMaxMapY - newMinMapY;
-                            const paddingFactor = 0.1;
-                            const paddingX = rangeX === 0 ? 0.01 : rangeX * paddingFactor;
-                            const paddingY = rangeY === 0 ? 0.01 : rangeY * paddingFactor;
+            // --- THE FIX: EQUALIZING RANGES ---
+            // Find the larger dimension and make the smaller one match it
+            const maxRange = Math.max(rangeX, rangeY);
+            
+            const midX = (minX + maxX) / 2;
+            const midY = (minY + maxY) / 2;
 
-                            chart.options.scales.x.min = newMinMapX - paddingX;
-                            chart.options.scales.x.max = newMaxMapX + paddingX;
-                            chart.options.scales.y.min = newMinMapY - paddingY;
-                            chart.options.scales.y.max = newMaxMapY + paddingY;
-                        } else {
-                            chart.options.scales.x.min = undefined;
-                            chart.options.scales.x.max = undefined;
-                            chart.options.scales.y.min = undefined;
-                            chart.options.scales.y.max = undefined;
-                        }
-                    }
-                }
+            // Apply the same range to both axes to prevent stretching
+            chart.options.scales.x.min = midX - (maxRange / 2) * 1.1; // 1.1 for a little padding
+            chart.options.scales.x.max = midX + (maxRange / 2) * 1.1;
+            chart.options.scales.y.min = midY - (maxRange / 2) * 1.1;
+            chart.options.scales.y.max = midY + (maxRange / 2) * 1.1;
+        }
+    }
+}
                 chart.update('none');
             });
 
@@ -2418,29 +2412,43 @@ Bump stop engagment can:
             };
         };
 
-        function initTrackMap() {
-            const ctx = document.getElementById('track-map-chart').getContext('2d');
+function initTrackMap() {
+    const ctx = document.getElementById('track-map-chart').getContext('2d');
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) { existingChart.destroy(); }
 
-            const existingChart = Chart.getChart(ctx);
-            if (existingChart) {
-                existingChart.destroy();
-            }
-
-            const chart = new Chart(ctx, { // <-- Declare 'chart' here
-                type: 'scatter',
-                data: { datasets: [] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    scales: {
-                        x: { display: false, grid: { drawOnChartArea: false } },
-                        y: { display: false, grid: { drawOnChartArea: false } }
-                    },
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    elements: { point: { radius: 0 }, line: { borderWidth: 2 } }
+    const chart = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // We want the chart to fill the wrapper...
+            // ...BUT we use the scale 'nice' settings to keep it square
+            scales: {
+                x: {
+                    type: 'linear',
+                    display: false,
+                    // Force the X and Y scales to match
+                    afterFit: (scale) => {
+                        scale.width = scale.height; 
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: false,
                 }
-            });
+            },
+            aspectRatio: 1, // Keep the drawing area square
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { enabled: false } 
+            },
+            elements: { 
+                point: { radius: 0 }, 
+                line: { borderWidth: 2, fill: false } 
+            }
+        }
+    });
 
             // Get the parent .chart-wrapper element
             const chartWrapper = document.getElementById('track-map-chart').closest('.chart-wrapper');
