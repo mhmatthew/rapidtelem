@@ -1,111 +1,89 @@
-# 🚀 Rapid Telemetry Viewer for iRacing
+# Rapid Telemetry: F1 Distance Comparison & Pace Analysis
 
-## Fast, Free, Local Telemetry Analysis – No Install, No Account, No Cloud! <a href="https://rapidtelem.com" target="_blank">rapidtelem.com</a>
+**Rapid Telemetry** is a high-performance, web-based analytical tool designed for Formula 1 enthusiasts and data analysts. It leverages the OpenF1 API to provide deep insights into driver performance through intra-lap telemetry comparison and session-wide pace analysis.
 
-<img width="640" height="360" alt="image" src="https://github.com/user-attachments/assets/695d5052-1541-4341-be04-8b97e2efc5c4" />
+## 🚀 Features
 
-The Rapid Telemetry Viewer is a client-side, browser-based tool designed specifically for iRacing telemetry data analysis. Unlike conventional telemetry solutions, this viewer redefines accessibility and privacy, offering a powerful suite of analysis features encapsulated within a single, portable HTML file. Forget installations, subscriptions, or data uploads. Simply open the file in your web browser, import your iRacing `.ibt` files, and dive deep into your driving data instantly.
+### 1. Telemetry Viewer (Dual-Slot Comparison)
+*   **Slot Manager:** Compare two different laps (Reference vs. Comparison) across any session.
+*   **Distance-Based Plotting:** Unlike time-based charts, telemetry is plotted against distance (meters) to accurately compare braking points and apex speeds regardless of lap time differences.
+*   **Multi-Data Visualization:**
+    *   **Speed (km/h):** Overlay speed traces to find where time is found.
+    *   **Inputs (%):** Analyze Throttle and Brake application.
+    *   **Engine Data:** View RPM and Gear selection synchronized with track position.
+    *   **Time Delta:** A real-time calculation of time gained/lost across the lap.
 
----
+### 2. Geospatial Insight Mapping
+*   **Dynamic Track Map:** The circuit map is segmented by performance—Red sections indicate the Reference driver is faster, while Cyan sections indicate the Comparison driver is faster.
+*   **Chart-to-Map Synchronization:** Hovering over any telemetry chart updates a cursor on the track map to show exactly where that data point occurred on the circuit.
+*   **Sector Zoom:** Click any sector in the comparison table to automatically zoom all charts and the map to that specific portion of the track.
 
-### ✨ Key Features at a Glance
+### 3. Advanced Pace Analysis
+*   **Session-Wide Visualization:** View every lap of a session color-coded by tire compound (Soft, Medium, Hard, Intermediate, Wet).
+*   **Driving Characteristics Report:** Automatically generated metrics including:
+    *   **Consistency Score:** Calculated via Standard Deviation of lap times.
+    *   **Tire Management:** Estimated degradation rates (seconds lost per lap per compound).
+    *   **Pit Cycle Analysis:** Calculation of "Total Pit Loss" by combining In-lap and Out-lap performance.
+*   **Strategy Insights:** Automated comparison of stint lengths and compound choices.
 
-*   **Pure Client-Side Operation:** Runs entirely in your web browser, no backend server or internet connection required after initial load.
-*   **Direct `.ibt` File Parsing:** Efficiently reads and processes iRacing's binary telemetry (`.ibt`) files locally.
-*   **Interactive Lap Comparison:**
-    *   Load multiple `.ibt` files simultaneously.
-    *   Automatic detection of complete and valid laps.
-    *   Identify and highlight fastest laps within a file.
-    *   Toggle lap visibility and select a reference lap for comparison.
-    *   Customizable lap colors for easy distinction.
-*   **Comprehensive Charting Suite:** Visualize critical driving data across various synchronized charts:
-    *   **Time Delta Chart:** Compare lap times against a reference lap, section by section.
-    *   **Speed Chart:** Analyze speed profiles throughout the lap.
-    *   **Throttle/Brake Input Chart:** Examine driver inputs and ABS activity.
-    *   **Steering Angle Chart:** Understand steering patterns.
-    *   **RPM/Gear Chart:** Monitor engine RPM and gear selections.
-    *   **Suspension Velocity Histogram:** Analyze damper velocities for ride quality and setup validation (X-axis symmetrical around zero).
-*   **Dynamic Visual Aids:**
-    *   **Interactive Track Map:** See your driving line, synced with cursor positions across other charts.
-    *   **ABS Active Zones:** Overlay shaded regions on the throttle/brake chart to highlight ABS activation.
-    *   **Sector Lines:** Vertical markers indicate predefined sector boundaries across all distance-based charts.
-*   **In-Depth Analysis Tools:**
-    *   **Sector Analysis Table:** Quick comparison of sector times and deltas against the reference lap.
-    *   **"Placemat" Report:** Generate a printable PDF report for detailed side-by-side comparison of selected laps, including track maps with ABS zones and min-speed corner markers, and detailed sector metrics.
-*   **Enhanced User Experience:**
-    *   **Intuitive Controls:** Easy file import, lap selection, and chart interaction.
-    *   **Synchronized Zoom & Pan:** Effortlessly navigate through telemetry data; zoom/pan on one distance-based chart reflects across others. Damper velocity chart zooms independently.
-    *   **Reset Zoom Functionality:** Quickly reset chart views to auto-scaled.
-    *   **Chart Fullscreen Toggle:** Expand any individual chart to fill the main view area for focused analysis without hiding the sidebar.
-    *   **Responsive Design:** Adapts to various screen sizes.
+### 4. Communication & Context
+*   **Team Radio:** Integrated audio player and transcripts for driver-engineer communications.
+*   **Race Control Log:** A chronological log of flags (Yellow, Red, Green) and Safety Car periods.
 
 ---
 
-### 🌟 Why Choose Rapid Telemetry Viewer?
+## 🛠️ Tech Stack
 
-This tool stands out from traditional telemetry analysis software by offering unparalleled benefits:
-
-*   **⚡ Unparalleled Accessibility:** It's a single `.html` file. **No complex software installations**, no dependencies to manage. Just download it, open it in any modern web browser (Chrome, Firefox, Edge, Safari), and you're ready.
-*   **🔒 Absolute Data Privacy:** Your telemetry data (`.ibt` files) **never leaves your computer**. There are no accounts to create, no servers to upload to, and no cloud processing. All analysis happens locally in your browser, ensuring your driving data remains entirely private and secure.
-*   **💰 Completely Free:** No licenses, no subscriptions, no hidden costs. It's free to use, forever.
-*   **🌐 Offline Capability:** Once loaded in your browser, the tool functions perfectly without an internet connection, making it ideal for use at the trackside, in your sim rig, or anywhere you need rapid analysis on the go.
-*   **🚀 Blazing Fast Performance:** Leveraging modern browser technologies for binary parsing and GPU-accelerated rendering via Chart.js, the viewer offers a smooth and responsive experience.
-*   **💡 Open & Extensible Design:** For the curious mind, the entire source code is right there in the HTML file. Inspect it, learn from it, and even modify it to add your own custom features or integrate with other tools.
+*   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3.
+*   **Charts:** [Chart.js](https://www.chartjs.org/) (v4.4.2).
+*   **Plugins:** [chartjs-plugin-annotation](https://www.chartjs.org/chartjs-plugin-annotation/).
+*   **API:** [OpenF1](https://openf1.org/) (Unofficial F1 Data API).
 
 ---
 
-### 📖 How to Use
+## 📥 Installation
 
-**Check out the website:** <a href="https://rapidtelem.com" target="_blank">rapidtelem.com</a>
+Rapid Telemetry is a static web application. No build step or server-side environment (like Node.js) is required for deployment.
 
-and/or
-
-1.  **Download:** Grab the `index.html` file from this GitHub repository.
-2.  **Open:** Double-click the downloaded `.html` file, or drag it into your preferred modern web browser.
-3.  **Import Data:** Click the "Import .ibt File(s)" button in the header and select one or more iRacing `.ibt` telemetry files.
-4.  **Analyze:** Your laps will appear in the sidebar. Select laps for comparison, choose a reference lap, and explore the interactive charts. Utilize the zoom, pan, and fullscreen options for detailed insights.
-
----
-
-### 📊 Supported iRacing Telemetry Variables
-
-The viewer intelligently parses your `.ibt` files to extract and visualize the following key channels:
-
-*   `Lap`, `LapDist`, `SessionTime`
-*   `Speed` (converted to km/h)
-*   `RPM`, `Gear`
-*   `Throttle`, `Brake` (converted to %)
-*   `SteeringWheelAngle` (converted to radians)
-*   `Lat`, `Lon` (for track map generation)
-*   `LapInvalid`, `BrakeABSactive`
-*   `FuelLevel`
-*   `LFshockVel`, `RFshockVel`, `LRshockVel`, `RRshockVel` (for damper velocity histogram)
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/rapid-telemetry.git
+    ```
+2.  **Open the project:**
+    Simply open `index.html` in any modern web browser.
 
 ---
 
-### 🛠 Technical Highlights
+## 📖 Usage Guide
 
-*   **Frontend:** Pure HTML, CSS, and JavaScript.
-*   **Binary Parsing:** Utilizes `FileReader` and `DataView` for efficient, in-browser processing of `.ibt` binary data structures.
-*   **Charting:** Powered by `Chart.js` for dynamic, interactive, and high-performance data visualization.
-*   **Chart.js Plugins:** Integrates `chartjs-plugin-zoom` for advanced navigation and `chartjs-plugin-annotation` for visual cues like sector lines and ABS zones.
-*   **Modular Design:** JavaScript code is structured into logical functions and classes for maintainability and extensibility.
-
----
-
-### 🤝 Contributing
-
-We welcome community contributions! If you have ideas for new features, bug fixes, or performance improvements, please feel free to fork the repository and submit a pull request.
+1.  **Select Data:** Use the header controls to select the Year, Meeting (Grand Prix), Session, and Driver.
+2.  **Load Lap 1:** Click a lap from the "Laps" sidebar to load it into Slot 1.
+3.  **Load Lap 2:** Click "Slot 2 (Compare)" in the Slot Manager, then select another lap (either from the same driver or a different one).
+4.  **Analyze:** Use the charts to identify performance gaps. Hover over the speed trace to see the exact corner on the track map where the speed difference occurs.
+5.  **Pace Analysis:** Click the "Pace Analysis" button to open the modal. Select two drivers to compare their entire race stint performance and tire life.
 
 ---
 
-### 📧 Contact
+## 🧪 Technical Details
 
-Questions, feedback, or suggestions? Reach out to us at:
-[hello@rapidtelem.com](mailto:hello@rapidtelem.com)
+### Distance-Based Interpolation
+The application converts timestamped telemetry into distance-based data using the following logic:
+```javascript
+cumulativeDist += (avgSpeedMs * timeDiff);
+```
+This allows for a "Spatial Comparison" which is the professional standard in motorsport engineering, as it accounts for different lines taken by drivers.
+
+### API Resilience
+The application includes a `delay()` helper and recursive retry logic to handle `429 (Too Many Requests)` responses, ensuring the UI remains stable even when fetching large datasets for an entire race.
 
 ---
 
-### 📄 License
+## ⚖️ Disclaimer
 
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+**Rapid Telemetry** is an unofficial hobby project. It is not affiliated with Formula 1, the FIA, or any F1 team. All data is provided "as-is" via the OpenF1 API for personal and educational use.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
