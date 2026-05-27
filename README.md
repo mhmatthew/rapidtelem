@@ -45,6 +45,10 @@
 
 Rapid Telemetry is a static web application. No build step or server-side environment (like Node.js) is required for deployment.
 
+**Check out the website:** <a href="https://rapidtelem.com" target="_blank">rapidtelem.com</a>
+
+or
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/yourusername/rapid-telemetry.git
