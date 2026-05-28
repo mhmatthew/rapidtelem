@@ -2588,11 +2588,18 @@
             const breakdown = {};
             laps.forEach(lap => {
                 const tire = (lap.tireCompound || 'UNKNOWN').toUpperCase();
-                if (!breakdown[tire]) breakdown[tire] = { laps: 0, total: 0, fastest: Infinity, times: [] };
+                if (!breakdown[tire]) breakdown[tire] = { laps: 0, total: 0, fastest: Infinity, times: [], stints: {} }; // Added stints: {}
+
                 breakdown[tire].laps++;
                 breakdown[tire].total += lap.lap_duration;
                 breakdown[tire].times.push(lap.lap_duration);
                 if (lap.lap_duration < breakdown[tire].fastest) breakdown[tire].fastest = lap.lap_duration;
+
+                // NEW: Track laps per stint
+                if (lap.stintNumber) {
+                    if (!breakdown[tire].stints[lap.stintNumber]) breakdown[tire].stints[lap.stintNumber] = 0;
+                    breakdown[tire].stints[lap.stintNumber]++;
+                }
             });
             Object.keys(breakdown).forEach(t => {
                 const d = breakdown[t];
@@ -2601,6 +2608,7 @@
             });
             return breakdown;
         }
+
 
         function getBestTire(metrics) {
             if (!metrics || !metrics.tireBreakdown) return null;
@@ -2768,24 +2776,45 @@
 
         /**
          * Determines strategy profile and identifies pit laps using stint data
+         * (Updated to include starting tire and correctly list all pit laps)
          */
         function analyzeStints(stints, laps) {
-            if (!stints || stints.length === 0) return { stintCount: 0, pitLaps: [], strategyType: "No Data" };
+            if (!stints || stints.length === 0) {
+                return {
+                    stintCount: 0,
+                    pitLaps: [], // No pit stops if no stints
+                    strategyType: "No Data",
+                    startingTire: "N/A"
+                };
+            }
 
-            // In our mapped data, lap_start was renamed to stint_start_lap
-            // A pit entry usually results in a new stint starting on the next lap
-            const pitLaps = stints
-                .filter(s => s.stint_start_lap > 1) // First stint starts at lap 1, anything else is a pit exit
-                .map(s => s.stint_start_lap);
+            const actualPitLaps = [];
+            // Iterate through stints to find where a new stint starts after lap 1.
+            // A new stint starting on `lap_X` means a pit stop occurred on `lap_X - 1`.
+            for (let i = 0; i < stints.length; i++) {
+                const stint = stints[i];
+                // The API's stint.lap_start indicates the LAP ON WHICH THE STINT *STARTED*.
+                // If stint.lap_start is 1, it's the race start.
+                // If stint.lap_start is > 1, the pit stop happened on stint.lap_start - 1.
+                if (stint.stint_start_lap > 1) {
+                    actualPitLaps.push(stint.stint_start_lap - 1);
+                }
+            }
 
-            let type = "One-Stop";
-            if (pitLaps.length >= 2) type = "Multi-Stop";
-            if (pitLaps.length === 0) type = "Sprint/No-Stop";
+            let strategyType = "One-Stop"; // Default, assuming most races are one-stop
+            if (actualPitLaps.length >= 2) strategyType = "Multi-Stop";
+            else if (actualPitLaps.length === 0 && stints.length > 0) strategyType = "Sprint/No-Stop"; // If there are stints but no pits
+            // If stints.length is 0, strategyType remains "No Data" from the initial check
+
+            // Determine the starting tire (compound of the very first stint, which has stint_number 1)
+            const firstStint = stints.find(s => s.stint_number === 1);
+            const startingTire = firstStint ? (firstStint.compound || "UNKNOWN").toUpperCase() : "N/A";
 
             return {
                 stintCount: stints.length,
-                pitLaps: pitLaps,
-                strategyType: type
+                pitLaps: actualPitLaps, // This now contains the actual lap numbers when pits occurred
+                strategyType: strategyType,
+                startingTire: startingTire // <-- This is now returned
             };
         }
 
@@ -2805,6 +2834,18 @@
             }
 
             try {
+                // IMPORTANT: Calculate advanced metrics here to get access to recoveryStats
+                // We need to pass loadedData.ref/comp if available for telemetry.
+                const slot1Data = (loadedData.ref.lap && loadedData.ref.lap.driver_number == driver1.driver_number)
+                    ? loadedData.ref
+                    : null;
+                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == driver2.driver_number)
+                    ? loadedData.comp
+                    : null;
+
+                const metrics1 = calculateAdvancedMetrics(data1.laps, slot1Data);
+                const metrics2 = calculateAdvancedMetrics(data2.laps, slot2Data);
+
                 const strategy1 = analyzeStints(data1.stints, data1.laps);
                 const strategy2 = analyzeStints(data2.stints, data2.laps);
 
@@ -2828,7 +2869,9 @@
                 </thead>
                 <tbody>
                     <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
-                    <tr><td>Pit Stop Lap</td><td>${strategy1.pitLaps.length > 0 ? 'Lap ' + strategy1.pitLaps[0] : 'N/A'}</td><td>${strategy2.pitLaps.length > 0 ? 'Lap ' + strategy2.pitLaps[0] : 'N/A'}</td></tr>
+                    <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
+                    <tr><td>Pit Stop Lap(s)</td><td>${strategy1.pitLaps.length > 0 ? 'Lap ' + strategy1.pitLaps.join(', ') : 'N/A'}</td><td>${strategy2.pitLaps.length > 0 ? 'Lap ' + strategy2.pitLaps.join(', ') : 'N/A'}</td></tr>
+                    <tr><td>Avg Pit Time Loss</td><td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td><td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td></tr>
                     <tr><td>Best Lap Time</td><td>${formatTime(best1)}</td><td>${formatTime(best2)}</td></tr>
                 </tbody>
             </table>
@@ -3100,7 +3143,22 @@
             document.getElementById('tireLegend').style.display = 'flex';
         }
 
+        // NEW HELPER FUNCTION: Call this where you want to render the breakdown of laps per stint
+        const formatStints = (stintsObj) => {
+            if (!stintsObj || Object.keys(stintsObj).length === 0) return '';
+
+            // Sort by stint number for consistent output
+            const sortedStints = Object.entries(stintsObj).sort(([sNumA], [sNumB]) => parseInt(sNumA) - parseInt(sNumB));
+
+            return '(' + sortedStints.map(([sNum, lps]) => `Stint ${sNum}: ${lps}L`).join(', ') + ')';
+        };
+
+        // UPDATED generateTireBreakdownHTML with correct signature
         function generateTireBreakdownHTML(metrics1, metrics2, driver1, driver2) {
+            // Note: driver1 and driver2 are included in the signature for consistency
+            // with how the function is called, although they are not directly used
+            // within this particular function's logic for the table content.
+
             if (!metrics1 && !metrics2) return '';
 
             const allTires = new Set();
@@ -3125,21 +3183,23 @@
                             ${t1 ? `
                                 Avg: ${formatTime(t1.avg)}<br>
                                 Fastest: ${formatTime(t1.fastest)}<br>
-                                Deg: ${t1.degradation}s/lap (${t1.laps} laps)
+                                Deg: ${t1.degradation}s/lap<br>
+                                <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
                             ` : '-'}
                         </td>
                         <td>
                             ${t2 ? `
                                 Avg: ${formatTime(t2.avg)}<br>
                                 Fastest: ${formatTime(t2.fastest)}<br>
-                                Deg: ${t2.degradation}s/lap (${t2.laps} laps)
+                                Deg: ${t2.degradation}s/lap<br>
+                                <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
                             ` : '-'}
                         </td>
                     </tr>
                 `;
             });
 
-            // NEW: Best Tire Summary Row
+            // Best Tire Summary Row
             const bestTire1 = getBestTire(metrics1);
             const bestTire2 = getBestTire(metrics2);
 
