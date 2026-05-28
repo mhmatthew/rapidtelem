@@ -2711,8 +2711,14 @@
                 </thead>
                 <tbody>
                     <!-- PACE & CONSISTENCY (Always shows) -->
+                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                        <td colspan="3">Pace & Consistency Analysis</td>
+                    </tr>
                     <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
+                    <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
                     <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
+                    <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
+                    <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
 
                     <!-- INPUT TECHNIQUE HEADER -->
                     <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
@@ -2752,14 +2758,14 @@
                     <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
                         <td colspan="3">Performance by Tire Compound</td>
                     </tr>
-                    ${generateTireBreakdownHTML(m1, m2)}
+                    ${generateTireBreakdownHTML(m1, m2, d1, d2)}
 
                     <tr style="background: rgba(0, 210, 190, 0.08);">
                         <td colspan="3" style="padding: 12px; text-align: center;">
-<button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
-            style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
-        View Strategy Analysis →
-</button>
+                            <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
+                                style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                                View Strategy Analysis →
+                            </button>
                         </td>
                     </tr>
                 </tbody>
