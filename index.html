@@ -39,12 +39,13 @@
         header {
             background-color: var(--header-bg);
             padding: 10px 20px;
-            border-bottom: 2px solid var(--primary-color);
+            border-bottom: 2px solid var(--primary-color); /* Red by default */
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
-            z-index: 100; /* Ensure header is above modal if any parts overlap */
+            z-index: 100;
+            transition: border-color 0.3s ease; /* Adds a smooth color fade */
         }
 
         .header-brand { display: flex; align-items: center; }
@@ -270,31 +271,65 @@
             color: var(--primary-color);
         }
 
+        /* Container for logical grouping */
         .modal-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .control-row {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 15px;
             align-items: center;
-            justify-content: flex-start;
         }
-        .modal-controls label {
-            white-space: nowrap;
-            font-weight: bold;
-        }
-        .modal-controls select, .modal-controls button {
-            padding: 8px 12px;
-            font-size: 14px;
-            min-width: 150px; /* Ensure selects have a reasonable width */
-        }
+
+        /* Base button cleanup */
         .modal-controls button {
-             background-color: var(--primary-color);
-             border-color: var(--primary-color);
+            flex: 1; /* Makes buttons equal width in their group */
+            min-width: 120px;
+            padding: 8px 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--border-color);
         }
-        .modal-controls button:hover {
-            background-color: #ff3333;
-            border-color: #ff3333;
+
+        /* Primary Action Styling */
+        button.btn-primary {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white;
         }
+
+        /* View Toggle Styling */
+        button.btn-secondary {
+            background-color: #333;
+            color: #ccc;
+        }
+
+            button.btn-secondary:hover {
+                background-color: #444;
+                color: white;
+            }
+
+        /* Analysis Buttons (Accent) */
+        button.btn-analysis {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background: transparent;
+        }
+
+            button.btn-analysis:hover {
+                background: var(--accent-color);
+                color: black;
+            }
+
 
         /* Container for the modal elements */
         .modal-chart-container {
@@ -542,6 +577,82 @@
                 border-radius: 50%;
             }
 
+        /* Enhanced Weather Sidebar Styling */
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .weather-metric {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .weather-label {
+            color: #888;
+            font-size: 0.7em;
+            text-transform: uppercase;
+        }
+
+        .weather-value {
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.9em;
+            font-family: monospace;
+        }
+
+        .rainfall-indicator {
+            grid-column: span 2;
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.75em;
+            margin-top: 4px;
+        }
+
+        .rain-wet {
+            background: rgba(0, 123, 255, 0.3);
+            color: #80bdff;
+            border: 1px solid #007bff;
+        }
+
+        .rain-dry {
+            background: rgba(255, 255, 255, 0.05);
+            color: #aaa;
+            border: 1px solid #444;
+        }
+
+        /* Track Condition States */
+        .cond-wet {
+            background: rgba(0, 80, 255, 0.4);
+            color: #fff;
+            border: 1px solid #0055ff;
+        }
+        /* Raining */
+        .cond-damp {
+            background: rgba(0, 200, 255, 0.2);
+            color: #80ebff;
+            border: 1px solid #00a2ff;
+        }
+        /* Not raining, but wet */
+        .cond-drying {
+            background: rgba(0, 255, 150, 0.2);
+            color: #80ffc0;
+            border: 1px solid #00ff96;
+        }
+        /* Improving */
+        .cond-dry {
+            background: rgba(255, 255, 255, 0.05);
+            color: #aaa;
+            border: 1px solid #444;
+        }
+        /* Bone dry */
+
         /* Basic responsive layout for tablets/phones */
         @media (max-width: 900px) {
             main {
@@ -745,21 +856,23 @@
             </div>
 
             <div class="modal-controls">
-                <label for="paceSessionSelect">Session:</label>
-                <select id="paceSessionSelect"><option value="">Loading...</option></select>
-                <label for="paceDriver1Select">Driver 1:</label>
-                <select id="paceDriver1Select"><option value="">Loading...</option></select>
-                <label for="paceDriver2Select">Driver 2:</label>
-                <select id="paceDriver2Select"><option value="">Loading...</option></select>
+                <!-- Row 1: Selection & Loading -->
+                <div class="control-row">
+                    <select id="paceSessionSelect"><option value="">Select Session</option></select>
+                    <select id="paceDriver1Select"><option value="">Driver 1</option></select>
+                    <select id="paceDriver2Select"><option value="">Driver 2</option></select>
+                    <button class="btn-primary" onclick="loadPaceData()">⚡ Load Data</button>
+                </div>
 
-                <button onclick="loadPaceData()">Load Chart</button>
-
-                <!-- Timeline Toggles -->
-                <button id="btnToggleTimeline" onclick="toggleTimelineVisibility()" style="background-color: var(--primary-color);">Show Timeline</button>
-                <button id="btnFullTimeline" onclick="toggleTimelineFocus()" style="background-color: #444;">Full Timeline View</button>
-
-                <button onclick="showDrivingReport()" style="background-color: var(--accent-color); color: black;">Driving Report</button>
-                <button onclick="showSessionResults()">Session Results</button>
+                <!-- Row 2: View Switching & Analysis -->
+                <div class="control-row">
+                    <div style="display: flex; gap: 2px; flex: 1;">
+                        <button class="btn-secondary" id="btnToggleTimeline" onclick="toggleTimelineVisibility()">Timeline</button>
+                        <button class="btn-secondary" id="btnFullTimeline" onclick="toggleTimelineFocus()">Full View</button>
+                    </div>
+                    <button class="btn-analysis" onclick="showDrivingReport()">📊 Driving Report</button>
+                    <button class="btn-analysis" onclick="showSessionResults()">🏁 Session Results</button>
+                </div>
             </div>
 
             <!-- THE CONTAINER WITH THE ID THE JS IS LOOKING FOR -->
@@ -987,11 +1100,27 @@
 
         async function loadMeetings() {
             const year = document.getElementById('year-select').value;
-            const res = await fetch(`${API_BASE}/meetings?year=${year}`);
-            const meetings = await res.json();
-            document.getElementById('meeting-select').innerHTML = meetings.reverse().map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
-            document.getElementById('meeting-select').onchange = loadSessions;
-            loadSessions();
+            try {
+                const res = await fetch(`${API_BASE}/meetings?year=${year}`);
+                let meetings = await res.json();
+
+                // FIX: Check if the response is actually a list (array)
+                if (!Array.isArray(meetings)) {
+                    console.warn("API did not return a list of meetings:", meetings);
+                    meetings = []; // Set to empty list so the code below doesn't crash
+                }
+
+                // Use slice().reverse() so we don't mutate the original array if needed elsewhere
+                document.getElementById('meeting-select').innerHTML = meetings.slice().reverse().map(m =>
+                    `<option value="${m.meeting_key}">${m.meeting_name}</option>`
+                ).join('');
+
+                document.getElementById('meeting-select').onchange = loadSessions;
+                loadSessions();
+            } catch (error) {
+                console.error("Failed to load meetings:", error);
+                document.getElementById('meeting-select').innerHTML = '<option>Error loading GP</option>';
+            }
         }
 
         async function loadSessions() {
@@ -1093,28 +1222,42 @@
             const sessionKey = document.getElementById('session-select').value;
             const driverNum = lapObj.driver_number;
             const driverName = driverNames[driverNum] || "Unknown";
-
             const lapStart = new Date(lapObj.date_start).getTime();
-            const lapEnd = lapObj.date_end
-                ? new Date(lapObj.date_end).getTime()
-                : lapStart + (lapObj.lap_duration * 1000);
-
+            const lapEnd = lapObj.date_end ? new Date(lapObj.date_end).getTime() : lapStart + (lapObj.lap_duration * 1000);
             const queryEndTime = new Date(lapEnd + 300000).toISOString();
             const filter = `session_key=${sessionKey}&driver_number=${driverNum}&date>=${encodeURIComponent(start)}&date<=${encodeURIComponent(queryEndTime)}`;
 
             updateStatus(`Loading ${driverName} Lap ${lapObj.lap_number}...`, "info");
 
+            // Helper function to handle fetch with automatic retry on 429 Rate Limit
+            async function fetchSafe(url) {
+                const response = await fetch(url);
+                if (response.status === 429) {
+                    console.warn(`Rate limit hit for: ${url}. Retrying in 1s...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return fetchSafe(url); // Recursive retry
+                }
+                return response.json();
+            }
+
             try {
-                const [telRes, locRes, wetRes] = await Promise.all([
-                    fetch(`${API_BASE}/car_data?${filter}`),
-                    fetch(`${API_BASE}/location?${filter}`),
-                    fetch(`${API_BASE}/weather?session_key=${sessionKey}&date>=${encodeURIComponent(start)}&date<=${encodeURIComponent(queryEndTime)}`)
+                // --- BATCH 1: Heavy Data (Map and Charts) ---
+                // We load these first so the visuals appear quickly.
+                const [rawTel, rawLoc] = await Promise.all([
+                    fetchSafe(`${API_BASE}/car_data?${filter}`),
+                    fetchSafe(`${API_BASE}/location?${filter}`)
                 ]);
 
-                const rawTel = await telRes.json();
-                const rawLoc = await locRes.json();
-                const weatherData = await wetRes.json();
+                // --- STAGGER: Wait 500ms to let the API "breath" ---
+                await new Promise(resolve => setTimeout(resolve, 500));
 
+                // --- BATCH 2: Metadata (Weather and Tires) ---
+                const [weatherData, stintData] = await Promise.all([
+                    fetchSafe(`${API_BASE}/weather?session_key=${sessionKey}&date>=${encodeURIComponent(start)}&date<=${encodeURIComponent(queryEndTime)}`),
+                    fetchSafe(`${API_BASE}/stints?session_key=${sessionKey}&driver_number=${driverNum}`)
+                ]);
+
+                // 1. Process Telemetry & Location
                 const trimmedTel = Array.isArray(rawTel) ? rawTel.filter(d => {
                     const time = new Date(d.date).getTime();
                     return time >= lapStart && time <= lapEnd;
@@ -1125,40 +1268,77 @@
                     return time >= lapStart && time <= lapEnd;
                 }) : [];
 
-                const lapRadio = currentDriverRadio.filter(msg => {
-                    const msgTime = new Date(msg.date).getTime();
-                    return msgTime >= (lapStart - 10000) && msgTime <= (lapEnd + 300000);
-                });
-
-                // 5. PROCESS DISTANCE & WEATHER
-                const telWithDist = processTelemetryWithDistance(trimmedTel, lapObj.date_start);
-
-                let weatherStr = "No Data";
-                if (Array.isArray(weatherData) && weatherData.length > 0) {
-                    const w = weatherData[0];
-                    weatherStr = `Air: ${w.air_temperature}°C | Track: ${w.track_temperature}°C`;
+                // 2. Determine Tire Compound
+                let tireCompound = "UNK";
+                if (Array.isArray(stintData)) {
+                    const currentStint = stintData.find(s =>
+                        lapObj.lap_number >= s.lap_start && (s.lap_end === null || lapObj.lap_number <= s.lap_end)
+                    );
+                    if (currentStint) tireCompound = currentStint.compound.toUpperCase();
                 }
 
-                // --- NEW: STEP 5.5 CALCULATE TECHNIQUE METRICS FOR THIS LAP ---
+                // 3. Advanced Track Condition Engine
+                let weatherHtml = "No Data";
+                if (Array.isArray(weatherData) && weatherData.length > 0) {
+                    const w = weatherData[0];
+                    let trackState = "DRY";
+                    let stateClass = "cond-dry";
+                    let icon = "☀️";
+                    const isRaining = w.rainfall === 1;
+                    const isHighHumidity = w.humidity >= 85;
+                    const isMediumHumidity = w.humidity >= 70;
+                    const isCoolTrack = w.track_temperature < 27;
+
+                    if (isRaining) { trackState = "WET / RAINING"; stateClass = "cond-wet"; icon = "🌧️"; }
+                    else if (isHighHumidity || (isMediumHumidity && isCoolTrack)) { trackState = "DAMP / WET SURFACE"; stateClass = "cond-damp"; icon = "💧"; }
+                    else if (isMediumHumidity) { trackState = "DRYING / IMPROVING"; stateClass = "cond-drying"; icon = "🌤️"; }
+                    else { trackState = "DRY CONDITIONS"; stateClass = "cond-dry"; icon = "☀️"; }
+
+                    const getWindDir = (deg) => {
+                        const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+                        return directions[Math.round(deg / 45) % 8];
+                    };
+
+                    weatherHtml = `
+                <div class="weather-details">
+                    <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
+                    <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
+                    <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
+                    <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
+                    <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
+                    <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
+                    <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
+                </div>`;
+                }
+
+                // 4. Process Distance
+                const telWithDist = processTelemetryWithDistance(trimmedTel, lapObj.date_start);
                 const markers = calculateMarkers(telWithDist, start, lapObj);
                 const techniqueMetrics = calculateSingleLapTechnique(telWithDist, markers);
 
-                // 6. SNAPSHOT DATA INTO SLOT
+                // 5. Snapshot Data
                 loadedData[activeSlot] = {
                     telemetry: telWithDist,
                     location: trimmedLoc,
                     lap: lapObj,
                     driverName: driverName,
-                    weather: weatherStr,
+                    weather: weatherHtml,
+                    tire: tireCompound,
                     markers: markers,
-                    technique: techniqueMetrics, // Storing the new calculated metrics here
-                    radio: lapRadio
+                    technique: techniqueMetrics,
+                    radio: currentDriverRadio.filter(msg => {
+                        const msgTime = new Date(msg.date).getTime();
+                        return msgTime >= (lapStart - 10000) && msgTime <= (lapEnd + 300000);
+                    })
                 };
 
-                // 7. UI UPDATES
-                document.getElementById(`weather-${activeSlot}`).innerText = `S${activeSlot === 'ref' ? '1' : '2'}: ${weatherStr}`;
+                // 6. UI UPDATES
+                document.getElementById(`weather-${activeSlot}`).innerHTML = weatherHtml;
                 const timeStr = lapObj.lap_duration ? formatTime(lapObj.lap_duration) : "Live";
-                document.getElementById(`${activeSlot}-label`).innerHTML = `${driverName} (L${lapObj.lap_number}) <span>${timeStr}</span>`;
+                const tColor = TIRE_COLORS[tireCompound] || '#aaa';
+
+                document.getElementById(`${activeSlot}-label`).innerHTML =
+                    `${driverName} (L${lapObj.lap_number}) <span>${timeStr}</span> <b style="color:${tColor}; margin-left:8px; font-size:0.85em;">[${tireCompound}]</b>`;
 
                 updateSectorTable();
                 updateCharts();
@@ -1167,10 +1347,7 @@
 
             } catch (e) {
                 console.error("API Fetch Failed:", e);
-                updateStatus("API Error", "error");
-                loadedData[activeSlot] = { telemetry: [], location: [], lap: null, driverName: "", markers: null, technique: null, weather: "", radio: [] };
-                updateCharts();
-                updateRadioLog();
+                updateStatus("API Error - Try again", "error");
             }
         }
 
@@ -1270,9 +1447,9 @@
                     <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
                         <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
                     </tr>
-                    <tr><td>Intermediate 1</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
-                    <tr><td>Intermediate 2</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
-                    <tr><td>Finish Line</td><td>${getS(s1, 'finish_line_speed')}</td><td>${getS(s2, 'finish_line_speed')}</td></tr>
+                    <tr><td>Intermediate 1 (S1)</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
+                    <tr><td>Intermediate 2 (S2)</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
+                    <tr><td>Speed Trap (ST)</td><td>${getS(s1, 'st_speed')}</td><td>${getS(s2, 'st_speed')}</td></tr>
 
                     <tr onclick="zoomToSector(0)" style="cursor:pointer">
                         <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
@@ -1581,6 +1758,14 @@
             activeSlot = slot;
             document.getElementById('slot-ref').className = 'slot-btn' + (slot === 'ref' ? ' active-ref' : '');
             document.getElementById('slot-comp').className = 'slot-btn' + (slot === 'comp' ? ' active-comp' : '');
+
+            // Update the thin line (header border) color
+            const header = document.querySelector('header');
+            if (slot === 'ref') {
+                header.style.borderBottomColor = 'var(--primary-color)'; // Red
+            } else {
+                header.style.borderBottomColor = 'var(--compare-color)'; // Light Blue
+            }
         }
 
         document.getElementById('toggle-map-layout').addEventListener('click', () => {
@@ -1666,12 +1851,10 @@
                 ref: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] },
                 comp: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] }
             };
-
             document.getElementById('ref-label').innerHTML = "S1: Empty <span>--:--.---</span>";
             document.getElementById('comp-label').innerHTML = "S2: Empty <span>--:--.---</span>";
-            document.getElementById('weather-ref').innerText = "S1: No Data";
-            document.getElementById('weather-comp').innerText = "S2: No Data";
-
+            document.getElementById('weather-ref').innerHTML = "S1: No Data";
+            document.getElementById('weather-comp').innerHTML = "S2: No Data";
             updateSectorTable();
             updateCharts();
             updateRadioLog();
