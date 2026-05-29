@@ -296,19 +296,45 @@
             border-color: #ff3333;
         }
 
+        /* Container for the modal elements */
         .modal-chart-container {
-            flex-grow: 1;
-            position: relative;
-            min-height: 300px;
-            display: flex; /* Added: Use flexbox for layout */
-            flex-direction: column; /* Added: Stack children vertically */
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto; /* ENABLE VERTICAL SCROLLING */
+            overflow-x: hidden;
+            gap: 10px;
         }
+
+            /* Full Focus Mode for Timeline */
+            .modal-chart-container.timeline-focus #paceAnalysisChart,
+            .modal-chart-container.timeline-focus #tireLegend,
+            .modal-chart-container.timeline-focus #drivingReportWrapper,
+            .modal-chart-container.timeline-focus #sessionResultsWrapper {
+                display: none !important;
+            }
+
+            .modal-chart-container.timeline-focus #timelineWrapper {
+                height: 600px !important; /* Large height in focus mode */
+                flex-grow: 1;
+            }
+
+        #timelineWrapper {
+            height: 180px; /* Standard height when telemetry is also shown */
+            flex-shrink: 0; /* Prevent the timeline from being squished */
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
         #paceAnalysisChart {
-            max-width: 100%;
-            max-height: 100%;
-            flex-grow: 1; /* Allow chart to take available height */
-            display: block; /* Ensure it respects flexbox and hides properly */
+            width: 100% !important;
+            min-height: 450px; /* GUARANTEE the chart occupies space */
+            flex-shrink: 0; /* Stop flexbox from shrinking it to 0 */
+            display: block;
         }
+
         #tireLegend {
             margin-top: 8px;
             font-size: 12px;
@@ -316,16 +342,21 @@
             display: flex; /* Make legend items flexible */
             flex-wrap: wrap; /* Allow legend items to wrap */
             justify-content: center; /* Center legend items horizontally */
-            padding: 5px; /* Add some padding */
-            background-color: rgba(0,0,0,0.2); /* Slight background */
-            border-radius: 5px; /* Rounded corners */
-            color: var(--text-color-light); /* Ensure text color is consistent */
+            padding: 8px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            color: var(--text-color-light);
+            min-height: 20px; /* Ensure it has a physical presence */
         }
-        #tireLegend span {
-            margin: 0 5px; /* Adjust spacing between legend items */
-        }
+
+            #tireLegend span {
+                margin: 0 8px; /* Adjust spacing between legend items */
+                display: inline-flex;
+                align-items: center;
+            }
+
         /* Style for the new back button */
-        #sessionResultsWrapper button {
+        #sessionResultsWrapper button, #drivingReportWrapper button {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
             padding: 8px 12px;
@@ -334,11 +365,14 @@
             border-radius: 4px;
             color: white;
             transition: background-color 0.2s, border-color 0.2s;
+            margin-top: 15px;
         }
-        #sessionResultsWrapper button:hover {
-            background-color: #ff3333;
-            border-color: #ff3333;
-        }
+
+            #sessionResultsWrapper button:hover, #drivingReportWrapper button:hover {
+                background-color: #ff3333;
+                border-color: #ff3333;
+            }
+
 
 .results-table {
     width: 100%;
@@ -446,6 +480,153 @@
             #buy-coffee-btn:hover {
                 background-color: #0056b3; /* lightens background on hover */
             }
+
+#timelineWrapper {
+    display: none; /* HIDE BY DEFAULT */
+    height: 180px; 
+    flex-shrink: 0;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#raceTimelineChart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+        /* Inline legend in timeline header */
+        #timelineLegend {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            font-size: 0.8em; /* slightly larger */
+            color: var(--text-color-light);
+            pointer-events: none; /* don't block clicks/hover */
+        }
+
+            #timelineLegend .legend-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                white-space: nowrap;
+            }
+
+            #timelineLegend .legend-swatch {
+                width: 11px; /* larger swatch */
+                height: 11px;
+            }
+
+            /* Match dataset colors */
+            #timelineLegend .legend-track {
+                background-color: #ff0000;
+                border-radius: 2px;
+            }
+
+            #timelineLegend .legend-mgmt {
+                background-color: #ffffff;
+                border-radius: 2px;
+            }
+
+            #timelineLegend .legend-steward {
+                background-color: #ffc107;
+                border-radius: 50%;
+            }
+
+            #timelineLegend .legend-driver {
+                background-color: #00d2be;
+                border-radius: 50%;
+            }
+
+        /* Basic responsive layout for tablets/phones */
+        @media (max-width: 900px) {
+            main {
+                flex-direction: column;
+            }
+
+            #sidebar {
+                width: 100%;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            #chart-container {
+                padding: 10px;
+            }
+
+            .chart-wrapper {
+                height: 180px;
+            }
+
+            /* Hide the large map mode on small screens */
+            #large-map-container {
+                display: none !important;
+            }
+
+            .api-controls {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .modal-content {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+                padding: 10px;
+            }
+
+            .modal-controls {
+                gap: 6px;
+            }
+
+                .modal-controls label {
+                    display: none; /* rely on placeholder text to save space */
+                }
+
+                .modal-controls select,
+                .modal-controls button {
+                    min-width: auto;
+                    flex: 1 1 45%;
+                    font-size: 12px;
+                    padding: 6px 8px;
+                }
+
+            #timelineWrapper {
+                height: 140px;
+            }
+
+            #paceAnalysisChart {
+                min-height: 320px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            #chart-container {
+                overflow-x: auto;
+            }
+
+            .results-table {
+                font-size: 11px;
+            }
+
+                .results-table th,
+                .results-table td {
+                    padding: 6px 4px;
+                }
+        }
 
     </style>
 </head>
@@ -565,41 +746,67 @@
 
             <div class="modal-controls">
                 <label for="paceSessionSelect">Session:</label>
-                <select id="paceSessionSelect">
-                    <option value="">Loading Sessions...</option>
-                </select>
-
+                <select id="paceSessionSelect"><option value="">Loading...</option></select>
                 <label for="paceDriver1Select">Driver 1:</label>
-                <select id="paceDriver1Select">
-                    <option value="">Loading Drivers...</option>
-                </select>
-
+                <select id="paceDriver1Select"><option value="">Loading...</option></select>
                 <label for="paceDriver2Select">Driver 2:</label>
-                <select id="paceDriver2Select">
-                    <option value="">Loading Drivers...</option>
-                </select>
+                <select id="paceDriver2Select"><option value="">Loading...</option></select>
 
                 <button onclick="loadPaceData()">Load Chart</button>
-                <!-- This button triggers the generateAdvancedReport function -->
+
+                <!-- Timeline Toggles -->
+                <button id="btnToggleTimeline" onclick="toggleTimelineVisibility()" style="background-color: var(--primary-color);">Show Timeline</button>
+                <button id="btnFullTimeline" onclick="toggleTimelineFocus()" style="background-color: #444;">Full Timeline View</button>
+
                 <button onclick="showDrivingReport()" style="background-color: var(--accent-color); color: black;">Driving Report</button>
                 <button onclick="showSessionResults()">Session Results</button>
             </div>
 
-            <div class="modal-chart-container">
-                <!-- The Telemetry Chart -->
+            <!-- THE CONTAINER WITH THE ID THE JS IS LOOKING FOR -->
+            <div class="modal-chart-container" id="modalContainer">
+
+                <!-- THE TIMELINE WRAPPER WITH THE ID -->
+                <div id="timelineWrapper" style="height: 160px; flex-shrink: 0; margin-bottom: 10px; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <span style="font-size: 0.75em; color: var(--accent-color); font-weight: bold; text-transform: uppercase; white-space:nowrap;">
+                                Race Event Timeline
+                            </span>
+
+                            <!-- LEGEND MOVED HERE -->
+                            <div id="timelineLegend">
+                                <div class="legend-item">
+                                    <span class="legend-swatch legend-track"></span>
+                                    <span>TRACK</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch legend-mgmt"></span>
+                                    <span>MGMT</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch legend-steward"></span>
+                                    <span>STEWARD</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-swatch legend-driver"></span>
+                                    <span>DRIVER</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="text" id="rcSearch" placeholder="Filter events..."
+                               style="background:#111; color:white; border:1px solid #444; padding:2px 8px; border-radius:4px; font-size: 0.7em; max-width: 180px; flex-shrink:0;"
+                               oninput="renderRaceTimeline()">
+                    </div>
+
+                    <canvas id="raceTimelineChart"></canvas>
+                </div>
+
                 <canvas id="paceAnalysisChart"></canvas>
                 <div id="tireLegend"></div>
 
-                <!-- THE NEW REPORT WRAPPER -->
-                <!-- This is where generateAdvancedReport() injects the overlap, transition, and coasting tables -->
-                <div id="drivingReportWrapper" style="display: none; flex-grow: 1; overflow-y: auto; padding: 15px; background-color: var(--chart-bg); border-radius: 8px; margin-top: 10px;">
-                    <!-- Report content will be injected here -->
-                </div>
-
-                <!-- Placeholder for Session Results Table -->
-                <div id="sessionResultsWrapper" style="display: none; flex-grow: 1; overflow-y: auto;">
-                    <!-- Results table will be dynamically inserted here -->
-                </div>
+                <div id="drivingReportWrapper" style="display: none; flex-grow: 1; overflow-y: auto; padding: 15px; background-color: var(--chart-bg); border-radius: 8px;"></div>
+                <div id="sessionResultsWrapper" style="display: none; flex-grow: 1; overflow-y: auto;"></div>
             </div>
         </div>
     </div>
@@ -631,6 +838,7 @@
 
         let currentDriverRadio = [];
         let sessionFlags = [];
+        let sessionRaceControl = []; // To store ALL messages for the session
 
         // --- PACE ANALYSIS SPECIFIC GLOBALS ---
         let paceChartInstance = null; // Chart.js instance for the pace analysis chart
@@ -755,14 +963,14 @@
                     if (lapEvents.some(f => f.category === 'Safety Car')) iconHtml += '<span title="Safety Car" style="color: #ffc107;">🏎️</span>';
 
                     return `
-                        <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
-                            <div class="lap-main-info">
-                                <span style="font-weight: bold;">Lap ${l.lap_number}</span>
-                                <div class="lap-icons">${iconHtml}</div>
+                            <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
+                                <div class="lap-main-info">
+                                    <span style="font-weight: bold;">Lap ${l.lap_number}</span>
+                                    <div class="lap-icons">${iconHtml}</div>
+                                </div>
+                                <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
                             </div>
-                            <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
-                        </div>
-                    `;
+                        `;
                 }).join('');
 
                 updateStatus("Laps & Markers Loaded", "success");
@@ -791,9 +999,25 @@
             const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
             const sessions = await res.json();
             document.getElementById('session-select').innerHTML = sessions.map(s => `<option value="${s.session_key}">${s.session_name}</option>`).join('');
-            document.getElementById('session-select').onchange = loadDrivers;
+
+            // Clear cached session data when meeting/session list changes
+            sessionRaceControl = [];
+            document.getElementById('session-select').onchange = () => {
+                loadDrivers();
+                fetchSessionRaceControl(); // New helper to pull all messages
+            };
             loadDrivers();
         }
+
+        async function fetchSessionRaceControl() {
+            const sessionKey = document.getElementById('session-select').value;
+            try {
+                const res = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
+                sessionRaceControl = await res.json();
+                console.log(`Cached ${sessionRaceControl.length} session messages.`);
+            } catch (e) { console.error("Failed to cache session race control", e); }
+        }
+
 
         async function loadDrivers() {
             const sessionKey = document.getElementById('session-select').value;
@@ -1037,23 +1261,23 @@
             const getS = (lap, key) => lap && lap[key] ? lap[key] + " km/h" : "-";
 
             document.getElementById('sector-body').innerHTML = `
-                <!-- Times -->
-                <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
-                <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
-                <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
+                    <!-- Times -->
+                    <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
+                    <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
+                    <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
 
-                <!-- Speed Traps -->
-                <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
-                    <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
-                </tr>
-                <tr><td>Intermediate 1</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
-                <tr><td>Intermediate 2</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
-                <tr><td>Finish Line</td><td>${getS(s1, 'finish_line_speed')}</td><td>${getS(s2, 'finish_line_speed')}</td></tr>
+                    <!-- Speed Traps -->
+                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
+                        <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
+                    </tr>
+                    <tr><td>Intermediate 1</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
+                    <tr><td>Intermediate 2</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
+                    <tr><td>Finish Line</td><td>${getS(s1, 'finish_line_speed')}</td><td>${getS(s2, 'finish_line_speed')}</td></tr>
 
-                <tr onclick="zoomToSector(0)" style="cursor:pointer">
-                    <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
-                </tr>
-            `;
+                    <tr onclick="zoomToSector(0)" style="cursor:pointer">
+                        <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
+                    </tr>
+                `;
         }
 
         function initCharts() {
@@ -1524,25 +1748,25 @@
                 if (ev.type === 'flag') {
                     // Race Control Styling (Yellow border)
                     return `
-                        <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
-                            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
-                                <span>${timeStr}</span>
-                            </div>
-                            <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
-                        </div>`;
+                            <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                    <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
+                                    <span>${timeStr}</span>
+                                </div>
+                                <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
+                            </div>`;
                 } else {
                     // Driver Radio Styling (Red/Cyan border)
                     const color = ev.slot === 'ref' ? 'var(--primary-color)' : 'var(--compare-color)';
                     return `
-                        <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
-                            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
-                                <span>${timeStr}</span>
-                            </div>
-                            <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
-                            <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
-                        </div>`;
+                            <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                    <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
+                                    <span>${timeStr}</span>
+                                </div>
+                                <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
+                                <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
+                            </div>`;
                 }
             }).join('');
 
@@ -1678,7 +1902,6 @@
             }
         }
 
-        // UPDATED setupPaceChart function
         function setupPaceChart() {
             const ctx = document.getElementById('paceAnalysisChart').getContext('2d');
             if (paceChartInstance) {
@@ -1705,84 +1928,48 @@
                             font: { size: 18 }
                         },
                         legend: {
-                            labels: {
-                                color: '#f0f0f0',
-                                font: { size: 14 }
-                            }
+                            labels: { color: '#f0f0f0', font: { size: 14 } }
                         },
                         tooltip: {
                             backgroundColor: 'rgba(0,0,0,0.7)',
                             bodyColor: '#f0f0f0',
                             titleColor: '#e10600',
                             callbacks: {
-                                title: function (context) {
-                                    if (context.length > 0) {
-                                        return `Lap ${context[0].parsed.x}`;
-                                    }
-                                    return '';
-                                },
+                                title: (context) => context.length > 0 ? `Lap ${context[0].parsed.x}` : '',
                                 label: function (context) {
-                                    const datasetLabel = context.dataset.label || '';
                                     const lapTime = formatTime(context.parsed.y);
-
-                                    const extraData = context.dataset.extraData
-                                        ? context.dataset.extraData[context.dataIndex]
-                                        : undefined;
-
-                                    let label = `${datasetLabel}: ${lapTime}`;
-
-                                    if (extraData && extraData.tireCompound) {
-                                        label += ` | ${String(extraData.tireCompound).toUpperCase()}`;
-                                    }
-
+                                    const extra = context.dataset.extraData ? context.dataset.extraData[context.dataIndex] : null;
+                                    let label = `${context.dataset.label}: ${lapTime}`;
+                                    if (extra && extra.tireCompound) label += ` | ${extra.tireCompound}`;
                                     return label;
                                 }
                             }
                         },
-                        annotation: { // Ensure annotation plugin is initialized for the chart
-                            annotations: {}
-                        }
+                        annotation: { annotations: {} }
                     },
                     scales: {
                         x: {
                             type: 'linear',
-                            title: {
-                                display: true,
-                                text: 'Lap Number',
-                                color: '#f0f0f0',
-                                font: { size: 14 }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#f0f0f0',
-                                stepSize: 1
-                            }
+                            min: 0, // Ensure we account for the start of the race
+                            title: { display: true, text: 'Lap Number', color: '#f0f0f0', font: { size: 14 } },
+                            grid: { color: '#333' },
+                            ticks: { color: '#888', stepSize: 5 }
                         },
                         y: {
                             type: 'linear',
-                            title: {
-                                display: true,
-                                text: 'Lap Time',
-                                color: '#f0f0f0',
-                                font: { size: 14 }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
+                            // --- ADD THIS LINE ---
+                            afterFit: (axis) => { axis.width = 80; },
+                            title: { display: true, text: 'Lap Time', color: '#f0f0f0', font: { size: 14 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
                             ticks: {
                                 color: '#f0f0f0',
-                                callback: function (value) {
-                                    return formatTime(value);
-                                }
+                                callback: function (value) { return formatTime(value); }
                             }
                         }
                     }
                 }
             });
 
-            // Ensure the tire legend is rendered when the chart is set up
             renderTireLegend();
         }
 
@@ -1912,12 +2099,42 @@
             }
 
             paceChartInstance.data.datasets = datasets;
-            paceChartInstance.options.plugins.annotation.annotations = annotations; // Assign annotations directly
+            paceChartInstance.options.plugins.annotation.annotations = annotations;
+
+            // --- NEW: DYNAMIC ALIGNMENT & DNF HANDLING ---
+            // Calculate the true end of the session from Race Control messages
+            const bounds = getSessionBoundaries();
+
+            // Force the Pace Chart to show the full race width
+            paceChartInstance.options.scales.x.max = bounds.laps;
             paceChartInstance.update();
 
             // Save the loaded data for potential "Back to Chart" functionality
             savedPaceChartDatasets = JSON.parse(JSON.stringify(datasets));
             savedPaceChartAnnotations = JSON.parse(JSON.stringify(annotations));
+
+            // Ensure Session Race Control is cached for the timeline and strategy drawer
+            if (sessionRaceControl.length === 0) {
+                await fetchSessionRaceControl();
+            }
+
+            // Render the timeline using the time boundaries to align with the pace chart
+            renderRaceTimeline(bounds.minutes);
+
+            // UI Reset
+            document.getElementById('paceAnalysisChart').style.display = 'block';
+            document.getElementById('tireLegend').style.display = 'flex';
+            document.getElementById('drivingReportWrapper').style.display = 'none';
+            document.getElementById('sessionResultsWrapper').style.display = 'none';
+
+            // Respect the user's current Timeline visibility setting
+            const timeline = document.getElementById('timelineWrapper');
+            if (timeline) {
+                timeline.style.display = isTimelineVisible ? 'block' : 'none';
+            }
+
+            // Ensure chart responsiveness after layout changes
+            if (paceChartInstance) paceChartInstance.resize();
         }
 
         // Fetches lap and stint data for a specific driver in a given session for pace analysis
@@ -2079,7 +2296,7 @@
                             d2Select.value = ""; // Default to "Select Driver"
                         }
 
-                        // NOTE: We are NOT calling loadPaceData() here. 
+                        // NOTE: We are NOT calling loadPaceData() here.
                         // The user must click the button manually.
                     });
                 }
@@ -2099,6 +2316,13 @@
             if (paceChartInstance) {
                 setTimeout(() => paceChartInstance.resize(), 100);
             }
+
+
+            setTimeout(() => {
+                if (sessionRaceControl.length === 0) fetchSessionRaceControl().then(renderRaceTimeline);
+                else renderRaceTimeline();
+            }, 200);
+
         }
 
         function closePaceAnalysisModal() {
@@ -2132,11 +2356,11 @@
             legendEl.innerHTML = entries.map(e => {
                 const color = TIRE_COLORS[e.key];
                 return `
-                    <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
-                        <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border: 1px solid #000;"></span>
-                        <span>${e.label}</span>
-                    </span>
-                `;
+                        <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
+                            <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border: 1px solid #000;"></span>
+                            <span>${e.label}</span>
+                        </span>
+                    `;
             }).join('');
         }
 
@@ -2287,21 +2511,21 @@
 
                 // Create table HTML
                 const tableHTML = `
-                    <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
-                    <table class="results-table">
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th>Driver</th>
-                                <th>Laps</th>
-                                <th>Total Time</th>
-                                <th>Gap</th>
-                                <th>Points</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${results.map(result => {
+                        <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Driver</th>
+                                    <th>Laps</th>
+                                    <th>Total Time</th>
+                                    <th>Gap</th>
+                                    <th>Points</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${results.map(result => {
                     const driverName = driverNamesMap[result.driver_number] || 'Unknown';
                     let status = 'Finished';
                     if (result.dnf) status = 'DNF';
@@ -2309,25 +2533,25 @@
                     else if (result.dsq) status = 'DSQ';
 
                     return `
-                                    <tr>
-                                        <td class="position-cell">${result.position || '-'}</td>
-                                        <td>#${result.driver_number} ${driverName}</td>
-                                        <td>${result.number_of_laps || 0}</td>
+                                        <tr>
+                                            <td class="position-cell">${result.position || '-'}</td>
+                                            <td>#${result.driver_number} ${driverName}</td>
+                                            <td>${result.number_of_laps || 0}</td>
 <td style="font-family: monospace;">
-            ${formatResultDuration(result.duration)}
+                ${formatResultDuration(result.duration)}
 </td>
 <td style="font-family: monospace;">
-            ${formatResultGap(result.gap_to_leader)}
+                ${formatResultGap(result.gap_to_leader)}
 </td>
-                                        <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
-                                        <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
-                                    </tr>
-                                `;
+                                            <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
+                                            <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
+                                        </tr>
+                                    `;
                 }).join('')}
-                        </tbody>
-                    </table>
-                    <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
-                `;
+                            </tbody>
+                        </table>
+                        <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
+                    `;
 
                 const paceAnalysisChartCanvas = document.getElementById('paceAnalysisChart');
                 const tireLegendEl = document.getElementById('tireLegend');
@@ -2467,13 +2691,13 @@
                 return;
             }
 
+            // Hide other views
             document.getElementById('paceAnalysisChart').style.display = 'none';
             document.getElementById('tireLegend').style.display = 'none';
             document.getElementById('sessionResultsWrapper').style.display = 'none';
 
             const reportWrapper = document.getElementById('drivingReportWrapper');
             reportWrapper.style.display = 'block';
-            reportWrapper.style.paddingTop = '0px';
             reportWrapper.innerHTML = `<div style="color:#ccc; text-align:center; padding:40px;">Generating advanced report...</div>`;
 
             try {
@@ -2482,64 +2706,90 @@
                     driver2Num ? getPaceDriverData(sessionKey, driver2Num) : null
                 ]);
 
-                // --- FIX: Only pass slot data if the driver number matches the modal selection ---
-                const slot1Data = (loadedData.ref.lap && loadedData.ref.lap.driver_number == driver1Num)
-                    ? loadedData.ref
-                    : null;
+                const slot1Data = (loadedData.ref.lap && loadedData.ref.lap.driver_number == driver1Num) ? loadedData.ref : null;
+                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == driver2Num) ? loadedData.comp : null;
 
-                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == driver2Num)
-                    ? loadedData.comp
-                    : null;
+                // === Get incidents ===
+                const allIncidents = getRaceIncidents(sessionRaceControl);
 
-                // Calculate metrics using the verified slot data
-                const metrics1 = rawData1 ? calculateAdvancedMetrics(rawData1.laps, slot1Data) : null;
-                const metrics2 = rawData2 ? calculateAdvancedMetrics(rawData2.laps, slot2Data) : null;
+                // Filter penalties by driver (RECEIVED)
+                const penalties1 = allIncidents.penalties.filter(p => p.driver == driver1Num).length;
+                const penalties2 = allIncidents.penalties.filter(p => p.driver == driver2Num).length;
+
+                // Filter penalties SERVED by driver
+                const penaltiesServed1 = allIncidents.penaltiesServed.filter(p => p.driver == driver1Num).length;
+                const penaltiesServed2 = allIncidents.penaltiesServed.filter(p => p.driver == driver2Num).length;
+
+                // Track limits (by driver)
+                const trackLimits1 = allIncidents.trackLimits.filter(tl => tl.driver == driver1Num).length;
+                const trackLimits2 = allIncidents.trackLimits.filter(tl => tl.driver == driver2Num).length;
+
+                // Calculate metrics
+                const metrics1 = rawData1 ? calculateAdvancedMetrics(rawData1.laps, slot1Data, rawData1.laps, rawData2?.laps) : null;
+                const metrics2 = rawData2 ? calculateAdvancedMetrics(rawData2.laps, slot2Data, rawData1?.laps, rawData2.laps) : null;
 
                 const driver1 = paceAvailableDrivers.find(d => d.driver_number == driver1Num);
                 const driver2 = paceAvailableDrivers.find(d => d.driver_number == driver2Num);
 
-                // Store globally for the drawer
+                // === IMPORTANT: Store data globally for Strategy Drawer ===
                 currentReportData1 = rawData1;
                 currentReportData2 = rawData2;
                 currentReportDriver1 = driver1;
                 currentReportDriver2 = driver2;
 
-                reportWrapper.innerHTML = generateAdvancedReport(metrics1, metrics2, driver1, driver2);
+                // Generate report (now passing penalties served as well)
+                reportWrapper.innerHTML = generateAdvancedReport(
+                    metrics1, metrics2, driver1, driver2,
+                    trackLimits1, trackLimits2,
+                    penalties1, penalties2,
+                    penaltiesServed1, penaltiesServed2
+                );
+
+                // UI toggle
+                const paceChart = document.getElementById('paceAnalysisChart');
+                const tireLegend = document.getElementById('tireLegend');
+
+                if (paceChart) paceChart.style.display = 'none';
+                if (tireLegend) tireLegend.style.display = 'none';
+                if (reportWrapper) reportWrapper.style.display = 'block';
+
             } catch (error) {
                 console.error(error);
                 reportWrapper.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
         }
 
-        function calculateAdvancedMetrics(laps, slotData = null) {
+        function calculateAdvancedMetrics(laps, slotData = null, allLapsData1 = null, allLapsData2 = null) {
             if (!laps || laps.length === 0) return null;
 
-            const durations = laps.map(l => l.lap_duration);
+            const cleanLaps = getCleanLaps(laps, allLapsData1, allLapsData2);
+
+            if (cleanLaps.length === 0) {
+                return null;
+            }
+
+            // === Clean laps calculations ===
+            const durations = cleanLaps.map(l => l.lap_duration);
             const bestLap = Math.min(...durations);
             const mean = durations.reduce((a, b) => a + b, 0) / durations.length;
 
-            // Consistency Calculations
             const variance = durations.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / durations.length;
             const stdDev = Math.sqrt(variance);
             const cv = (stdDev / mean) * 100;
-
-            // Laps within 0.5s
             const within05s = durations.filter(t => t <= bestLap + 0.5).length;
 
-            // Pit stats (Ensure recoveryStats helper is working correctly)
+            // === Pit analysis must use ALL laps (not clean laps) ===
             const recovery = calculateRecoveryPace(laps, mean);
 
-            // Initialize technique object with a flag
             let technique = {
-                telemetryAvailable: false, // NEW FLAG
+                telemetryAvailable: false,
                 overlap: { total: 0, s1: 0, s2: 0, s3: 0 },
                 coasting: { total: 0, s1: 0, s2: 0, s3: 0 },
                 transitions: { s1: [], s2: [], s3: [], avgTotal: "0.000", avgS1: "0.000", avgS2: "0.000", avgS3: "0.000" }
             };
 
-            // Check if slotData contains telemetry
             if (slotData && slotData.telemetry && slotData.telemetry.length > 0) {
-                technique.telemetryAvailable = true; // Data found
+                technique.telemetryAvailable = true;
                 const tel = slotData.telemetry;
                 const markers = slotData.markers;
                 let lastBrakeRelease = null;
@@ -2576,39 +2826,100 @@
                 stdDev: stdDev.toFixed(3),
                 consistencyScore: (100 - cv).toFixed(1),
                 competitiveLapsPercent: ((within05s / durations.length) * 100).toFixed(1),
-                recoveryStats: recovery,
-                stintStats: calculateStintDegradation(laps),
-                tireBreakdown: calculateTireBreakdown(laps),
+                recoveryStats: recovery,                    // ← Now uses full laps
+                stintStats: calculateStintDegradation(cleanLaps, allLapsData1, allLapsData2),
+                // IMPORTANT: pass *all* laps here, not cleanLaps
+                tireBreakdown: calculateTireBreakdown(laps, allLapsData1, allLapsData2),
                 technique: technique
             };
         }
 
         // Helper to calculate tire data specifically for the report
-        function calculateTireBreakdown(laps) {
+        function calculateTireBreakdown(laps, allLapsData1, allLapsData2) {
+            // 1) Primary breakdown from CLEAN laps (unchanged behaviour)
+            const cleanLaps = getCleanLaps(laps, allLapsData1, allLapsData2);
             const breakdown = {};
-            laps.forEach(lap => {
+
+            cleanLaps.forEach(lap => {
+                const duration = lap.lap_duration;
+                if (!duration || !Number.isFinite(duration) || duration <= 0) return;
+
                 const tire = (lap.tireCompound || 'UNKNOWN').toUpperCase();
-                if (!breakdown[tire]) breakdown[tire] = { laps: 0, total: 0, fastest: Infinity, times: [], stints: {} }; // Added stints: {}
+                if (!breakdown[tire]) {
+                    breakdown[tire] = {
+                        laps: 0,
+                        total: 0,
+                        fastest: Infinity,
+                        times: [],
+                        stints: {},
+                        nonRepresentative: false   // clean‑lap based
+                    };
+                }
 
                 breakdown[tire].laps++;
-                breakdown[tire].total += lap.lap_duration;
-                breakdown[tire].times.push(lap.lap_duration);
-                if (lap.lap_duration < breakdown[tire].fastest) breakdown[tire].fastest = lap.lap_duration;
+                breakdown[tire].total += duration;
+                breakdown[tire].times.push(duration);
+                if (duration < breakdown[tire].fastest) {
+                    breakdown[tire].fastest = duration;
+                }
 
-                // NEW: Track laps per stint
                 if (lap.stintNumber) {
                     if (!breakdown[tire].stints[lap.stintNumber]) breakdown[tire].stints[lap.stintNumber] = 0;
                     breakdown[tire].stints[lap.stintNumber]++;
                 }
             });
+
             Object.keys(breakdown).forEach(t => {
                 const d = breakdown[t];
                 d.avg = d.total / d.laps;
-                d.degradation = d.times.length > 1 ? ((d.times[d.times.length - 1] - d.times[0]) / (d.times.length - 1)).toFixed(3) : "0.000";
+                d.degradation = d.times.length > 1
+                    ? ((d.times[d.times.length - 1] - d.times[0]) / (d.times.length - 1)).toFixed(3)
+                    : "0.000";
             });
+
+            // 2) Ensure we also list compounds that ONLY appear in non‑clean laps
+            const allCompounds = new Set();
+            laps.forEach(lap => {
+                const duration = lap.lap_duration;
+                if (!duration || !Number.isFinite(duration) || duration <= 0) return;
+                const tire = (lap.tireCompound || 'UNKNOWN').toUpperCase();
+                allCompounds.add(tire);
+            });
+
+            allCompounds.forEach(tire => {
+                // Already covered by clean‑lap breakdown → nothing to do
+                if (breakdown[tire]) return;
+
+                // Only used in laps that were filtered out by getCleanLaps (e.g. SC/VSC/pit)
+                const compLaps = laps.filter(lap => {
+                    const duration = lap.lap_duration;
+                    if (!duration || !Number.isFinite(duration) || duration <= 0) return false;
+                    const t = (lap.tireCompound || 'UNKNOWN').toUpperCase();
+                    if (t !== tire) return false;
+                    // Make sure this lap is NOT in clean laps
+                    return !cleanLaps.some(cl => cl.lap_number === lap.lap_number);
+                });
+
+                if (compLaps.length === 0) return;
+
+                const times = compLaps.map(l => l.lap_duration);
+                const total = times.reduce((a, b) => a + b, 0);
+                const fastest = Math.min(...times);
+
+                breakdown[tire] = {
+                    laps: compLaps.length,
+                    total,
+                    fastest,
+                    times,
+                    stints: {},             // we can omit stint breakdown here
+                    avg: total / compLaps.length,
+                    degradation: "0.000",   // single or few messy laps – don’t over‑interpret
+                    nonRepresentative: true // <-- key flag
+                };
+            });
+
             return breakdown;
         }
-
 
         function getBestTire(metrics) {
             if (!metrics || !metrics.tireBreakdown) return null;
@@ -2632,9 +2943,11 @@
             return bestTire;
         }
 
-        function calculateStintDegradation(laps) {
+        function calculateStintDegradation(laps, allLapsData1, allLapsData2) {
+            const cleanLaps = getCleanLaps(laps, allLapsData1, allLapsData2);
             const stints = {};
-            laps.forEach(lap => {
+
+            cleanLaps.forEach(lap => {
                 if (!lap.stintNumber) return;
                 if (!stints[lap.stintNumber]) stints[lap.stintNumber] = [];
                 stints[lap.stintNumber].push(lap.lap_duration);
@@ -2655,6 +2968,7 @@
                 };
             });
         }
+
 
         function calculateRecoveryPace(laps, averageLapTime) {
             const pitCycles = [];
@@ -2694,89 +3008,117 @@
             };
         }
 
-        function generateAdvancedReport(m1, m2, d1, d2) {
+        function generateAdvancedReport(
+            m1, m2, d1, d2,
+            trackLimits1 = 0, trackLimits2 = 0,
+            penalties1 = 0, penalties2 = 0,
+            penaltiesServed1 = 0, penaltiesServed2 = 0
+        ) {
+            if (!m1 && !m2) return `<div class="error">No data available for report.</div>`;
+
             let html = `<h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px;">Driving Characteristics Report</h3>`;
 
-            // Check if either driver is missing telemetry
-            const telemetryMissing = (!m1?.technique.telemetryAvailable || !m2?.technique.telemetryAvailable);
+            const telemetryMissing = (!m1?.technique?.telemetryAvailable || !m2?.technique?.telemetryAvailable);
 
             html += `
-            <table class="results-table" style="margin-bottom:25px;">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>${d1 ? d1.last_name : 'S1'}</th>
-                        <th>${d2 ? d2.last_name : 'S2'}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- PACE & CONSISTENCY (Always shows) -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Pace & Consistency Analysis</td>
-                    </tr>
-                    <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
-                    <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
-                    <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
-                    <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
-                    <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
+        <table class="results-table" style="margin-bottom:25px;">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>${d1 ? d1.last_name : 'S1'}</th>
+                    <th>${d2 ? d2.last_name : 'S2'}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- PACE & CONSISTENCY -->
+                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                    <td colspan="3">Pace & Consistency Analysis</td>
+                </tr>
+                <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
+                <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
+                <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
+                <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
+                <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
+                
+                <!-- DISCIPLINE & PENALTIES -->
+                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                    <td colspan="3">Discipline & Race Conduct</td>
+                </tr>
+                <tr><td>Track Limit Deletions</td><td>${trackLimits1}</td><td>${trackLimits2}</td></tr>
+                <tr><td>Penalties Received</td><td>${penalties1}</td><td>${penalties2}</td></tr>
+                <tr><td>Penalties Served</td><td>${penaltiesServed1}</td><td>${penaltiesServed2}</td></tr>
 
-                    <!-- INPUT TECHNIQUE HEADER -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Input Technique Analysis</td>
-                    </tr>
+                <!-- INPUT TECHNIQUE -->
+                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                    <td colspan="3">Input Technique Analysis</td>
+                </tr>
+    `;
 
-                    ${telemetryMissing ? `
-                        <!-- RECOMMENDATION ROW -->
-                        <tr style="background: rgba(255, 193, 7, 0.05);">
-                            <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
-                                ⚠️ Telemetry not loaded for comparison.<br>
-                                To see technique insights, please <strong>load each driver's fastest lap</strong> into the Slot Manager on the main screen.
-                            </td>
-                        </tr>
-                    ` : `
-                        <!-- TECHNIQUE DATA ROWS (Only show if data is available) -->
-                        <tr><td>Brake Release to 100% Thr</td><td>${m1.technique.transitions.avgTotal}s</td><td>${m2.technique.transitions.avgTotal}s</td></tr>
-                        <tr style="font-size:0.8em; color:#888;"><td>└ Transitions S1/S2/S3</td><td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td><td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td></tr>
-
-                        <tr><td>Overlap Time (Total)</td><td>${m1.technique.overlap.total}s</td><td>${m2.technique.overlap.total}s</td></tr>
-                        <tr style="font-size:0.8em; color:#888;"><td>└ Overlap S1/S2/S3</td><td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td><td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td></tr>
-
-                        <tr><td>Coasting Time (Total)</td><td>${m1.technique.coasting.total}s</td><td>${m2.technique.coasting.total}s</td></tr>
-                        <tr style="font-size:0.8em; color:#888;"><td>└ Coasting S1/S2/S3</td><td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td><td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td></tr>
-                    `}
-
-                    <!-- PIT CYCLE ANALYSIS -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Pit Cycle Analysis</td>
-                    </tr>
-                    <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
-                    <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageInLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
-                    <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
-                    <tr><td><strong>Total Pit Loss</strong></td><td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td><td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td></tr>
-
-                    <!-- TIRES -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Performance by Tire Compound</td>
-                    </tr>
-                    ${generateTireBreakdownHTML(m1, m2, d1, d2)}
-
-                    <tr style="background: rgba(0, 210, 190, 0.08);">
-                        <td colspan="3" style="padding: 12px; text-align: center;">
-                            <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
-                                style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
-                                View Strategy Analysis →
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
-                <strong>Key Takeaways:</strong><br>
-                <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2)}</span>
-            </div>
-            <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+            if (telemetryMissing) {
+                html += `
+            <tr style="background: rgba(255, 193, 7, 0.05);">
+                <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
+                    ⚠️ Telemetry not loaded for comparison.<br>
+                    Load each driver's fastest lap into the Slot Manager to see technique insights.
+                </td>
+            </tr>
         `;
+            } else {
+                html += `
+            <tr><td>Brake Release to 100% Thr</td><td>${m1.technique.transitions.avgTotal}s</td><td>${m2.technique.transitions.avgTotal}s</td></tr>
+            <tr style="font-size:0.8em; color:#888;"><td>└ Transitions S1/S2/S3</td><td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td><td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td></tr>
+            <tr><td>Overlap Time (Total)</td><td>${m1.technique.overlap.total}s</td><td>${m2.technique.overlap.total}s</td></tr>
+            <tr style="font-size:0.8em; color:#888;"><td>└ Overlap S1/S2/S3</td><td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td><td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td></tr>
+            <tr><td>Coasting Time (Total)</td><td>${m1.technique.coasting.total}s</td><td>${m2.technique.coasting.total}s</td></tr>
+            <tr style="font-size:0.8em; color:#888;"><td>└ Coasting S1/S2/S3</td><td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td><td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td></tr>
+        `;
+            }
+
+            // PIT CYCLE ANALYSIS
+            html += `
+        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+            <td colspan="3">Pit Cycle Analysis</td>
+        </tr>
+        <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
+        <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
+        <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
+        <tr><td><strong>Total Pit Loss</strong></td>
+            <td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+            <td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+        </tr>
+    `;
+
+            // TIRES
+            html += `
+        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+            <td colspan="3">Performance by Tire Compound</td>
+        </tr>
+        ${generateTireBreakdownHTML(m1, m2, d1, d2)}
+    `;
+
+            // Strategy Button
+            html += `
+        <tr style="background: rgba(0, 210, 190, 0.08);">
+            <td colspan="3" style="padding: 12px; text-align: center;">
+                <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
+                    style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                    View Strategy Analysis →
+                </button>
+            </td>
+        </tr>
+    `;
+
+            html += `</tbody></table>`;
+
+            // Key Takeaways
+            html += `
+        <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
+            <strong>Key Takeaways:</strong><br>
+            <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2)}</span>
+        </div>
+        <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+    `;
+
             return html;
         }
 
@@ -2840,22 +3182,42 @@
             }
 
             try {
-                // IMPORTANT: Calculate advanced metrics here to get access to recoveryStats
-                // We need to pass loadedData.ref/comp if available for telemetry.
                 const slot1Data = (loadedData.ref.lap && loadedData.ref.lap.driver_number == driver1.driver_number)
-                    ? loadedData.ref
-                    : null;
-                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == driver2.driver_number)
-                    ? loadedData.comp
-                    : null;
+                    ? loadedData.ref : null;
 
-                const metrics1 = calculateAdvancedMetrics(data1.laps, slot1Data);
-                const metrics2 = calculateAdvancedMetrics(data2.laps, slot2Data);
+                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == driver2.driver_number)
+                    ? loadedData.comp : null;
+
+                // Calculate metrics using clean laps (excluding pit laps & Safety Car laps)
+                const metrics1 = calculateAdvancedMetrics(
+                    data1.laps,
+                    slot1Data,
+                    data1.laps,
+                    data2.laps
+                );
+
+                const metrics2 = calculateAdvancedMetrics(
+                    data2.laps,
+                    slot2Data,
+                    data1.laps,
+                    data2.laps
+                );
 
                 const strategy1 = analyzeStints(data1.stints, data1.laps);
                 const strategy2 = analyzeStints(data2.stints, data2.laps);
 
-                const insight = await compareStrategies(strategy1, strategy2, driver1, driver2, data1, data2, sessionKey);
+                // Pass metrics1 and metrics2 for cleaner tactical insights
+                const insight = await compareStrategies(
+                    strategy1,
+                    strategy2,
+                    driver1,
+                    driver2,
+                    data1,
+                    data2,
+                    sessionKey,
+                    metrics1,
+                    metrics2
+                );
 
                 const best1 = Math.min(...data1.laps.map(l => l.lap_duration));
                 const best2 = Math.min(...data2.laps.map(l => l.lap_duration));
@@ -2876,9 +3238,18 @@
                 <tbody>
                     <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
                     <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
-                    <tr><td>Pit Stop Lap(s)</td><td>${strategy1.pitLaps.length > 0 ? 'Lap ' + strategy1.pitLaps.join(', ') : 'N/A'}</td><td>${strategy2.pitLaps.length > 0 ? 'Lap ' + strategy2.pitLaps.join(', ') : 'N/A'}</td></tr>
-                    <tr><td>Avg Pit Time Loss</td><td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td><td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td></tr>
-                    <tr><td>Best Lap Time</td><td>${formatTime(best1)}</td><td>${formatTime(best2)}</td></tr>
+                    <tr><td>Pit Stop Lap(s)</td>
+                        <td>${formatPitLaps(strategy1.pitLaps, data1.laps, data2.laps)}</td>
+                        <td>${formatPitLaps(strategy2.pitLaps, data1.laps, data2.laps)}</td>
+                    </tr>
+                    <tr><td>Avg Pit Time Loss</td>
+                        <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                        <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                    </tr>
+                    <tr><td>Best Lap Time</td>
+                        <td>${formatTime(best1)}</td>
+                        <td>${formatTime(best2)}</td>
+                    </tr>
                 </tbody>
             </table>
 
@@ -2895,134 +3266,120 @@
             }
         }
 
-        async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey) {
+        async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey, metrics1, metrics2) {
             let insights = [];
 
-            // --- 1. FETCH & PARSE RACE CONTROL ---
-            let raceEvents = [];
-            try {
-                // Fetching from https://api.openf1.org/v1/race_control
-                const rcRes = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
-                raceEvents = await rcRes.json();
-            } catch (e) {
-                console.warn("Race Control data could not be retrieved.");
+            // --- Get clean laps for both drivers ---
+            const cleanLaps1 = getCleanLaps(data1.laps, data1.laps, data2.laps);
+            const cleanLaps2 = getCleanLaps(data2.laps, data1.laps, data2.laps);
+
+            // --- 1. PIT SEQUENCE & INTERVENTION ANALYSIS ---
+            const vPits = s1.pitLaps || [];
+            const pPits = s2.pitLaps || [];
+
+            let driver1CheapStops = [];
+            let driver2CheapStops = [];
+
+            vPits.forEach(lap => {
+                const status = getTrackStatusAtLap(lap, data1.laps, data2.laps);
+                if (status) driver1CheapStops.push({ lap, status });
+            });
+
+            pPits.forEach(lap => {
+                const status = getTrackStatusAtLap(lap, data1.laps, data2.laps);
+                if (status) driver2CheapStops.push({ lap, status });
+            });
+
+            // Synchronized stops
+            const syncLaps = driver1CheapStops.filter(d1 =>
+                driver2CheapStops.some(d2 => d2.lap === d1.lap)
+            );
+
+            syncLaps.forEach(s => {
+                insights.push(`The tactical landscape shifted on Lap ${s.lap} during an active **${s.status}** period; both drivers executed synchronized 'cheap' stops.`);
+            });
+
+            // Solo advantages
+            const solo1 = driver1CheapStops.filter(d1 => !syncLaps.some(s => s.lap === d1.lap));
+            const solo2 = driver2CheapStops.filter(d2 => !syncLaps.some(s => s.lap === d2.lap));
+
+            if (solo1.length > 0) {
+                const details = solo1.map(s => `Lap ${s.lap} (${s.status})`).join(", ");
+                insights.push(`${driver1.last_name} gained an advantage by pitting during tactical windows at ${details}.`);
+            }
+            if (solo2.length > 0) {
+                const details = solo2.map(s => `Lap ${s.lap} (${s.status})`).join(", ");
+                insights.push(`${driver2.last_name} gained an advantage by pitting during tactical windows at ${details}.`);
             }
 
-            /**
-             * Internal Helper: Matches pit lap to Race Control messages
-             * Uses both Lap Number and Timing for 100% accuracy
-             */
-            const getLapIntervention = (lapNum) => {
-                const event = raceEvents.find(e => {
-                    // Check if the API explicitly tagged this lap number
-                    const isLapMatch = (e.lap_number === lapNum);
-
-                    // Time-based check (in case lap_number is null in the API record)
-                    const lapData = data1.laps.find(l => l.lap_number === lapNum) || data2.laps.find(l => l.lap_number === lapNum);
-                    let isTimeMatch = false;
-                    if (lapData) {
-                        const lapStart = new Date(lapData.date_start);
-                        const eventTime = new Date(e.date);
-                        // Intervention happened within 2 minutes of the lap starting
-                        isTimeMatch = Math.abs(eventTime - lapStart) < 120000;
-                    }
-
-                    // FILTER: We only care about things that create "Cheap" pit stops
-                    const isStrategicEvent = (
-                        e.category === 'Safety Car' ||
-                        e.flag === 'RED' ||
-                        (e.message && e.message.toUpperCase().includes('VIRTUAL SAFETY CAR'))
-                    );
-
-                    return (isLapMatch || isTimeMatch) && isStrategicEvent;
-                });
-
-                if (!event) return null;
-                if (event.message.toUpperCase().includes('VIRTUAL')) return 'VSC';
-                if (event.category === 'Safety Car') return 'SC';
-                if (event.flag === 'RED') return 'RED FLAG';
-                return null;
-            };
-
-            // --- 2. PIT SEQUENCE & INTERVENTION ANALYSIS ---
-            const pit1 = s1.pitLaps[0];
-            const pit2 = s2.pitLaps[0];
-            const eventAtPit1 = pit1 ? getLapIntervention(pit1) : null;
-            const eventAtPit2 = pit2 ? getLapIntervention(pit2) : null;
-
-            if (pit1 && pit2) {
-                if (pit1 === pit2) {
-                    if (eventAtPit1) {
-                        insights.push(`The tactical pivot point occurred on Lap ${pit1} during a **${eventAtPit1}** period; both drivers executed synchronized 'cheap' stops, neutralizing the field deltas.`);
-                    } else {
-                        insights.push(`Both drivers committed to a synchronized pit stop on Lap ${pit1} under **Green Flag** conditions, accepting the full pit lane time penalty to protect track position.`);
-                    }
-                } else {
-                    if (eventAtPit1 && !eventAtPit2) {
-                        insights.push(`${driver1.last_name} secured a strategic masterstroke by pitting under **${eventAtPit1}** on Lap ${pit1}, while ${driver2.last_name} had to take their stop under standard **Green Flag** conditions.`);
-                    } else if (!eventAtPit1 && eventAtPit2) {
-                        insights.push(`${driver2.last_name} capitalized on the **${eventAtPit2}** window on Lap ${pit2}, effectively 'overcutting' ${driver1.last_name} via a reduced-loss pit window.`);
-                    } else {
-                        // Standard Green Flag Undercut/Overcut
-                        const gap = Math.abs(pit1 - pit2);
-                        const early = pit1 < pit2 ? driver1.last_name : driver2.last_name;
-                        if (gap <= 3) {
-                            insights.push(`${early} attempted an aggressive **Undercut** under **Green Flag** conditions on Lap ${Math.min(pit1, pit2)}.`);
-                        } else {
-                            const later = pit1 > pit2 ? driver1.last_name : driver2.last_name;
-                            insights.push(`${later} opted for a long **Overcut** strategy, extending the stint by ${gap} laps under **Green Flag** conditions.`);
-                        }
-                    }
-                }
-            }
-
-            // --- 3. PERFORMANCE & TECHNIQUE NARRATIVE ---
-            // (Restoring the pace deltas you liked)
+            // --- 2. COMPOUND PERFORMANCE (Using Clean Laps) ---
             const getTireAverages = (laps) => {
                 const dict = {};
                 laps.forEach(l => {
                     const c = (l.tireCompound || 'UNKNOWN').toUpperCase();
                     if (!dict[c]) dict[c] = { sum: 0, count: 0 };
-                    dict[c].sum += l.lap_duration; dict[c].count++;
+                    dict[c].sum += l.lap_duration;
+                    dict[c].count++;
+                });
+                Object.keys(dict).forEach(key => {
+                    dict[key].avg = dict[key].sum / dict[key].count;
                 });
                 return dict;
             };
-            const t1 = getTireAverages(data1.laps);
-            const t2 = getTireAverages(data2.laps);
+
+            const t1 = getTireAverages(cleanLaps1);
+            const t2 = getTireAverages(cleanLaps2);
 
             Object.keys(t1).forEach(compound => {
                 if (t2[compound]) {
-                    const avg1 = t1[compound].sum / t1[compound].count;
-                    const avg2 = t2[compound].sum / t2[compound].count;
-                    const delta = Math.abs(avg1 - avg2).toFixed(3);
-                    if (parseFloat(delta) > 0.05) {
+                    const avg1 = t1[compound].avg;
+                    const avg2 = t2[compound].avg;
+                    const delta = Math.abs(avg1 - avg2);
+
+                    // Only report meaningful differences (> 0.15s)
+                    if (delta > 0.15) {
                         const faster = avg1 < avg2 ? driver1.last_name : driver2.last_name;
-                        insights.push(`On the **${compound}** compound, ${faster} was significantly stronger, maintaining an average pace of ${formatTime(Math.min(avg1, avg2))} vs ${formatTime(Math.max(avg1, avg2))} (a delta of ${delta}s).`);
+                        insights.push(`On the **${compound}** compound, ${faster} was stronger, with an average pace advantage of ${delta.toFixed(3)}s per lap.`);
                     }
                 }
             });
 
-            // --- 4. DEGRADATION & HARVESTING ---
-            const m1 = calculateAdvancedMetrics(data1.laps, loadedData.ref);
-            const m2 = calculateAdvancedMetrics(data2.laps, loadedData.comp);
-            if (m1 && m2) {
-                const deg1 = m1.stintStats.reduce((a, b) => a + b.degradation, 0) / m1.stintStats.length;
-                const deg2 = m2.stintStats.reduce((a, b) => a + b.degradation, 0) / m2.stintStats.length;
-                if (Math.abs(deg1 - deg2) > 0.015) {
-                    insights.push(`${deg1 < deg2 ? driver1.last_name : driver2.last_name} demonstrated superior thermal management with a lower degradation rate.`);
-                }
+            // --- 3. DEGRADATION (Using Clean Data) ---
+            if (metrics1 && metrics2) {  // metrics1 & metrics2 should be passed in or recalculated with clean laps
+                const deg1 = metrics1.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics1.stintStats.length;
+                const deg2 = metrics2.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics2.stintStats.length;
 
-                const oDiff = Math.abs(parseFloat(m1.technique.overlap.total) - parseFloat(m2.technique.overlap.total));
+                if (Math.abs(deg1 - deg2) > 0.015) {
+                    const betterManager = deg1 < deg2 ? driver1.last_name : driver2.last_name;
+                    insights.push(`${betterManager} showed better tire management with lower average degradation.`);
+                }
+            }
+
+            // --- 4. TECHNIQUE INSIGHTS (Only if telemetry is available) ---
+            if (metrics1?.technique?.telemetryAvailable && metrics2?.technique?.telemetryAvailable) {
+                const oDiff = Math.abs(parseFloat(metrics1.technique.overlap.total) - parseFloat(metrics2.technique.overlap.total));
                 if (oDiff > 0.4) {
-                    const more = parseFloat(m1.technique.overlap.total) > parseFloat(m2.technique.overlap.total) ? driver1.last_name : driver2.last_name;
-                    insights.push(`${more} employed high pedal overlap to maximize **ERS Battery Harvesting** and energy deployment.`);
+                    const more = parseFloat(metrics1.technique.overlap.total) > parseFloat(metrics2.technique.overlap.total)
+                        ? driver1.last_name : driver2.last_name;
+                    insights.push(`${more} used more brake/throttle overlap, likely to maximize ERS harvesting.`);
+                }
+            }
+
+            // --- 5. PIT EFFICIENCY ---
+            if (metrics1?.recoveryStats?.averageTotalLoss != null && metrics2?.recoveryStats?.averageTotalLoss != null) {
+                const pitDiff = Math.abs(metrics1.recoveryStats.averageTotalLoss - metrics2.recoveryStats.averageTotalLoss);
+                if (pitDiff > 1.0) {
+                    const betterPit = metrics1.recoveryStats.averageTotalLoss < metrics2.recoveryStats.averageTotalLoss
+                        ? driver1.last_name : driver2.last_name;
+                    insights.push(`${betterPit} gained time through better pit execution and recovery pace.`);
                 }
             }
 
             return insights.length > 0
                 ? insights.join(" ")
-                : "Both drivers executed a highly optimized strategy with perfectly matched performance levels.";
+                : "Both drivers followed very similar strategies with comparable pace and execution.";
         }
+
 
         function createStintTable(metrics1, metrics2, driver1, driver2) {
             // Simple table showing stint degradation
@@ -3054,6 +3411,8 @@
 
         function generateVerdict(m1, m2, d1, d2) {
             if (!m1 || !m2) return "Insufficient data for comparison.";
+
+            const bounds = getSessionBoundaries(); 
 
             let insights = [];
 
@@ -3138,6 +3497,22 @@
                 insights.push(`${moreConsistent} was the more consistent driver, maintaining a tighter performance window throughout the session.`);
             }
 
+
+            // --- 10. INTERVENTION IMPACT ---
+            const scEvents = sessionRaceControl.filter(m => {
+                const t = m.message.toUpperCase();
+                return t.includes("SAFETY CAR DEPLOYED") || t.includes("VIRTUAL SAFETY CAR DEPLOYED");
+            });
+
+            if (scEvents.length > 0) {
+                const lastSC = scEvents[scEvents.length - 1];
+                if (lastSC.lap_number > (bounds.laps * 0.7)) { // If SC happened in the last 30% of the race
+                    insights.push(`Late-race interventions significantly compressed the field, neutralizing the historical pace advantages built during the earlier green-flag stints and forcing a high-pressure sprint finish.`);
+                } else {
+                    insights.push(`Strategic deployment of the Safety Car early in the race provided critical 'cheap' pit windows that disrupted the natural tire-degradation curves.`);
+                }
+            }
+
             return insights.length > 0
                 ? insights.join(" ")
                 : "Both drivers operated at an extremely high and comparable level, with negligible deltas in pace, management, and technical execution.";
@@ -3183,26 +3558,28 @@
                 const t2 = metrics2?.tireBreakdown?.[tire];
 
                 html += `
-                    <tr style="font-size: 0.85em; border-top: 1px solid #444;">
-                        <td><strong>${tire}</strong></td>
-                        <td>
-                            ${t1 ? `
-                                Avg: ${formatTime(t1.avg)}<br>
-                                Fastest: ${formatTime(t1.fastest)}<br>
-                                Deg: ${t1.degradation}s/lap<br>
-                                <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
-                            ` : '-'}
-                        </td>
-                        <td>
-                            ${t2 ? `
-                                Avg: ${formatTime(t2.avg)}<br>
-                                Fastest: ${formatTime(t2.fastest)}<br>
-                                Deg: ${t2.degradation}s/lap<br>
-                                <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
-                            ` : '-'}
-                        </td>
-                    </tr>
-                `;
+    <tr style="font-size: 0.85em; border-top: 1px solid #444;">
+        <td><strong>${tire}</strong></td>
+        <td>
+            ${t1 ? `
+                Avg: ${formatTime(t1.avg)}<br>
+                Fastest: ${formatTime(t1.fastest)}<br>
+                Deg: ${t1.degradation}s/lap<br>
+                <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
+                ${t1.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
+            ` : '-'}
+        </td>
+        <td>
+            ${t2 ? `
+                Avg: ${formatTime(t2.avg)}<br>
+                Fastest: ${formatTime(t2.fastest)}<br>
+                Deg: ${t2.degradation}s/lap<br>
+                <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
+                ${t2.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
+            ` : '-'}
+        </td>
+    </tr>
+`;
             });
 
             // Best Tire Summary Row
@@ -3210,116 +3587,15 @@
             const bestTire2 = getBestTire(metrics2);
 
             html += `
-                <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
-                    <td>Best Tire</td>
-                    <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
-                    <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
-                </tr>
-            `;
+                    <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
+                        <td>Best Tire</td>
+                        <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
+                        <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
+                    </tr>
+                `;
 
             return html;
         }
-
-        async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey) {
-            let insights = [];
-
-            // --- 1. CONTEXTUAL DATA PREP ---
-            let raceEvents = [];
-            try {
-                const rcRes = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
-                raceEvents = await rcRes.json();
-            } catch (e) { console.warn("Race Control unavailable."); }
-
-            // Helper: Find if a specific lap occurred during an intervention
-            const getLapIntervention = (lapNum) => {
-                const lap = data1.laps.find(l => l.lap_number === lapNum) || data2.laps.find(l => l.lap_number === lapNum);
-                if (!lap) return null;
-                const start = new Date(lap.date_start);
-                const event = raceEvents.find(e => {
-                    const eDate = new Date(e.date);
-                    return Math.abs(eDate - start) < 180000 && // 3 minute window
-                        (e.category === 'Safety Car' || e.message.includes('VIRTUAL') || e.flag === 'RED');
-                });
-                if (!event) return null;
-                return event.message.includes('VIRTUAL') ? 'VSC' : (event.category === 'Safety Car' ? 'SC' : 'RED FLAG');
-            };
-
-            // --- 2. PIT SEQUENCE & TACTICAL OPPORTUNISM ---
-            const pit1 = s1.pitLaps[0];
-            const pit2 = s2.pitLaps[0];
-            const eventAtPit1 = pit1 ? getLapIntervention(pit1) : null;
-            const eventAtPit2 = pit2 ? getLapIntervention(pit2) : null;
-
-            if (pit1 && pit2) {
-                const pitGap = pit1 - pit2;
-                if (eventAtPit1 || eventAtPit2) {
-                    if (eventAtPit1 && eventAtPit2 && pit1 === pit2) {
-                        insights.push(`The race reached a tactical stalemate on Lap ${pit1} as both drivers capitalized on a **${eventAtPit1}** to execute synchronized 'cheap' pit stops.`);
-                    } else {
-                        if (eventAtPit1) insights.push(`${driver1.last_name} gained a significant strategic advantage by pitting under **${eventAtPit1}** on Lap ${pit1}, reducing their effective time loss in the lane.`);
-                        if (eventAtPit2) insights.push(`${driver2.last_name} utilized the **${eventAtPit2}** window on Lap ${pit2} to jump rivals who pitted under standard green-flag conditions.`);
-                    }
-                } else if (Math.abs(pitGap) > 0 && Math.abs(pitGap) <= 3) {
-                    const early = pit1 < pit2 ? driver1.last_name : driver2.last_name;
-                    const late = pit1 < pit2 ? driver2.last_name : driver1.last_name;
-                    insights.push(`${early} attempted an aggressive **Undercut** on Lap ${Math.min(pit1, pit2)}, using fresh tire performance to force ${late} into a defensive response.`);
-                } else if (Math.abs(pitGap) > 3) {
-                    const overcutter = pit1 > pit2 ? driver1.last_name : driver2.last_name;
-                    insights.push(`${overcutter} committed to a long **Overcut** strategy, extending their stint by ${Math.abs(pitGap)} laps to create a tire-life offset for the final charge.`);
-                }
-            }
-
-            // --- 3. COMPOUND-SPECIFIC PACE PERFORMANCE ---
-            const getTireMetrics = (laps) => {
-                const dict = {};
-                laps.forEach(l => {
-                    const c = l.tireCompound || 'UNKNOWN';
-                    if (!dict[c]) dict[c] = { sum: 0, count: 0 };
-                    dict[c].sum += l.lap_duration; dict[c].count++;
-                });
-                return dict;
-            };
-            const t1 = getTireMetrics(data1.laps);
-            const t2 = getTireMetrics(data2.laps);
-
-            Object.keys(t1).forEach(compound => {
-                if (t2[compound]) {
-                    const avg1 = t1[compound].sum / t1[compound].count;
-                    const avg2 = t2[compound].sum / t2[compound].count;
-                    const delta = Math.abs(avg1 - avg2).toFixed(3);
-                    if (parseFloat(delta) > 0.05) {
-                        const faster = avg1 < avg2 ? driver1.last_name : driver2.last_name;
-                        insights.push(`On the **${compound}** compound, ${faster} was significantly stronger, maintaining an average pace of ${formatTime(Math.min(avg1, avg2))} vs ${formatTime(Math.max(avg1, avg2))} (a delta of ${delta}s per lap).`);
-                    }
-                }
-            });
-
-            // --- 4. TIRE LIFE & DEGRADATION ANALYSIS ---
-            const m1 = calculateAdvancedMetrics(data1.laps, loadedData.ref);
-            const m2 = calculateAdvancedMetrics(data2.laps, loadedData.comp);
-            if (m1 && m2) {
-                const deg1 = m1.stintStats.reduce((a, b) => a + b.degradation, 0) / m1.stintStats.length;
-                const deg2 = m2.stintStats.reduce((a, b) => a + b.degradation, 0) / m2.stintStats.length;
-                if (Math.abs(deg1 - deg2) > 0.015) {
-                    const better = deg1 < deg2 ? driver1.last_name : driver2.last_name;
-                    insights.push(`${better} demonstrated superior thermal management, showing ${Math.abs(deg1 - deg2).toFixed(3)}s/lap less degradation, which allowed for much greater stint flexibility.`);
-                }
-            }
-
-            // --- 5. TECHNICAL HARVESTING & STABILIZATION ---
-            if (m1?.technique?.telemetryAvailable && m2?.technique?.telemetryAvailable) {
-                const overlapDiff = Math.abs(parseFloat(m1.technique.overlap.total) - parseFloat(m2.technique.overlap.total));
-                if (overlapDiff > 0.4) {
-                    const more = parseFloat(m1.technique.overlap.total) > parseFloat(m2.technique.overlap.total) ? driver1.last_name : driver2.last_name;
-                    insights.push(`${more} employed a high-overlap pedal technique; while this stabilizes the car balance, it was likely utilized here to maximize **ERS Battery Harvesting** during braking phases.`);
-                }
-            }
-
-            return insights.length > 0
-                ? insights.join(" ")
-                : "Both drivers executed a highly optimized strategy with no significant performance deltas or tactical deviations.";
-        }
-
 
 
         function closeStrategyDrawer() {
@@ -3327,10 +3603,345 @@
             drawer.classList.remove('open');
         }
 
+        let timelineChartInstance = null;
+
+        function renderRaceTimeline(forcedMax = null) {
+            const canvas = document.getElementById('raceTimelineChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const filterText = document.getElementById('rcSearch') ? document.getElementById('rcSearch').value.toLowerCase() : "";
+
+            if (timelineChartInstance) timelineChartInstance.destroy();
+
+            const catTrack = []; const catRaceMgmt = []; const catStewards = []; const catInfractions = [];
+
+            const startMsg = sessionRaceControl.find(m => m.message.toUpperCase().includes("STARTED")) || sessionRaceControl[0];
+            const sessionStart = startMsg ? new Date(startMsg.date).getTime() : 0;
+
+            sessionRaceControl.forEach(msg => {
+                if (filterText && !msg.message.toLowerCase().includes(filterText)) return;
+                const timeOffset = (new Date(msg.date).getTime() - sessionStart) / 60000;
+                if (!isTimelineFull && timeOffset < -0.1) return;
+
+                const text = msg.message.toUpperCase();
+                const event = { x: parseFloat(timeOffset.toFixed(2)), y: 0, label: msg.message, lap: msg.lap_number };
+
+                if (msg.category === "SessionStatus" || text.includes("CHEQUERED") || msg.flag === "RED" || text.includes("SAFETY CAR") || text.includes("VIRTUAL")) {
+                    event.y = 4; catTrack.push(event);
+                } else if (msg.category === "Drs" || text.includes("PIT EXIT") || text.includes("RAIN") || (msg.category === "Flag" && msg.flag === "CLEAR")) {
+                    event.y = 3; catRaceMgmt.push(event);
+                } else if (text.includes("PENALTY") || text.includes("INVESTIGATION") || text.includes("NOTED") || text.includes("REVIEWED")) {
+                    event.y = 2; catStewards.push(event);
+                } else {
+                    event.y = 1; catInfractions.push(event);
+                }
+            });
+
+            timelineChartInstance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'TRACK', data: catTrack, backgroundColor: '#ff0000', pointRadius: 9, pointStyle: 'rectRounded' },
+                        { label: 'MGMT', data: catRaceMgmt, backgroundColor: '#ffffff', pointRadius: 6, pointStyle: 'triangle' },
+                        { label: 'STEWARD', data: catStewards, backgroundColor: '#ffc107', pointRadius: 7, pointStyle: 'circle' },
+                        { label: 'DRIVER', data: catInfractions, backgroundColor: '#00d2be', pointRadius: 4, pointStyle: 'circle' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            min: isTimelineFull ? null : 0,
+                            max: isTimelineFull ? null : forcedMax, // Sycronizes right edge
+                            title: { display: true, text: 'Race Minutes', color: '#888' },
+                            grid: { color: '#333' },
+                            ticks: { color: '#888' }
+                        },
+                        y: {
+                            min: 0.5, max: 4.5,
+                            afterFit: (axis) => { axis.width = 80; }, // Synchronizes left edge
+                            ticks: {
+                                stepSize: 1,
+                                callback: (v) => ({ 4: 'TRACK', 3: 'MGMT', 2: 'STEWARD', 1: 'DRIVER' }[v] || ''),
+                                color: '#aaa', font: { size: 10, weight: 'bold' }
+                            },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    },
+                    plugins: {
+                        tooltip: { callbacks: { label: (ctx) => `[Min ${ctx.raw.x}] (Lap ${ctx.raw.lap || '?'}) ${ctx.raw.label}` } },
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        let isTimelineVisible = false; // Changed from true to false
+        let isTimelineFull = false;
+
+        function toggleTimelineVisibility() {
+            const wrapper = document.getElementById('timelineWrapper');
+            const btn = document.getElementById('btnToggleTimeline');
+
+            isTimelineVisible = !isTimelineVisible;
+
+            if (isTimelineVisible) {
+                wrapper.style.display = 'block';
+                btn.innerText = 'Hide Timeline';
+                btn.style.backgroundColor = '#444';
+                // RE-RENDER is required here because the canvas was hidden (0px width)
+                renderRaceTimeline();
+            } else {
+                wrapper.style.display = 'none';
+                btn.innerText = 'Show Timeline';
+                btn.style.backgroundColor = 'var(--primary-color)';
+            }
+        }
+
+        function toggleTimelineFocus() {
+            const container = document.getElementById('modalContainer');
+            const btn = document.getElementById('btnFullTimeline');
+
+            isTimelineFull = !isTimelineFull;
+
+            if (isTimelineFull) {
+                container.classList.add('timeline-focus');
+                btn.innerText = 'Exit Full View';
+                // FIX: Wrap the CSS variable in quotes
+                btn.style.backgroundColor = 'var(--accent-color)';
+                btn.style.color = 'black';
+
+                if (!isTimelineVisible) toggleTimelineVisibility();
+            } else {
+                container.classList.remove('timeline-focus');
+                btn.innerText = 'Full Timeline View';
+                btn.style.backgroundColor = '#444';
+                btn.style.color = 'white';
+
+                document.getElementById('paceAnalysisChart').style.display = 'block';
+            }
+
+            setTimeout(() => {
+                renderRaceTimeline();
+                if (paceChartInstance) paceChartInstance.resize();
+            }, 50);
+        }
+
+        function getSessionBoundaries() {
+            let maxLap = 0;
+            let maxMinutes = 0;
+
+            // 1. Scan ALL session messages to find the true end of the race
+            if (sessionRaceControl && sessionRaceControl.length > 0) {
+                sessionRaceControl.forEach(m => {
+                    if (m.lap_number && m.lap_number > maxLap) maxLap = m.lap_number;
+                });
+
+                // 2. Calculate total session time duration
+                const startMsg = sessionRaceControl.find(m => m.message.toUpperCase().includes("STARTED")) || sessionRaceControl[0];
+                const endMsg = [...sessionRaceControl].reverse().find(m =>
+                    m.message.toUpperCase().includes("FINISHED") ||
+                    m.message.toUpperCase().includes("CHEQUERED")
+                ) || sessionRaceControl[sessionRaceControl.length - 1];
+
+                if (startMsg && endMsg) {
+                    const startTime = new Date(startMsg.date).getTime();
+                    const endTime = new Date(endMsg.date).getTime();
+                    maxMinutes = (endTime - startTime) / 60000;
+                }
+            }
+
+            // 3. Fallback check for loaded drivers if messages didn't provide a lap count
+            if (maxLap === 0 && paceChartInstance && paceChartInstance.data.datasets) {
+                paceChartInstance.data.datasets.forEach(dataset => {
+                    if (dataset.extraData) {
+                        dataset.extraData.forEach(l => {
+                            if (l.lap_number > maxLap) maxLap = l.lap_number;
+                        });
+                    }
+                });
+            }
+
+            return {
+                laps: maxLap > 0 ? maxLap + 0.5 : 70,
+                minutes: maxMinutes > 0 ? maxMinutes + 1 : 100
+            };
+        }
+
+        /**
+         * Determines the track status (RED FLAG, SC, VSC) at the time of a specific pit lap.
+         * Uses a time window around the pit lap instead of processing the entire session.
+         */
+        function getTrackStatusAtLap(pitLap, allLapsData1, allLapsData2) {
+            if (!sessionRaceControl || sessionRaceControl.length === 0 || !pitLap) {
+                return null;
+            }
+
+            // Get lap start time
+            const lapData = (allLapsData1 && allLapsData1.find(l => l.lap_number === pitLap)) ||
+                (allLapsData2 && allLapsData2.find(l => l.lap_number === pitLap));
+
+            if (!lapData) return null;
+
+            const pitLapStart = new Date(lapData.date_start).getTime();
+            const windowStart = pitLapStart - (5 * 60 * 1000);
+            const windowEnd = pitLapStart + (5 * 60 * 1000);
+
+            let currentStatus = null;
+
+            const relevantMessages = sessionRaceControl
+                .filter(msg => {
+                    const msgTime = new Date(msg.date).getTime();
+                    const sameLap = msg.lap_number === pitLap;
+                    return (msgTime >= windowStart && msgTime <= windowEnd) || sameLap;
+                })
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            for (const msg of relevantMessages) {
+                const text = (msg.message || "").toUpperCase();
+                const category = msg.category;
+                const flag = msg.flag;
+
+                // Deployment
+                if (text.includes("RED FLAG")) {
+                    currentStatus = "RED FLAG";
+                }
+                else if (text.includes("SAFETY CAR DEPLOYED") || category === "SafetyCar") {
+                    currentStatus = "SC";
+                }
+                else if (text.includes("VIRTUAL SAFETY CAR DEPLOYED") || category === "VSC") {
+                    currentStatus = "VSC";
+                }
+
+                // Ending
+                if (
+                    text.includes("SAFETY CAR IN THIS LAP") ||
+                    text.includes("VIRTUAL SAFETY CAR ENDING") ||
+                    text.includes("TRACK CLEAR") ||
+                    (category === "Flag" && flag === "GREEN" && currentStatus)
+                ) {
+                    currentStatus = null;
+                }
+            }
+
+            return currentStatus;
+        }
+
+        function formatPitLaps(pitLapsArr, allDriverLaps1, allDriverLaps2) {
+            if (!Array.isArray(pitLapsArr) || pitLapsArr.length === 0) {
+                return 'N/A';
+            }
+
+            const sortedLaps = [...pitLapsArr].sort((a, b) => a - b);
+
+            return sortedLaps.map(lap => {
+                const status = getTrackStatusAtLap(lap, allDriverLaps1, allDriverLaps2);
+
+                if (status) {
+                    const label = status === "SC" ? "Safety Car" : status;
+                    return `${lap} (${label})`;
+                }
+                return `${lap}`;
+            }).join(', ');
+        }
+
+        /**
+         * Returns only "clean" laps by removing:
+         * - Pit in/out laps
+         * - Laps under Safety Car, VSC, or Red Flag
+         */
+        function getCleanLaps(laps, allLapsData1, allLapsData2) {
+            if (!laps || laps.length === 0) return [];
+
+            return laps.filter(lap => {
+                // Remove pit laps
+                if (lap.isPitLap === true || lap.is_pit_out_lap === true) {
+                    return false;
+                }
+
+                // Remove laps under intervention
+                const status = getTrackStatusAtLap(lap.lap_number, allLapsData1, allLapsData2);
+                if (status === "SC" || status === "VSC" || status === "RED FLAG") {
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        function getRaceIncidents(sessionRaceControl) {
+            if (!sessionRaceControl || sessionRaceControl.length === 0) {
+                return { penalties: [], penaltiesServed: [], trackLimits: [], incidents: [] };
+            }
+
+            const penalties = [];
+            const penaltiesServed = [];
+            const trackLimits = [];
+            const incidents = [];
+
+            sessionRaceControl.forEach(msg => {
+                const text = msg.message || "";
+                const upperText = text.toUpperCase();
+                const lap = msg.lap_number;
+                const driver = msg.driver_number || null;
+
+                // Try to extract driver number from "CAR X" pattern
+                const carMatch = text.match(/CAR\s+(\d+)/i);
+                const extractedDriver = carMatch ? carMatch[1] : (driver || text.match(/\d+/)?.[0]);
+
+                // === PENALTIES ===
+                if (upperText.includes("PENALTY")) {
+
+                    // Check if this is a "PENALTY SERVED" message
+                    if (upperText.includes("PENALTY SERVED")) {
+                        penaltiesServed.push({
+                            lap: lap,
+                            message: text,
+                            driver: extractedDriver
+                        });
+                    }
+                    // Otherwise it's a penalty being issued
+                    else if (upperText.includes("TIME PENALTY") ||
+                        upperText.includes("STOP AND GO") ||
+                        upperText.includes("DRIVE THROUGH")) {
+                        penalties.push({
+                            lap: lap,
+                            message: text,
+                            driver: extractedDriver
+                        });
+                    }
+                }
+
+                // === TRACK LIMITS ===
+                else if (upperText.includes("TRACK LIMITS") &&
+                    (upperText.includes("DELETED") || upperText.includes("TIME"))) {
+
+                    trackLimits.push({
+                        lap: lap,
+                        message: text,
+                        driver: extractedDriver
+                    });
+                }
+
+                // === INCIDENTS / CAR CONTACT ===
+                else if (upperText.includes("INCIDENT") ||
+                    upperText.includes("CAUSING A COLLISION") ||
+                    upperText.includes("UNDER INVESTIGATION")) {
+                    incidents.push({
+                        lap: lap,
+                        message: text,
+                        driver: extractedDriver
+                    });
+                }
+            });
+
+            return { penalties, penaltiesServed, trackLimits, incidents };
+        }
+
         document.getElementById('buy-coffee-btn').addEventListener('click', function () {
             window.open('https://www.buymeacoffee.com/mhmatthew', '_blank', 'noopener');
         });
-
 
         // Initialize all components on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
