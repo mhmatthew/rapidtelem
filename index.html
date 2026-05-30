@@ -4313,9 +4313,8 @@
             const hasVisited = localStorage.getItem('hasVisitedRapidTelemetry');
             const modal = document.getElementById('welcomeModal');
 
-            if (hasVisited) {
-                modal.classList.remove('visible');
-            } else {
+            if (!hasVisited) {
+                // Only show it if they HAVE NOT visited
                 modal.classList.add('visible');
                 document.body.style.overflow = 'hidden';
             }
@@ -4448,7 +4447,7 @@
 
     </script>
     <!-- WELCOME MODAL -->
-    <div id="welcomeModal" class="modal-overlay visible">
+    <div id="welcomeModal" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px; height: auto; text-align: center; border-top: 4px solid var(--primary-color);">
             <div class="modal-header" style="justify-content: center;">
                 <h2 style="color: var(--text-color);">Welcome to Rapid Telemetry</h2>
