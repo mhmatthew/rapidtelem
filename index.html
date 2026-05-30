@@ -653,6 +653,19 @@
         }
         /* Bone dry */
 
+        /* Specific tweaks for the welcome modal */
+        #welcomeModal .modal-content {
+            box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
+        }
+
+        #welcomeModal p {
+            margin-top: 0;
+        }
+
+        #welcomeModal strong {
+            color: var(--primary-color);
+        }
+
         /* Basic responsive layout for tablets/phones */
         @media (max-width: 900px) {
             main {
@@ -1076,14 +1089,14 @@
                     if (lapEvents.some(f => f.category === 'Safety Car')) iconHtml += '<span title="Safety Car" style="color: #ffc107;">🏎️</span>';
 
                     return `
-                            <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
-                                <div class="lap-main-info">
-                                    <span style="font-weight: bold;">Lap ${l.lap_number}</span>
-                                    <div class="lap-icons">${iconHtml}</div>
-                                </div>
-                                <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
-                            </div>
-                        `;
+                                    <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
+                                        <div class="lap-main-info">
+                                            <span style="font-weight: bold;">Lap ${l.lap_number}</span>
+                                            <div class="lap-icons">${iconHtml}</div>
+                                        </div>
+                                        <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
+                                    </div>
+                                `;
                 }).join('');
 
                 updateStatus("Laps & Markers Loaded", "success");
@@ -1300,15 +1313,15 @@
                     };
 
                     weatherHtml = `
-                <div class="weather-details">
-                    <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
-                    <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
-                    <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
-                    <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
-                    <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
-                    <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
-                    <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
-                </div>`;
+                        <div class="weather-details">
+                            <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
+                            <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
+                            <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
+                            <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
+                            <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
+                            <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
+                            <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
+                        </div>`;
                 }
 
                 // 4. Process Distance
@@ -1438,23 +1451,23 @@
             const getS = (lap, key) => lap && lap[key] ? lap[key] + " km/h" : "-";
 
             document.getElementById('sector-body').innerHTML = `
-                    <!-- Times -->
-                    <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
-                    <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
-                    <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
+                            <!-- Times -->
+                            <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
+                            <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
+                            <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
 
-                    <!-- Speed Traps -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
-                        <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
-                    </tr>
-                    <tr><td>Intermediate 1 (S1)</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
-                    <tr><td>Intermediate 2 (S2)</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
-                    <tr><td>Speed Trap (ST)</td><td>${getS(s1, 'st_speed')}</td><td>${getS(s2, 'st_speed')}</td></tr>
+                            <!-- Speed Traps -->
+                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
+                                <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
+                            </tr>
+                            <tr><td>Intermediate 1 (S1)</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
+                            <tr><td>Intermediate 2 (S2)</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
+                            <tr><td>Speed Trap (ST)</td><td>${getS(s1, 'st_speed')}</td><td>${getS(s2, 'st_speed')}</td></tr>
 
-                    <tr onclick="zoomToSector(0)" style="cursor:pointer">
-                        <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
-                    </tr>
-                `;
+                            <tr onclick="zoomToSector(0)" style="cursor:pointer">
+                                <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
+                            </tr>
+                        `;
         }
 
         function initCharts() {
@@ -1931,25 +1944,25 @@
                 if (ev.type === 'flag') {
                     // Race Control Styling (Yellow border)
                     return `
-                            <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                    <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
-                                    <span>${timeStr}</span>
-                                </div>
-                                <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
-                            </div>`;
+                                    <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                            <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
+                                            <span>${timeStr}</span>
+                                        </div>
+                                        <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
+                                    </div>`;
                 } else {
                     // Driver Radio Styling (Red/Cyan border)
                     const color = ev.slot === 'ref' ? 'var(--primary-color)' : 'var(--compare-color)';
                     return `
-                            <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                    <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
-                                    <span>${timeStr}</span>
-                                </div>
-                                <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
-                                <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
-                            </div>`;
+                                    <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                            <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
+                                            <span>${timeStr}</span>
+                                        </div>
+                                        <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
+                                        <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
+                                    </div>`;
                 }
             }).join('');
 
@@ -2429,7 +2442,6 @@
             }
         }
 
-
         // UPDATED openPaceAnalysisModal function
         function openPaceAnalysisModal() {
             const modal = document.getElementById('paceAnalysisModal');
@@ -2539,11 +2551,11 @@
             legendEl.innerHTML = entries.map(e => {
                 const color = TIRE_COLORS[e.key];
                 return `
-                        <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
-                            <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border: 1px solid #000;"></span>
-                            <span>${e.label}</span>
-                        </span>
-                    `;
+                                <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
+                                    <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border: 1px solid #000;"></span>
+                                    <span>${e.label}</span>
+                                </span>
+                            `;
             }).join('');
         }
 
@@ -2694,21 +2706,21 @@
 
                 // Create table HTML
                 const tableHTML = `
-                        <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
-                        <table class="results-table">
-                            <thead>
-                                <tr>
-                                    <th>Pos</th>
-                                    <th>Driver</th>
-                                    <th>Laps</th>
-                                    <th>Total Time</th>
-                                    <th>Gap</th>
-                                    <th>Points</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${results.map(result => {
+                                <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
+                                <table class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Pos</th>
+                                            <th>Driver</th>
+                                            <th>Laps</th>
+                                            <th>Total Time</th>
+                                            <th>Gap</th>
+                                            <th>Points</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${results.map(result => {
                     const driverName = driverNamesMap[result.driver_number] || 'Unknown';
                     let status = 'Finished';
                     if (result.dnf) status = 'DNF';
@@ -2716,25 +2728,25 @@
                     else if (result.dsq) status = 'DSQ';
 
                     return `
-                                        <tr>
-                                            <td class="position-cell">${result.position || '-'}</td>
-                                            <td>#${result.driver_number} ${driverName}</td>
-                                            <td>${result.number_of_laps || 0}</td>
+                                                <tr>
+                                                    <td class="position-cell">${result.position || '-'}</td>
+                                                    <td>#${result.driver_number} ${driverName}</td>
+                                                    <td>${result.number_of_laps || 0}</td>
 <td style="font-family: monospace;">
-                ${formatResultDuration(result.duration)}
+                        ${formatResultDuration(result.duration)}
 </td>
 <td style="font-family: monospace;">
-                ${formatResultGap(result.gap_to_leader)}
+                        ${formatResultGap(result.gap_to_leader)}
 </td>
-                                            <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
-                                            <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
-                                        </tr>
-                                    `;
+                                                    <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
+                                                    <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
+                                                </tr>
+                                            `;
                 }).join('')}
-                            </tbody>
-                        </table>
-                        <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
-                    `;
+                                    </tbody>
+                                </table>
+                                <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
+                            `;
 
                 const paceAnalysisChartCanvas = document.getElementById('paceAnalysisChart');
                 const tireLegendEl = document.getElementById('tireLegend');
@@ -3204,103 +3216,103 @@
             const telemetryMissing = (!m1?.technique?.telemetryAvailable || !m2?.technique?.telemetryAvailable);
 
             html += `
-        <table class="results-table" style="margin-bottom:25px;">
-            <thead>
-                <tr>
-                    <th>Metric</th>
-                    <th>${d1 ? d1.last_name : 'S1'}</th>
-                    <th>${d2 ? d2.last_name : 'S2'}</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- PACE & CONSISTENCY -->
-                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                    <td colspan="3">Pace & Consistency Analysis</td>
-                </tr>
-                <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
-                <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
-                <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
-                <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
-                <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
-                
-                <!-- DISCIPLINE & PENALTIES -->
-                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                    <td colspan="3">Discipline & Race Conduct</td>
-                </tr>
-                <tr><td>Track Limit Deletions</td><td>${trackLimits1}</td><td>${trackLimits2}</td></tr>
-                <tr><td>Penalties Received</td><td>${penalties1}</td><td>${penalties2}</td></tr>
-                <tr><td>Penalties Served</td><td>${penaltiesServed1}</td><td>${penaltiesServed2}</td></tr>
+                <table class="results-table" style="margin-bottom:25px;">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>${d1 ? d1.last_name : 'S1'}</th>
+                            <th>${d2 ? d2.last_name : 'S2'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- PACE & CONSISTENCY -->
+                        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                            <td colspan="3">Pace & Consistency Analysis</td>
+                        </tr>
+                        <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
+                        <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
+                        <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
+                        <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
+                        <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
 
-                <!-- INPUT TECHNIQUE -->
-                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                    <td colspan="3">Input Technique Analysis</td>
-                </tr>
-    `;
+                        <!-- DISCIPLINE & PENALTIES -->
+                        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                            <td colspan="3">Discipline & Race Conduct</td>
+                        </tr>
+                        <tr><td>Track Limit Deletions</td><td>${trackLimits1}</td><td>${trackLimits2}</td></tr>
+                        <tr><td>Penalties Received</td><td>${penalties1}</td><td>${penalties2}</td></tr>
+                        <tr><td>Penalties Served</td><td>${penaltiesServed1}</td><td>${penaltiesServed2}</td></tr>
+
+                        <!-- INPUT TECHNIQUE -->
+                        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                            <td colspan="3">Input Technique Analysis</td>
+                        </tr>
+            `;
 
             if (telemetryMissing) {
                 html += `
-            <tr style="background: rgba(255, 193, 7, 0.05);">
-                <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
-                    ⚠️ Telemetry not loaded for comparison.<br>
-                    Load each driver's fastest lap into the Slot Manager to see technique insights.
-                </td>
-            </tr>
-        `;
+                    <tr style="background: rgba(255, 193, 7, 0.05);">
+                        <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
+                            ⚠️ Telemetry not loaded for comparison.<br>
+                            Load each driver's fastest lap into the Slot Manager to see technique insights.
+                        </td>
+                    </tr>
+                `;
             } else {
                 html += `
-            <tr><td>Brake Release to 100% Thr</td><td>${m1.technique.transitions.avgTotal}s</td><td>${m2.technique.transitions.avgTotal}s</td></tr>
-            <tr style="font-size:0.8em; color:#888;"><td>└ Transitions S1/S2/S3</td><td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td><td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td></tr>
-            <tr><td>Overlap Time (Total)</td><td>${m1.technique.overlap.total}s</td><td>${m2.technique.overlap.total}s</td></tr>
-            <tr style="font-size:0.8em; color:#888;"><td>└ Overlap S1/S2/S3</td><td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td><td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td></tr>
-            <tr><td>Coasting Time (Total)</td><td>${m1.technique.coasting.total}s</td><td>${m2.technique.coasting.total}s</td></tr>
-            <tr style="font-size:0.8em; color:#888;"><td>└ Coasting S1/S2/S3</td><td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td><td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td></tr>
-        `;
+                    <tr><td>Brake Release to 100% Thr</td><td>${m1.technique.transitions.avgTotal}s</td><td>${m2.technique.transitions.avgTotal}s</td></tr>
+                    <tr style="font-size:0.8em; color:#888;"><td>└ Transitions S1/S2/S3</td><td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td><td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td></tr>
+                    <tr><td>Overlap Time (Total)</td><td>${m1.technique.overlap.total}s</td><td>${m2.technique.overlap.total}s</td></tr>
+                    <tr style="font-size:0.8em; color:#888;"><td>└ Overlap S1/S2/S3</td><td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td><td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td></tr>
+                    <tr><td>Coasting Time (Total)</td><td>${m1.technique.coasting.total}s</td><td>${m2.technique.coasting.total}s</td></tr>
+                    <tr style="font-size:0.8em; color:#888;"><td>└ Coasting S1/S2/S3</td><td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td><td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td></tr>
+                `;
             }
 
             // PIT CYCLE ANALYSIS
             html += `
-        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-            <td colspan="3">Pit Cycle Analysis</td>
-        </tr>
-        <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
-        <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
-        <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
-        <tr><td><strong>Total Pit Loss</strong></td>
-            <td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
-            <td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
-        </tr>
-    `;
+                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                    <td colspan="3">Pit Cycle Analysis</td>
+                </tr>
+                <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
+                <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
+                <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
+                <tr><td><strong>Total Pit Loss</strong></td>
+                    <td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+                    <td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+                </tr>
+            `;
 
             // TIRES
             html += `
-        <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-            <td colspan="3">Performance by Tire Compound</td>
-        </tr>
-        ${generateTireBreakdownHTML(m1, m2, d1, d2)}
-    `;
+                <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                    <td colspan="3">Performance by Tire Compound</td>
+                </tr>
+                ${generateTireBreakdownHTML(m1, m2, d1, d2)}
+            `;
 
             // Strategy Button
             html += `
-        <tr style="background: rgba(0, 210, 190, 0.08);">
-            <td colspan="3" style="padding: 12px; text-align: center;">
-                <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
-                    style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
-                    View Strategy Analysis →
-                </button>
-            </td>
-        </tr>
-    `;
+                <tr style="background: rgba(0, 210, 190, 0.08);">
+                    <td colspan="3" style="padding: 12px; text-align: center;">
+                        <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
+                            style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                            View Strategy Analysis →
+                        </button>
+                    </td>
+                </tr>
+            `;
 
             html += `</tbody></table>`;
 
             // Key Takeaways
             html += `
-        <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
-            <strong>Key Takeaways:</strong><br>
-            <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2)}</span>
-        </div>
-        <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
-    `;
+                <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
+                    <strong>Key Takeaways:</strong><br>
+                    <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2)}</span>
+                </div>
+                <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+            `;
 
             return html;
         }
@@ -3406,43 +3418,43 @@
                 const best2 = Math.min(...data2.laps.map(l => l.lap_duration));
 
                 content.innerHTML = `
-            <div style="padding: 5px 0 15px 0; border-bottom: 1px solid #444; margin-bottom: 20px;">
-                <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
-            </div>
+                    <div style="padding: 5px 0 15px 0; border-bottom: 1px solid #444; margin-bottom: 20px;">
+                        <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
+                    </div>
 
-            <table class="results-table" style="margin-bottom:25px; width:100%;">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;">Metric</th>
-                        <th>${driver1.last_name}</th>
-                        <th>${driver2.last_name}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
-                    <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
-                    <tr><td>Pit Stop Lap(s)</td>
-                        <td>${formatPitLaps(strategy1.pitLaps, data1.laps, data2.laps)}</td>
-                        <td>${formatPitLaps(strategy2.pitLaps, data1.laps, data2.laps)}</td>
-                    </tr>
-                    <tr><td>Avg Pit Time Loss</td>
-                        <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                        <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                    </tr>
-                    <tr><td>Best Lap Time</td>
-                        <td>${formatTime(best1)}</td>
-                        <td>${formatTime(best2)}</td>
-                    </tr>
-                </tbody>
-            </table>
+                    <table class="results-table" style="margin-bottom:25px; width:100%;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Metric</th>
+                                <th>${driver1.last_name}</th>
+                                <th>${driver2.last_name}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
+                            <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
+                            <tr><td>Pit Stop Lap(s)</td>
+                                <td>${formatPitLaps(strategy1.pitLaps, data1.laps, data2.laps)}</td>
+                                <td>${formatPitLaps(strategy2.pitLaps, data1.laps, data2.laps)}</td>
+                            </tr>
+                            <tr><td>Avg Pit Time Loss</td>
+                                <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                                <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                            </tr>
+                            <tr><td>Best Lap Time</td>
+                                <td>${formatTime(best1)}</td>
+                                <td>${formatTime(best2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-            <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7;">
-                <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
-                    Tactical Insights
-                </strong>
-                <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
-            </div>
-        `;
+                    <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7;">
+                        <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
+                            Tactical Insights
+                        </strong>
+                        <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
+                    </div>
+                `;
             } catch (err) {
                 console.error("Strategy Drawer Analysis Failed:", err);
                 content.innerHTML = `<div style="color:#ff8080; padding:20px;">Error generating strategy: ${err.message}</div>`;
@@ -3595,7 +3607,7 @@
         function generateVerdict(m1, m2, d1, d2) {
             if (!m1 || !m2) return "Insufficient data for comparison.";
 
-            const bounds = getSessionBoundaries(); 
+            const bounds = getSessionBoundaries();
 
             let insights = [];
 
@@ -3741,27 +3753,27 @@
                 const t2 = metrics2?.tireBreakdown?.[tire];
 
                 html += `
-    <tr style="font-size: 0.85em; border-top: 1px solid #444;">
-        <td><strong>${tire}</strong></td>
-        <td>
-            ${t1 ? `
-                Avg: ${formatTime(t1.avg)}<br>
-                Fastest: ${formatTime(t1.fastest)}<br>
-                Deg: ${t1.degradation}s/lap<br>
-                <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
-                ${t1.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
-            ` : '-'}
-        </td>
-        <td>
-            ${t2 ? `
-                Avg: ${formatTime(t2.avg)}<br>
-                Fastest: ${formatTime(t2.fastest)}<br>
-                Deg: ${t2.degradation}s/lap<br>
-                <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
-                ${t2.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
-            ` : '-'}
-        </td>
-    </tr>
+            <tr style="font-size: 0.85em; border-top: 1px solid #444;">
+                <td><strong>${tire}</strong></td>
+                <td>
+                    ${t1 ? `
+                        Avg: ${formatTime(t1.avg)}<br>
+                        Fastest: ${formatTime(t1.fastest)}<br>
+                        Deg: ${t1.degradation}s/lap<br>
+                        <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
+                        ${t1.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
+                    ` : '-'}
+                </td>
+                <td>
+                    ${t2 ? `
+                        Avg: ${formatTime(t2.avg)}<br>
+                        Fastest: ${formatTime(t2.fastest)}<br>
+                        Deg: ${t2.degradation}s/lap<br>
+                        <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
+                        ${t2.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
+                    ` : '-'}
+                </td>
+            </tr>
 `;
             });
 
@@ -3770,12 +3782,12 @@
             const bestTire2 = getBestTire(metrics2);
 
             html += `
-                    <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
-                        <td>Best Tire</td>
-                        <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
-                        <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
-                    </tr>
-                `;
+                            <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
+                                <td>Best Tire</td>
+                                <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
+                                <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
+                            </tr>
+                        `;
 
             return html;
         }
@@ -4122,6 +4134,37 @@
             return { penalties, penaltiesServed, trackLimits, incidents };
         }
 
+        // Function to close the welcome modal
+        function closeWelcomeModal() {
+            const modal = document.getElementById('welcomeModal');
+            modal.classList.remove('visible');
+            document.body.style.overflow = '';
+            // Save to local storage so it doesn't pop up again
+            localStorage.setItem('hasVisitedRapidTelemetry', 'true');
+        }
+
+        // Logic to check if we should show the modal on load
+        function checkFirstVisit() {
+            const hasVisited = localStorage.getItem('hasVisitedRapidTelemetry');
+            const modal = document.getElementById('welcomeModal');
+
+            if (hasVisited) {
+                modal.classList.remove('visible');
+            } else {
+                modal.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        // Update your existing DOMContentLoaded listener:
+        document.addEventListener('DOMContentLoaded', () => {
+            checkFirstVisit(); // Add this line
+            initAPI();
+            initCharts();
+            initPaceAnalysisUI();
+        });
+
+
         document.getElementById('buy-coffee-btn').addEventListener('click', function () {
             window.open('https://www.buymeacoffee.com/mhmatthew', '_blank', 'noopener');
         });
@@ -4134,5 +4177,31 @@
             initPaceAnalysisUI();
         });
     </script>
+    <!-- WELCOME MODAL -->
+    <div id="welcomeModal" class="modal-overlay visible">
+        <div class="modal-content" style="max-width: 500px; height: auto; text-align: center; border-top: 4px solid var(--primary-color);">
+            <div class="modal-header" style="justify-content: center;">
+                <h2 style="color: var(--text-color);">Welcome to Rapid Telemetry</h2>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: var(--text-color-light);">
+                <p>Analyze Formula 1 data with distance-based telemetry comparison.</p>
+
+                <div style="text-align: left; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <div style="margin-bottom: 10px;"><strong>1. Select:</strong> Use the top dropdowns to pick a Year, Event, and Session.</div>
+                    <div style="margin-bottom: 10px;"><strong>2. Load Driver:</strong> Select a driver to see their lap list. Click any lap to load it into <strong>Slot 1</strong>.</div>
+                    <div style="margin-bottom: 10px;"><strong>3. Compare:</strong> Switch to <strong>Slot 2</strong> in the sidebar, select another driver, and pick a second lap.</div>
+                    <div><strong>4. Explore:</strong> Hover over charts to see the track position move, or use <strong>Pace Analysis</strong> for full race insights.</div>
+                </div>
+
+                <button class="btn-primary" onclick="closeWelcomeModal()" style="width: 100%; padding: 12px; font-size: 1.1em; margin-bottom: 15px;">Start Analyzing</button>
+
+                <!-- Disclaimer added here -->
+                <div style="font-size: 0.7em; color: #888; border-top: 1px solid #333; padding-top: 15px; line-height: 1.4;">
+                    <strong>Disclaimer:</strong> This is an unofficial hobby project for personal data analysis. It is not affiliated with Formula 1, the FIA, or any racing teams. Data is provided via the OpenF1 API.
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
