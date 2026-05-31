@@ -1507,7 +1507,7 @@
 
             // Time window for radio, weather, stints - more generous than exact lap start/end
             const radioWindowStart = new Date(lapStartTimestamp - (45 * 1000)); // 45 seconds before lap start
-            const radioWindowEnd = new Date(lapEndTimestamp + (90 * 1000));   // 90 seconds after lap end (more generous to catch radio calls around pit entry/exit, post-lap comms)
+            const radioWindowEnd = new Date(lapEndTimestamp + (900 * 1000)); // (15 minutes)
 
             // Ensure times are ISO formatted for API calls
             const telemetryQueryStart = encodeURIComponent(lapObj.date_start);
@@ -2354,15 +2354,16 @@
                         ? new Date(lap.date_end).getTime()
                         : lapStart + (lap.lap_duration * 1000);
 
-                    // Filter the global sessionFlags array
-                    const lapFlags = sessionFlags.filter(f => {
+                    // USE sessionRaceControl instead of sessionFlags for better reliability
+                    const sourceData = (sessionRaceControl && sessionRaceControl.length > 0) ? sessionRaceControl : sessionFlags;
+
+                    const lapFlags = sourceData.filter(f => {
                         const fDate = new Date(f.date).getTime();
-                        // Match flags from start of lap to 2 minutes after finish
-                        return fDate >= lapStart && fDate <= (lapEnd + 120000);
+                        // Match flags from start of lap to 5 minutes after finish (to catch session end msgs)
+                        return fDate >= lapStart && fDate <= (lapEnd + 300000);
                     });
 
                     lapFlags.forEach(f => {
-                        // Prevent duplicates if both slots cover the same time
                         const eventId = `flag-${f.date}-${f.message}`;
                         if (!allEvents.some(ev => ev.eventId === eventId)) {
                             allEvents.push({
