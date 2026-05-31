@@ -942,6 +942,7 @@
                 <div id="ref-label" class="slot-info">S1: Empty <span>--:--.---</span></div>
                 <div id="comp-label" class="slot-info">S2: Empty <span>--:--.---</span></div>
                 <button onclick="clearSlots()" style="width: 100%; margin-top: 5px; background: #444;">Clear All Laps</button>
+                <button onclick="copyShareLink()" style="width: 100%; margin-top: 5px; background: #28a745;">🔗 Share This Comparison</button>
             </div>
 
             <!-- Dual Weather Display -->
@@ -994,6 +995,7 @@
                         <option value="delta-chart">Time Delta</option>
                         <option value="throttle-brake-chart">Throttle & Brake</option>
                         <option value="rpm-gear-chart">RPM & Gear</option>
+                        <option value="technique-chart">Technique Analysis</option>
                     </select>
                     <button id="export-snapshot" onclick="takeSnapshot()" style="background: #28a745; border-color: #28a745; padding: 6px 12px;">
                         📸
@@ -1015,6 +1017,7 @@
             <div class="chart-wrapper"><canvas id="speed-chart"></canvas></div>
             <div class="chart-wrapper"><canvas id="throttle-brake-chart"></canvas></div>
             <div class="chart-wrapper"><canvas id="rpm-gear-chart"></canvas></div>
+            <div class="chart-wrapper"><canvas id="technique-chart"></canvas></div>
         </section>
     </main>
 
@@ -1134,9 +1137,11 @@
         let currentReportDriver1 = null;
         let currentReportDriver2 = null;
 
-        // Add these global variables to store the chart data when results are shown
         let savedPaceChartDatasets = [];
         let savedPaceChartAnnotations = {};
+
+        let lastDriversSessionKey = null;
+        let driversRequestPromise = null;
 
         const API_BASE = 'https://api.openf1.org/v1';
 
@@ -1170,91 +1175,105 @@
             return `${mins}:${secs.padStart(6, '0')}`;
         }
 
-        /* --- TELEMETRY VIEWER FUNCTIONS (Mostly unchanged) --- */
-
         async function loadLaps() {
             const sessionKey = document.getElementById('session-select').value;
             const driverNum = document.getElementById('driver-select').value;
 
-            // Check if driverNum is empty string (our "Select Driver" placeholder)
             if (!sessionKey || sessionKey === "Session" || !driverNum || driverNum === "") {
-                document.getElementById('lap-selector').innerHTML = '<div style="padding: 10px; color: #888;">Select a session and driver...</div>';
+                document.getElementById('lap-selector').innerHTML =
+                    '<div style="padding: 10px; color: #888;">Select a session and driver...</div>';
                 return;
+            }
+
+            // Local helper for 429‑safe fetch
+            async function fetchWithRetry(url) {
+                const res = await fetch(url);
+                if (res.status === 429) {
+                    console.warn(`Rate limit hit for ${url}, retrying in 1s...`);
+                    await delay(1000);
+                    return fetchWithRetry(url);
+                }
+                if (!res.ok) {
+                    // Return empty list for non‑OK (404 etc.) so code below doesn’t crash
+                    console.warn(`Non‑OK response for ${url}: ${res.status} ${res.statusText}`);
+                    return [];
+                }
+                return res.json();
             }
 
             try {
                 updateStatus("Fetching Laps, Radio, and Flags...", "info");
 
-                const [lapsRes, radioRes, flagsRes] = await Promise.all([
-                    fetch(`${API_BASE}/laps?session_key=${sessionKey}&driver_number=${driverNum}`),
-                    fetch(`${API_BASE}/team_radio?session_key=${sessionKey}&driver_number=${driverNum}`),
-                    fetch(`${API_BASE}/race_control?session_key=${sessionKey}`)
+                const [lapsJson, radioJson, flagsJson] = await Promise.all([
+                    fetchWithRetry(`${API_BASE}/laps?session_key=${sessionKey}&driver_number=${driverNum}`),
+                    fetchWithRetry(`${API_BASE}/team_radio?session_key=${sessionKey}&driver_number=${driverNum}`),
+                    // Only refetch race_control if we don’t already have it for this session
+                    sessionFlags.length === 0
+                        ? fetchWithRetry(`${API_BASE}/race_control?session_key=${sessionKey}`)
+                        : Promise.resolve(sessionFlags)
                 ]);
-
-                const lapsJson = await lapsRes.json();
-                const radioJson = await radioRes.json();
-                const flagsJson = await flagsRes.json();
 
                 const laps = Array.isArray(lapsJson) ? lapsJson : [];
                 currentDriverRadio = Array.isArray(radioJson) ? radioJson : [];
-                console.log(`Found ${currentDriverRadio.length} radio messages for this driver in this session.`);
-                sessionFlags = Array.isArray(flagsJson) ? flagsJson : [];
+                sessionFlags = Array.isArray(flagsJson) ? flagsJson : sessionFlags;
 
-                // --- NEW: Calculate Personal Best (PB) ---
+                console.log(`Checking Radio: Found ${currentDriverRadio.length} messages for Driver #${driverNum} in Session ${sessionKey}`);
+
                 const validTimes = laps.map(l => l.lap_duration).filter(d => d > 0);
                 const pbTime = validTimes.length > 0 ? Math.min(...validTimes) : null;
-
-                // --- NEW: Identify the last lap for special handling ---
                 const reversedLaps = laps.slice().reverse();
-                const lastLapIndex = 0; // First item in reversed array is the last lap
 
                 document.getElementById('lap-selector').innerHTML = reversedLaps.map((l, index) => {
                     const lapStart = new Date(l.date_start);
-                    const lapEnd = l.date_end ? new Date(l.date_end) : new Date(lapStart.getTime() + 120000);
+                    const lapEnd = l.date_end ? new Date(l.date_end) : new Date(lapStart.getTime() + (l.lap_duration * 1000));
+                    const pbClass = (l.lap_duration > 0 && l.lap_duration === pbTime) ? 'lap-pb' : '';
 
-                    // Determine if this specific lap is the PB
-                    const isPB = l.lap_duration > 0 && l.lap_duration === pbTime;
-                    const pbClass = isPB ? 'lap-pb' : '';
+                    const nextChronologicalLap = reversedLaps[index - 1];
+                    const nextLapStart = nextChronologicalLap ? new Date(nextChronologicalLap.date_start) : null;
 
-                    // --- MODIFIED: Extended radio check for last lap only ---
-                    const isLastLap = (index === lastLapIndex);
-                    let hasRadio;
-
-                    if (isLastLap) {
-                        // For last lap: check 5-minute window after lap end
-                        const extendedEnd = new Date(lapEnd.getTime() + 300000); // +5 minutes
+                    let hasRadio = false;
+                    if (currentDriverRadio.length > 0) {
                         hasRadio = currentDriverRadio.some(msg => {
                             const d = new Date(msg.date);
-                            return d >= lapStart && d <= extendedEnd;
-                        });
-                    } else {
-                        // For all other laps: normal lap window only
-                        hasRadio = currentDriverRadio.some(msg => {
-                            const d = new Date(msg.date);
-                            return d >= lapStart && d <= lapEnd;
+                            let isMatch = false;
+                            if (index === 0) {
+                                isMatch = (d >= lapStart && d <= new Date(lapEnd.getTime() + 900000));
+                            } else {
+                                isMatch = (d >= lapStart && d < nextLapStart);
+                            }
+
+                            // --- NEW: LOG INDIVIDUAL MATCHES ---
+                            if (isMatch) {
+                                console.log(`Radio Match Found: Message at ${msg.date} assigned to Lap ${l.lap_number}`);
+                            }
+                            return isMatch;
                         });
                     }
 
-                    const lapEvents = sessionFlags.filter(f => {
-                        const d = new Date(f.date);
-                        return d >= lapStart && d <= lapEnd;
-                    });
-
                     let iconHtml = '';
-                    if (hasRadio) iconHtml += '<span title="Radio" style="color: #00d2be;">📻</span>';
-                    if (lapEvents.some(f => f.flag === 'YELLOW')) iconHtml += '<span title="Yellow Flag" style="color: #ffff00;">⚠️</span>';
-                    if (lapEvents.some(f => f.flag === 'RED')) iconHtml += '<span title="Red Flag" style="color: #ff0000;">🚩</span>';
-                    if (lapEvents.some(f => f.category === 'Safety Car')) iconHtml += '<span title="Safety Car" style="color: #ffc107;">🏎️</span>';
+                    if (sessionFlags.length > 0) {
+                        const lapEvents = sessionFlags.filter(f => {
+                            const d = new Date(f.date);
+                            return d >= lapStart && d <= (nextLapStart || lapEnd);
+                        });
+
+                        if (hasRadio) iconHtml += '<span title="Radio" style="color: #00d2be;">📻</span>';
+                        if (lapEvents.some(f => f.flag === 'YELLOW')) iconHtml += '<span title="Yellow Flag" style="color: #ffff00;">⚠️</span>';
+                        if (lapEvents.some(f => f.flag === 'RED')) iconHtml += '<span title="Red Flag" style="color: #ff0000;">🚩</span>';
+                        if (lapEvents.some(f => f.category === 'Safety Car')) iconHtml += '<span title="Safety Car" style="color: #ffc107;">🏎️</span>';
+                    } else if (hasRadio) {
+                        iconHtml += '<span title="Radio" style="color: #00d2be;">📻</span>';
+                    }
 
                     return `
-                                                        <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
-                                                            <div class="lap-main-info">
-                                                                <span style="font-weight: bold;">Lap ${l.lap_number}</span>
-                                                                <div class="lap-icons">${iconHtml}</div>
-                                                            </div>
-                                                            <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
-                                                        </div>
-                                                    `;
+                        <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
+                            <div class="lap-main-info">
+                                <span style="font-weight: bold;">Lap ${l.lap_number}</span>
+                                <div class="lap-icons">${iconHtml}</div>
+                            </div>
+                            <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
+                        </div>
+                    `;
                 }).join('');
 
                 updateStatus("Laps & Markers Loaded", "success");
@@ -1296,15 +1315,27 @@
 
         async function loadSessions() {
             const meetingKey = document.getElementById('meeting-select').value;
+            if (!meetingKey || meetingKey === 'GP...') {
+                document.getElementById('session-select').innerHTML = '<option>Session</option>';
+                return;
+            }
+
             const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
             const sessions = await res.json();
-            document.getElementById('session-select').innerHTML = sessions.map(s => `<option value="${s.session_key}">${s.session_name}</option>`).join('');
 
-            // Clear cached session data when meeting/session list changes
+            // SAFETY CHECK: Ensure sessions is an array
+            if (Array.isArray(sessions)) {
+                document.getElementById('session-select').innerHTML = sessions.map(s =>
+                    `<option value="${s.session_key}">${s.session_name}</option>`
+                ).join('');
+            } else {
+                console.warn("Could not load sessions, API might be limited.");
+            }
+
             sessionRaceControl = [];
             document.getElementById('session-select').onchange = () => {
                 loadDrivers();
-                fetchSessionRaceControl(); // New helper to pull all messages
+                fetchSessionRaceControl();
             };
             loadDrivers();
         }
@@ -1318,51 +1349,92 @@
             } catch (e) { console.error("Failed to cache session race control", e); }
         }
 
+        async function loadDrivers(sessionKeyOverride) {
+            const driverSelect = document.getElementById('driver-select');
 
-        async function loadDrivers() {
-            const sessionKey = document.getElementById('session-select').value;
+            // Decide which session_key to use
+            const sessionKeyRaw = sessionKeyOverride || driverSelect?.value;
+            const sessionKeyUI = document.getElementById('session-select').value;
+            const sessionKey = sessionKeyOverride
+                || (sessionKeyUI && sessionKeyUI !== 'Session' ? sessionKeyUI : null);
 
-            try {
-                const res = await fetch(`${API_BASE}/drivers?session_key=${sessionKey}`);
-                let drivers = await res.json();
-
-                if (!Array.isArray(drivers)) {
-                    drivers = [];
-                }
-
-                driverNames = {};
-                drivers.forEach(d => {
-                    driverNames[d.driver_number] = d.last_name;
-                });
-
-                const driverSelect = document.getElementById('driver-select');
-                if (!driverSelect) return;
-
-                if (drivers.length === 0) {
-                    driverSelect.innerHTML = '<option value="">No drivers</option>';
-                } else {
-                    drivers.sort((a, b) => a.driver_number - b.driver_number);
-
-                    // --- CHANGE: Added a "Select Driver" placeholder and removed the auto-call ---
-                    driverSelect.innerHTML = '<option value="" selected disabled>Select Driver...</option>' +
-                        drivers.map(d => `<option value="${d.driver_number}">#${d.driver_number} - ${d.last_name}</option>`)
-                            .join('');
-                }
-
-                driverSelect.onchange = loadLaps;
-
-                // --- CHANGE: Explicitly clear the lap selector UI so old data isn't visible ---
-                document.getElementById('lap-selector').innerHTML = '<div style="padding: 10px; color: #888;">Select a driver to view laps...</div>';
-
-                // REMOVED: loadLaps();  <-- This line used to trigger the auto-fetch
-
-            } catch (err) {
-                console.error('Error loading drivers:', err);
-                const driverSelect = document.getElementById('driver-select');
+            if (!sessionKey) {
                 if (driverSelect) {
-                    driverSelect.innerHTML = '<option value="">Error loading drivers</option>';
+                    driverSelect.innerHTML = '<option value="">Driver</option>';
                 }
+                return;
             }
+
+            // If we already have drivers for this session and the select has been built, reuse it
+            if (sessionKey === lastDriversSessionKey &&
+                driverSelect &&
+                driverSelect.options.length > 1) {
+                return;
+            }
+
+            // If a request for this session is already in flight, wait for it
+            if (driversRequestPromise && sessionKey === lastDriversSessionKey) {
+                await driversRequestPromise;
+                return;
+            }
+
+            // New request for this session
+            lastDriversSessionKey = sessionKey;
+
+            driversRequestPromise = (async () => {
+                try {
+                    const fetchDriversSafe = async () => {
+                        const res = await fetch(`${API_BASE}/drivers?session_key=${sessionKey}`);
+                        if (res.status === 429) {
+                            console.warn(`Rate limit on drivers for session ${sessionKey}, retrying in 1s`);
+                            await delay(1000);
+                            return fetchDriversSafe();
+                        }
+                        if (!res.ok) {
+                            throw new Error(`Drivers fetch failed: ${res.status} ${res.statusText}`);
+                        }
+                        return res.json();
+                    };
+
+                    let drivers = await fetchDriversSafe();
+                    if (!Array.isArray(drivers)) drivers = [];
+
+                    driverNames = {};
+                    drivers.forEach(d => {
+                        driverNames[d.driver_number] = d.last_name;
+                    });
+
+                    if (!driverSelect) return;
+
+                    if (drivers.length === 0) {
+                        driverSelect.innerHTML = '<option value="">No drivers</option>';
+                    } else {
+                        drivers.sort((a, b) => a.driver_number - b.driver_number);
+                        driverSelect.innerHTML =
+                            '<option value="" selected disabled>Select Driver...</option>' +
+                            drivers.map(d =>
+                                `<option value="${d.driver_number}">#${d.driver_number} - ${d.last_name}</option>`
+                            ).join('');
+                    }
+
+                    // When the user changes driver, we load laps
+                    driverSelect.onchange = loadLaps;
+
+                    // Clear lap list so stale content isn’t shown
+                    document.getElementById('lap-selector').innerHTML =
+                        '<div style="padding: 10px; color: #888;">Select a driver to view laps...</div>';
+
+                } catch (err) {
+                    console.error('Error loading drivers:', err);
+                    if (driverSelect) {
+                        driverSelect.innerHTML = '<option value="">Error loading drivers</option>';
+                    }
+                } finally {
+                    driversRequestPromise = null;
+                }
+            })();
+
+            await driversRequestPromise;
         }
 
 
@@ -1387,71 +1459,109 @@
             });
         }
 
+        // ======================================================================
+        // async function fetchLapData (Complete & Corrected Version)
+        // Fetches and processes all data for a single lap for a given slot.
+        // ======================================================================
         async function fetchLapData(start, end, lapObj) {
-            if (!start || start === 'null') return updateStatus("Invalid Start Time", "error");
+            if (!start || start === 'null' || !lapObj) {
+                updateStatus("Invalid Lap Object or Start Time", "error");
+                console.error("fetchLapData received invalid arguments:", { start, end, lapObj });
+                // Ensure UI is not stuck if called with bad data
+                if (activeSlot) {
+                    document.getElementById(`weather-${activeSlot}`).innerHTML = "<div class='status error'>Invalid data.</div>";
+                    document.getElementById(`${activeSlot}-label`).innerHTML = "Slot: Invalid Lap";
+                    updateCharts();
+                    updateRadioLog();
+                }
+                return;
+            }
 
-            const sessionKey = document.getElementById('session-select').value;
+            // Use lapObj's session_key if available, otherwise fallback to UI selected session
+            const sessionKey = lapObj.session_key || document.getElementById('session-select').value;
+            if (!sessionKey || sessionKey === 'Session') {
+                updateStatus("Missing session key for telemetry request", "error");
+                console.error("fetchLapData: Missing session key.");
+                // Ensure UI is not stuck
+                if (activeSlot) {
+                    document.getElementById(`weather-${activeSlot}`).innerHTML = "<div class='status error'>No session.</div>";
+                    document.getElementById(`${activeSlot}-label`).innerHTML = "Slot: No Session";
+                    updateCharts();
+                    updateRadioLog();
+                }
+                return;
+            }
+
             const driverNum = lapObj.driver_number;
-            const driverName = driverNames[driverNum] || "Unknown";
-            const lapStart = new Date(lapObj.date_start).getTime();
-            const lapEnd = lapObj.date_end ? new Date(lapObj.date_end).getTime() : lapStart + (lapObj.lap_duration * 1000);
-            const queryEndTime = new Date(lapEnd + 300000).toISOString();
-            const filter = `session_key=${sessionKey}&driver_number=${driverNum}&date>=${encodeURIComponent(start)}&date<=${encodeURIComponent(queryEndTime)}`;
+            // Ensure driverNames is populated (usually by loadDrivers before fetchLapData is called)
+            const driverName = driverNames[driverNum] || `Driver ${driverNum}`;
+            const lapStartTimestamp = new Date(lapObj.date_start).getTime();
+
+            // Robustly determine lap end time for query filters
+            // If lapObj.date_end is null (e.g., current lap), use lap_duration
+            const lapEndTimestamp = lapObj.date_end
+                ? new Date(lapObj.date_end).getTime()
+                : lapStartTimestamp + (lapObj.lap_duration * 1000);
+
+            const lapEndISO = new Date(lapEndTimestamp).toISOString(); // For filters
+
+            // Time window for radio, weather, stints - more generous than exact lap start/end
+            const radioWindowStart = new Date(lapStartTimestamp - (45 * 1000)); // 45 seconds before lap start
+            const radioWindowEnd = new Date(lapEndTimestamp + (90 * 1000));   // 90 seconds after lap end (more generous to catch radio calls around pit entry/exit, post-lap comms)
+
+            // Ensure times are ISO formatted for API calls
+            const telemetryQueryStart = encodeURIComponent(lapObj.date_start);
+            const telemetryQueryEnd = encodeURIComponent(lapEndISO); // Use the robust end time for telemetry
+            const radioQueryStart = encodeURIComponent(radioWindowStart.toISOString());
+            const radioQueryEnd = encodeURIComponent(radioWindowEnd.toISOString());
+
+            // Construct API filters
+            const commonFilter = `session_key=${sessionKey}&driver_number=${driverNum}`;
+            const telemetryLocationFilter = `${commonFilter}&date>=${telemetryQueryStart}&date<=${telemetryQueryEnd}`;
+            const weatherFilter = `session_key=${sessionKey}&date>=${radioQueryStart}&date<=${radioQueryEnd}`;
+            const stintsFilter = commonFilter; // Stints usually covers the whole session, driver_number is enough.
+            const radioFilter = `${commonFilter}&date>=${radioQueryStart}&date<=${radioQueryEnd}`;
 
             updateStatus(`Loading ${driverName} Lap ${lapObj.lap_number}...`, "info");
 
-            // Helper function to handle fetch with automatic retry on 429 Rate Limit
-            async function fetchSafe(url) {
-                const response = await fetch(url);
-                if (response.status === 429) {
-                    console.warn(`Rate limit hit for: ${url}. Retrying in 1s...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    return fetchSafe(url); // Recursive retry
-                }
-                return response.json();
-            }
-
             try {
-                // --- BATCH 1: Heavy Data (Map and Charts) ---
-                // We load these first so the visuals appear quickly.
-                const [rawTel, rawLoc] = await Promise.all([
-                    fetchSafe(`${API_BASE}/car_data?${filter}`),
-                    fetchSafe(`${API_BASE}/location?${filter}`)
-                ]);
+                // --- Fetch data sequentially to minimize burst API requests for a single lap ---
+                const rawTel = await fetchSafe(`${API_BASE}/car_data?${telemetryLocationFilter}`);
+                await delay(300); // Small pause for API friendliness
+                const rawLoc = await fetchSafe(`${API_BASE}/location?${telemetryLocationFilter}`); // Use same filter for location
+                await delay(300);
+                const weatherData = await fetchSafe(`${API_BASE}/weather?${weatherFilter}`);
+                await delay(300);
+                const stintData = await fetchSafe(`${API_BASE}/stints?${stintsFilter}`);
+                await delay(300);
+                const slotSpecificRadioData = await fetchSafe(`${API_BASE}/team_radio?${radioFilter}`);
 
-                // --- STAGGER: Wait 500ms to let the API "breath" ---
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // --- Data Processing ---
 
-                // --- BATCH 2: Metadata (Weather and Tires) ---
-                const [weatherData, stintData] = await Promise.all([
-                    fetchSafe(`${API_BASE}/weather?session_key=${sessionKey}&date>=${encodeURIComponent(start)}&date<=${encodeURIComponent(queryEndTime)}`),
-                    fetchSafe(`${API_BASE}/stints?session_key=${sessionKey}&driver_number=${driverNum}`)
-                ]);
-
-                // 1. Process Telemetry & Location
+                // 1. Process Telemetry & Location (filter to exact lap boundaries)
                 const trimmedTel = Array.isArray(rawTel) ? rawTel.filter(d => {
                     const time = new Date(d.date).getTime();
-                    return time >= lapStart && time <= lapEnd;
+                    return time >= lapStartTimestamp && time <= lapEndTimestamp;
                 }) : [];
 
                 const trimmedLoc = Array.isArray(rawLoc) ? rawLoc.filter(l => {
                     const time = new Date(l.date).getTime();
-                    return time >= lapStart && time <= lapEnd;
+                    return time >= lapStartTimestamp && time <= lapEndTimestamp;
                 }) : [];
 
                 // 2. Determine Tire Compound
                 let tireCompound = "UNK";
                 if (Array.isArray(stintData)) {
                     const currentStint = stintData.find(s =>
-                        lapObj.lap_number >= s.lap_start && (s.lap_end === null || lapObj.lap_number <= s.lap_end)
+                        lapObj.lap_number >= s.lap_start && (s.lap_end === null || lapObj.lap_end == null || lapObj.lap_number <= s.lap_end)
                     );
                     if (currentStint) tireCompound = currentStint.compound.toUpperCase();
                 }
 
-                // 3. Advanced Track Condition Engine
+                // 3. Advanced Track Condition Engine (Your existing logic)
                 let weatherHtml = "No Data";
                 if (Array.isArray(weatherData) && weatherData.length > 0) {
-                    const w = weatherData[0];
+                    const w = weatherData[0]; // Assuming weather data is for the whole lap/session
                     let trackState = "DRY";
                     let stateClass = "cond-dry";
                     let icon = "☀️";
@@ -1465,29 +1575,30 @@
                     else if (isMediumHumidity) { trackState = "DRYING / IMPROVING"; stateClass = "cond-drying"; icon = "🌤️"; }
                     else { trackState = "DRY CONDITIONS"; stateClass = "cond-dry"; icon = "☀️"; }
 
+                    // Helper for wind direction (assuming it's defined globally or locally as needed)
                     const getWindDir = (deg) => {
                         const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
                         return directions[Math.round(deg / 45) % 8];
                     };
 
                     weatherHtml = `
-                                            <div class="weather-details">
-                                                <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
-                                                <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
-                                                <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
-                                                <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
-                                                <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
-                                                <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
-                                                <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
-                                            </div>`;
+                <div class="weather-details">
+                    <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
+                    <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
+                    <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
+                    <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
+                    <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
+                    <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
+                    <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
+                </div>`;
                 }
 
-                // 4. Process Distance
+                // 4. Process Distance, Markers, and Technique Metrics
                 const telWithDist = processTelemetryWithDistance(trimmedTel, lapObj.date_start);
-                const markers = calculateMarkers(telWithDist, start, lapObj);
+                const markers = calculateMarkers(telWithDist, lapObj.date_start, lapObj);
                 const techniqueMetrics = calculateSingleLapTechnique(telWithDist, markers);
 
-                // 5. Snapshot Data
+                // 5. Store all processed data in the loadedData structure for the active slot
                 loadedData[activeSlot] = {
                     telemetry: telWithDist,
                     location: trimmedLoc,
@@ -1497,13 +1608,12 @@
                     tire: tireCompound,
                     markers: markers,
                     technique: techniqueMetrics,
-                    radio: currentDriverRadio.filter(msg => {
-                        const msgTime = new Date(msg.date).getTime();
-                        return msgTime >= (lapStart - 10000) && msgTime <= (lapEnd + 300000);
-                    })
+                    radio: Array.isArray(slotSpecificRadioData) ? slotSpecificRadioData : [] // Assign fetched radio directly
                 };
 
-                // 6. UI UPDATES
+                // ======================================================================
+                // UI Updates (Crucial for user feedback)
+                // ======================================================================
                 document.getElementById(`weather-${activeSlot}`).innerHTML = weatherHtml;
                 const timeStr = lapObj.lap_duration ? formatTime(lapObj.lap_duration) : "Live";
                 const tColor = TIRE_COLORS[tireCompound] || '#aaa';
@@ -1517,9 +1627,78 @@
                 updateStatus("Lap Loaded Successfully", "success");
 
             } catch (e) {
-                console.error("API Fetch Failed:", e);
-                updateStatus("API Error - Try again", "error");
+                console.error("API Fetch Failed in fetchLapData:", e);
+                updateStatus(`Error loading ${driverName} Lap ${lapObj.lap_number}. Please try again.`, "error");
+                // Clear loadedData for this slot if there's a critical error during fetching/processing
+                loadedData[activeSlot] = { telemetry: [], location: [], lap: null, driverName: "", radio: [] };
+                // Update the UI labels to reflect the error/empty state
+                if (activeSlot) {
+                    document.getElementById(`weather-${activeSlot}`).innerHTML = "<div class='status error'>Failed to load data.</div>";
+                    document.getElementById(`${activeSlot}-label`).innerHTML =
+                        `${driverName} (L${lapObj.lap_number}) <span>--:--.---</span> <b style="color:#ff8080; margin-left:8px; font-size:0.85em;">[ERROR]</b>`;
+                }
+                updateCharts(); // Update charts to show empty or error state
+                updateRadioLog(); // Clear radio log for this slot
             }
+        }
+
+        // ======================================================================
+        // Global Helper Function: fetchSafe (REVISED with Timeout & clearer retry for AbortError)
+        // Handles API rate limiting (429) retries, graceful 404 handling, and fetch timeouts.
+        // This should be defined once at a global scope or near the top of your script.
+        // ======================================================================
+        async function fetchSafe(url, options = {}, timeout = 10000) { // Default timeout of 10 seconds
+            let retries = 2; // Number of retries for 429 errors or timeouts (initial attempt + 2 retries)
+            while (retries >= 0) { // Loop for initial attempt and retries
+                const controller = new AbortController();
+                const id = setTimeout(() => {
+                    if (!controller.signal.aborted) { // Only abort if not already completed/failed
+                        controller.abort();
+                    }
+                }, timeout); // Set timeout
+
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal // Link the AbortController to the fetch request
+                    });
+                    clearTimeout(id); // Clear the timeout as fetch completed
+
+                    if (response.status === 429) {
+                        console.warn(`Rate limit hit for: ${url}. Retrying in 1s (${retries} left)...`);
+                        await delay(1000 + Math.random() * 500); // Wait 1-1.5 seconds with jitter
+                        retries--;
+                        continue; // Try again
+                    }
+                    if (response.status === 404) {
+                        console.warn(`Resource not found for ${url} (404). Returning empty array.`);
+                        return []; // Return empty array for 404s
+                    }
+                    if (!response.ok) {
+                        console.error(`Fetch failed for ${url}: ${response.status} ${response.statusText}. Returning empty array.`);
+                        return []; // Return empty array for other non-OK responses
+                    }
+                    return response.json();
+                } catch (error) {
+                    clearTimeout(id); // Clear timeout even if there's an error
+                    if (error.name === 'AbortError') {
+                        console.warn(`Fetch for ${url} timed out after ${timeout}ms.`);
+                        if (retries > 0) {
+                            console.warn(`Retrying fetch for ${url} due to timeout...`);
+                            await delay(1000 + Math.random() * 500); // Standard retry delay with jitter
+                            retries--;
+                            continue; // Try again
+                        } else {
+                            console.error(`Fetch for ${url} failed after multiple timeouts. Returning empty array.`);
+                            return [];
+                        }
+                    }
+                    console.error(`Network error fetching ${url}:`, error);
+                    return []; // Return empty array for any other network errors
+                }
+            }
+            console.error(`Failed to fetch ${url} after all retries due to rate limiting or timeouts. Returning empty array.`);
+            return []; // Final fallback if all retries fail
         }
 
         /**
@@ -1763,8 +1942,83 @@
                 }
             });
 
+            charts.technique = new Chart(document.getElementById('technique-chart'), {
+                type: 'line',
+                data: {
+                    datasets: [
+                        // Ensure these match your 4-3-2-1 lane logic in updateCharts
+                        { label: 'S1 Coasting', data: [], borderColor: '#ffc107', fill: false, borderWidth: 2, stepped: 'before', pointRadius: 0, z: 1 },
+                        { label: 'S1 Overlap', data: [], borderColor: '#e10600', fill: false, borderWidth: 2, stepped: 'before', pointRadius: 0, z: 1 },
+                        { label: 'S2 Coasting', data: [], borderColor: '#b15be0', backgroundColor: 'rgba(177, 91, 224, 0.4)', fill: true, stepped: 'before', pointRadius: 0, z: 10 },
+                        { label: 'S2 Overlap', data: [], borderColor: '#00d2be', backgroundColor: 'rgba(0, 210, 190, 0.4)', fill: true, stepped: 'before', pointRadius: 0, z: 10 }
+                    ]
+                },
+                options: {
+                    ...commonOptions, // Inherit base logic
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Technique Analysis (Coasting & Overlap)',
+                            color: '#eee',
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#eee', // Changed from '#ccc'
+                                boxWidth: 10,  // Changed from 12
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            titleColor: '#ffc107',
+                            filter: function (tooltipItem) {
+                                return tooltipItem && tooltipItem.parsed && tooltipItem.parsed.y > 0;
+                            },
+                            callbacks: {
+                                title: (context) => {
+                                    if (!context || context.length === 0 || !context[0].parsed) return '';
+                                    return `Distance: ${context[0].parsed.x.toFixed(1)} m`;
+                                },
+                                label: (context) => {
+                                    if (!context || !context.dataset) return '';
+                                    return `${context.dataset.label}: ACTIVE`;
+                                },
+                                labelColor: function (context) {
+                                    const color = context.dataset.borderColor || '#fff';
+                                    return {
+                                        borderColor: color,
+                                        backgroundColor: color,
+                                        borderWidth: 2
+                                    };
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            min: 0,
+                            max: 5,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: {
+                                stepSize: 1,
+                                callback: function (value) {
+                                    const labels = { 4: 'S1 CST', 3: 'S1 OVL', 2: 'S2 CST', 1: 'S2 OVL' };
+                                    return labels[value] || '';
+                                },
+                                color: '#888',
+                            }
+                        }
+                    }
+                }
+            });
 
-            // Inside initCharts() - Update the charts.map definition
             charts.map = new Chart(document.getElementById('track-map-chart'), {
                 type: 'line',
                 data: {
@@ -1929,6 +2183,33 @@
                 charts.delta.update();
             }
 
+            const getTechniqueData = (tel, coastY, overlapY) => {
+                const coast = [];
+                const overlap = [];
+                tel.forEach(d => {
+                    coast.push({ x: d.distance, y: (d.throttle === 0 && d.brake === 0) ? coastY : 0 });
+                    overlap.push({ x: d.distance, y: (d.throttle > 5 && d.brake > 5) ? overlapY : 0 });
+                });
+                return { coast, overlap };
+            };
+
+            const t1 = getTechniqueData(s1, 4, 3); // S1 Coast = 4, S1 Overlap = 3
+            const t2 = getTechniqueData(s2, 2, 1); // S2 Coast = 2, S2 Overlap = 1
+
+            // Map to the reordered datasets
+            charts.technique.data.datasets[0].data = t1.coast;   // Lane 4
+            charts.technique.data.datasets[1].data = t1.overlap; // Lane 3
+            charts.technique.data.datasets[2].data = t2.coast;   // Lane 2
+            charts.technique.data.datasets[3].data = t2.overlap; // Lane 1
+
+
+            // Sync zoom state from the speed chart (maintains sector zoom)
+            charts.technique.options.scales.x.min = charts.speed.options.scales.x.min;
+            charts.technique.options.scales.x.max = charts.speed.options.scales.x.max;
+
+            // Final update (Only need one)
+            charts.technique.update();
+
             charts.map.update();
         }
 
@@ -1970,12 +2251,13 @@
             if (sectorNum === 1) { min = 0; max = ref.s1; }
             else if (sectorNum === 2) { min = ref.s1; max = ref.s2; }
             else if (sectorNum === 3) { min = ref.s2; max = ref.total; }
-            // if sectorNum is 0, it stays as 0 to ref.total
 
-            [charts.speed, charts.inputs, charts.gearRpm, charts.delta].forEach(chart => {
-                chart.options.scales.x.min = min;
-                chart.options.scales.x.max = max;
-                chart.update();
+            [charts.speed, charts.inputs, charts.gearRpm, charts.delta, charts.technique].forEach(chart => {
+                if (chart) {
+                    chart.options.scales.x.min = min;
+                    chart.options.scales.x.max = max;
+                    chart.update();
+                }
             });
 
             syncMapToRange(min, max);
@@ -2154,7 +2436,9 @@
         async function loadPaceSessions() {
             try {
                 const meetingKey = document.getElementById('meeting-select').value;
-                if (!meetingKey) return;
+                if (!meetingKey || meetingKey === 'GP...') {
+                    return; // avoid /sessions?meeting_key=GP...
+                }
 
                 const response = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
 
@@ -4432,12 +4716,179 @@
             }, 200);
         }
 
+        function copyShareLink() {
+            const session = document.getElementById('session-select').value;
+            if (!session || session === "Session") {
+                alert("Please load a session first.");
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set('session', session);
+
+            // Slot 1 Data
+            if (loadedData.ref.lap) {
+                params.set('d1', loadedData.ref.lap.driver_number);
+                params.set('l1', loadedData.ref.lap.lap_number);
+            }
+
+            // Slot 2 Data
+            if (loadedData.comp.lap) {
+                params.set('d2', loadedData.comp.lap.driver_number);
+                params.set('l2', loadedData.comp.lap.lap_number);
+            }
+
+            const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                updateStatus("Link copied to clipboard!", "success");
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        async function loadFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const sessionKey = params.get('session');
+            if (!sessionKey) return;
+
+            updateStatus("Configuring shared session...", "info");
+
+            // 1. Fetch the specific session details first (this is already in your code)
+            const sessionInfoRes = await fetch(`${API_BASE}/sessions?session_key=${sessionKey}`);
+            let sessionDetails = await sessionInfoRes.json();
+
+            let info = null;
+            if (Array.isArray(sessionDetails) && sessionDetails.length > 0) {
+                info = sessionDetails[0];
+            } else if (sessionDetails && typeof sessionDetails === 'object') {
+                info = sessionDetails;
+            }
+
+            if (!info) {
+                updateStatus("Shared session not found or API error fetching details.", "error");
+                return;
+            }
+
+            // 2. Set the year
+            const yearSelect = document.getElementById('year-select');
+            const sessionYear = info.year || (info.date_start ? new Date(info.date_start).getFullYear() : null);
+            if (sessionYear && yearSelect) {
+                yearSelect.value = String(sessionYear);
+                // Call loadMeetings to populate meetings for the selected year.
+                // This will in turn call loadSessions, which might still be rate-limited.
+                await loadMeetings();
+            }
+
+            // 3. Set the meeting dropdown, adding it if missing
+            const meetingSelect = document.getElementById('meeting-select');
+            if (meetingSelect && info.meeting_key != null) {
+                let hasMeeting = Array.from(meetingSelect.options)
+                    .some(o => String(o.value) === String(info.meeting_key));
+
+                if (!hasMeeting) {
+                    console.warn(`Meeting key ${info.meeting_key} not found in dropdown options, adding it.`);
+                    const option = document.createElement('option');
+                    option.value = info.meeting_key;
+                    option.textContent = info.meeting_name; // Use the meeting_name from the specific session info
+                    meetingSelect.appendChild(option);
+                }
+                meetingSelect.value = String(info.meeting_key);
+                // Ensure sessions for this meeting are loaded, even if previously failed.
+                // This call might also be rate-limited, but we handle the target session below.
+                await loadSessions();
+            }
+
+
+            // 4. Ensure the target session is in the session dropdown and select it
+            const sessionSelect = document.getElementById('session-select');
+            if (sessionSelect) {
+                const hasSession = Array.from(sessionSelect.options)
+                    .some(o => String(o.value) === String(sessionKey));
+
+                if (!hasSession) {
+                    console.warn(`Session key ${sessionKey} not found in dropdown options, adding it manually.`);
+                    const option = document.createElement('option');
+                    option.value = sessionKey;
+                    option.textContent = info.session_name; // Use the session_name from the initial fetch
+                    sessionSelect.appendChild(option);
+                }
+                sessionSelect.value = String(sessionKey); // Now it should successfully select the option
+            }
+
+            // ... (rest of your loadFromURL function for loading drivers and laps)
+            // 4. Populate the driver dropdown so driverNames are available
+            await loadDrivers();
+
+            // Helper to fetch a specific lap for a driver and push it into a slot
+            async function fetchSpecificLap(driverNum, lapNum, slot) {
+                const url = `${API_BASE}/laps?session_key=${sessionKey}&driver_number=${driverNum}&lap_number=${lapNum}`;
+                const res = await fetch(url);
+                if (res.status === 429) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    return fetchSpecificLap(driverNum, lapNum, slot);
+                }
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    setActiveSlot(slot);
+                    await fetchLapData(data[0].date_start, data[0].date_end, data[0]);
+                    return true;
+                }
+                return false;
+            }
+
+            // 5. Load Slot 1 (and sync the main driver dropdown so the lap list + radio populate)
+            if (params.get('d1') && params.get('l1')) {
+                const d1 = params.get('d1');
+                const success = await fetchSpecificLap(d1, params.get('l1'), 'ref');
+
+                if (success) {
+                    const driverSelect = document.getElementById('driver-select');
+                    if (driverSelect) {
+                        driverSelect.value = d1;
+                    }
+                    await loadLaps(); // builds sidebar lap list & caches radio/flags
+                }
+                await new Promise(r => setTimeout(r, 1000)); // small spacing before slot 2
+            }
+
+            // 6. Load Slot 2
+            if (params.get('d2') && params.get('l2')) {
+                await fetchSpecificLap(params.get('d2'), params.get('l2'), 'comp');
+            }
+
+            updateStatus("Shared configuration loaded!", "success");
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        async function initAPI(options = {}) {
+            const { skipInitialLoad = false } = options;
+
+            document.getElementById('year-select')
+                .addEventListener('change', loadMeetings);
+
+            if (!skipInitialLoad) {
+                await loadMeetings();   // only for normal use, not shared URLs
+            }
+        }
+
         // Update your existing DOMContentLoaded listener:
-        document.addEventListener('DOMContentLoaded', () => {
-            checkFirstVisit(); // Add this line
-            initAPI();
+        document.addEventListener('DOMContentLoaded', async () => {
+            checkFirstVisit();
             initCharts();
             initPaceAnalysisUI();
+
+            const params = new URLSearchParams(window.location.search);
+            const hasSharedSession = params.get('session');
+
+            if (hasSharedSession) {
+                // Do NOT auto-load default year/meetings; let loadFromURL drive everything.
+                await initAPI({ skipInitialLoad: true });
+                await loadFromURL();
+            } else {
+                // Normal interactive flow
+                await initAPI();
+            }
         });
 
 
@@ -4512,13 +4963,13 @@
         <!-- Fixed height body prevents vertical "pulling" of text -->
         <div id="snap-body" style="display: flex; gap: 20px; height: 500px; align-items: stretch; flex-shrink: 0;">
             <!-- Map Slot -->
-            <div id="snap-map-slot" style="width: 350px; background: #111; border-radius: 8px; position: relative; border: 1px solid #333; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px;">
+            <div id="snap-map-slot" style="width: 350px; background: #111; border-radius: 8px; position: relative; border: 1px solid #333; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px 10px 70px 10px;">
                 <p style="position: absolute; top: 15px; left: 15px; margin: 0; font-size: 12px; color: #555; z-index: 5;">MAP</p>
                 <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 4px; border: 1px solid #444; z-index: 5; display: flex; flex-direction: column; gap: 5px;">
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #e10600;"></span><span style="color: #eee;">S1 Faster</span></div>
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;"><span style="width: 10px; height: 10px; border-radius: 50%; background: #00d2be;"></span><span style="color: #eee;">S2 Faster</span></div>
-                  </div>
                 </div>
+            </div>
 
                 <!-- Chart Slot: Added padding and box-sizing to protect labels -->
                 <div id="snap-chart-slot" style="flex: 1; background: #2a2a2a; border-radius: 8px; position: relative; border: 1px solid #333; display: flex; align-items: center; justify-content: center; padding: 25px; box-sizing: border-box;">
