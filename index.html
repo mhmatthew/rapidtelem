@@ -474,6 +474,22 @@
                 color: black;
             }
 
+        button.demo-button {
+            background: #000;
+            color: #fff;
+            border: 1px solid #e10600;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            box-shadow: 0 0 8px rgba(225, 6, 0, 0.4);
+            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+        }
+
+            button.demo-button:hover {
+                background: #150000;
+                box-shadow: 0 0 14px rgba(225, 6, 0, 0.7);
+                transform: translateY(-1px);
+            }
 
         /* Container for the modal elements */
         .modal-chart-container {
@@ -5134,6 +5150,14 @@
             }
         }
 
+        function loadDemoSession() {
+            // Optional: mark as visited so the welcome modal doesn’t appear again
+            localStorage.setItem('hasVisitedRapidTelemetry', 'true');
+
+            // Navigate to your preconfigured comparison
+            window.location.href = 'https://rapidtelem.com/?session=11291&d1=3&l1=68&d2=44&l2=68';
+        }
+
         // Update your existing DOMContentLoaded listener:
         document.addEventListener('DOMContentLoaded', async () => {
             checkFirstVisit();
@@ -5175,7 +5199,28 @@
                     <div><strong>4. Explore:</strong> Hover over charts to see the track position move, or use <strong>Pace Analysis</strong> for full race insights.</div>
                 </div>
 
-                <button class="btn-primary" onclick="closeWelcomeModal()" style="width: 100%; padding: 12px; font-size: 1.1em; margin-bottom: 15px;">Start Analyzing</button>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+                    <!-- Primary: normal flow -->
+                    <button class="btn-primary"
+                            onclick="closeWelcomeModal()"
+                            style="width: 100%; padding: 12px; font-size: 1.05em;">
+                        Start Analyzing
+                    </button>
+
+                    <!-- Divider -->
+                    <div style="display:flex; align-items:center; gap:8px; color:#777; font-size:0.75em;">
+                        <div style="flex:1; height:1px; background:#333;"></div>
+                        <span>or</span>
+                        <div style="flex:1; height:1px; background:#333;"></div>
+                    </div>
+
+                    <!-- Secondary: demo button -->
+                    <button class="demo-button"
+                            onclick="loadDemoSession()"
+                            style="width: 100%; padding: 10px; font-size: 0.95em;">
+                        ▶ Load Demo: VER vs HAM – Canada 2026 (Last Lap)
+                    </button>
+                </div>
 
                 <!-- Disclaimer added here -->
                 <div style="font-size: 0.7em; color: #888; border-top: 1px solid #333; padding-top: 15px; line-height: 1.4;">
