@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1064,10 +1062,10 @@
                     <div style="display: flex; gap: 2px; flex: 1;">
                         <button class="btn-secondary" id="btnToggleTimeline" onclick="toggleTimelineVisibility()">Timeline</button>
                         <button class="btn-secondary" id="btnFullTimeline" onclick="toggleTimelineFocus()">Full View</button>
+                        <!-- NEW WEATHER BUTTON -->
+                        <button class="btn-secondary" id="btnToggleWeather" onclick="toggleWeatherVisibility()">Weather</button>
                     </div>
-                    <!-- NEW EXPORT BUTTON -->
                     <button class="btn-analysis" style="border-color: #28a745; color: #28a745;" onclick="exportModalReport()">📸 Export Report</button>
-
                     <button class="btn-analysis" onclick="showDrivingReport()">📊 Driving Report</button>
                     <button class="btn-analysis" onclick="showSessionResults()">🏁 Session Results</button>
                 </div>
@@ -1111,6 +1109,16 @@
                     </div>
 
                     <canvas id="raceTimelineChart"></canvas>
+                </div>
+
+                <!-- THE WEATHER WRAPPER -->
+                <div id="weatherWrapper" style="height: 200px; flex-shrink: 0; margin-bottom: 10px; position: relative; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 0.75em; color: var(--accent-color); font-weight: bold; text-transform: uppercase;">
+                            Session Weather Data
+                        </span>
+                    </div>
+                    <canvas id="weatherChart"></canvas>
                 </div>
 
                 <canvas id="paceAnalysisChart"></canvas>
@@ -1167,7 +1175,32 @@
         let lastDriversSessionKey = null;
         let driversRequestPromise = null;
 
+        let weatherChartInstance = null;
+        let isWeatherVisible = false;
+        let sessionWeatherData = []; // Cache weather data for the session
+
+        let isTimelineVisible = false; // Changed from true to false
+        let isTimelineFull = false;
+
         const API_BASE = 'https://api.openf1.org/v1';
+
+        function getWindDir(deg) {
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return directions[Math.round(deg / 45) % 8];
+        }
+
+        function getConditionState(w) {
+            // Exact logic from your sidebar
+            const isRaining = w.rainfall === 1;
+            const isHighHumidity = w.humidity >= 85;
+            const isMediumHumidity = w.humidity >= 70;
+            const isCoolTrack = w.track_temperature < 27;
+
+            if (isRaining) return { label: "WET", color: "rgba(0, 80, 255, 0.7)" };
+            if (isHighHumidity || (isMediumHumidity && isCoolTrack)) return { label: "DAMP", color: "rgba(0, 200, 255, 0.5)" };
+            if (isMediumHumidity) return { label: "DRYING", color: "rgba(0, 255, 150, 0.5)" };
+            return { label: "DRY", color: "rgba(255, 255, 255, 0.1)" };
+        }
 
         // Tire compound colors - changed from 0.25 opacity to 1.0 (Bold/Solid)
         const TIRE_COLORS = {
@@ -1360,6 +1393,7 @@
             document.getElementById('session-select').onchange = () => {
                 loadDrivers();
                 fetchSessionRaceControl();
+                sessionWeatherData = [];
             };
             loadDrivers();
         }
@@ -1606,12 +1640,6 @@
                     else if (isHighHumidity || (isMediumHumidity && isCoolTrack)) { trackState = "DAMP / WET SURFACE"; stateClass = "cond-damp"; icon = "💧"; }
                     else if (isMediumHumidity) { trackState = "DRYING / IMPROVING"; stateClass = "cond-drying"; icon = "🌤️"; }
                     else { trackState = "DRY CONDITIONS"; stateClass = "cond-dry"; icon = "☀️"; }
-
-                    // Helper for wind direction (assuming it's defined globally or locally as needed)
-                    const getWindDir = (deg) => {
-                        const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-                        return directions[Math.round(deg / 45) % 8];
-                    };
 
                     weatherHtml = `
                     <div class="weather-details">
@@ -2497,6 +2525,12 @@
                 if (sessionKey) {
                     await loadPaceDrivers(sessionKey);
                     clearPaceChart();
+
+                    sessionWeatherData = [];
+                    if (weatherChartInstance) {
+                        weatherChartInstance.destroy();
+                        weatherChartInstance = null;
+                    }
                 }
             });
         }
@@ -2948,6 +2982,15 @@
             const tireLegendEl = document.getElementById('tireLegend');
             const sessionResultsWrapper = document.getElementById('sessionResultsWrapper');
             const drivingReportWrapper = document.getElementById('drivingReportWrapper');
+
+            const weatherWrapper = document.getElementById('weatherWrapper');
+            if (weatherWrapper) weatherWrapper.style.display = 'none';
+            isWeatherVisible = false;
+            const btnWeather = document.getElementById('btnToggleWeather');
+            if (btnWeather) {
+                btnWeather.innerText = 'Weather';
+                btnWeather.style.backgroundColor = 'var(--primary-color)';
+            }
 
             if (paceAnalysisChartCanvas) paceAnalysisChartCanvas.style.display = 'block';
             if (tireLegendEl) tireLegendEl.style.display = 'flex';
@@ -3995,7 +4038,29 @@
                 insights.push(`${driver2.last_name} gained an advantage by pitting during tactical windows at ${details}.`);
             }
 
-            // --- 2. COMPOUND PERFORMANCE (Using Clean Laps) ---
+            // --- 2. THERMAL SENSITIVITY (Weather Analysis) ---
+            if (sessionWeatherData && sessionWeatherData.length > 5 && cleanLaps1.length > 10 && cleanLaps2.length > 10) {
+                const tempStart = sessionWeatherData[0].track_temperature;
+                const tempEnd = sessionWeatherData[sessionWeatherData.length - 1].track_temperature;
+                const tempDelta = tempEnd - tempStart;
+
+                if (Math.abs(tempDelta) > 3) {
+                    const trend = tempDelta > 0 ? "rising" : "falling";
+
+                    // Compare pace delta between first 5 and last 5 clean laps
+                    const d1Delta = (cleanLaps1.slice(-5).reduce((a, b) => a + b.lap_duration, 0) / 5) -
+                        (cleanLaps1.slice(0, 5).reduce((a, b) => a + b.lap_duration, 0) / 5);
+                    const d2Delta = (cleanLaps2.slice(-5).reduce((a, b) => a + b.lap_duration, 0) / 5) -
+                        (cleanLaps2.slice(0, 5).reduce((a, b) => a + b.lap_duration, 0) / 5);
+
+                    if (Math.abs(d1Delta - d2Delta) > 0.4) {
+                        const stronger = d1Delta < d2Delta ? driver1.last_name : driver2.last_name;
+                        insights.push(`With track temperatures ${trend} by ${Math.abs(tempDelta).toFixed(1)}°C, ${stronger} demonstrated superior thermal adaptation, maintaining a more stable pace profile than their rival.`);
+                    }
+                }
+            }
+
+            // --- 3. COMPOUND PERFORMANCE (Using Clean Laps) ---
             const getTireAverages = (laps) => {
                 const dict = {};
                 laps.forEach(l => {
@@ -4027,8 +4092,8 @@
                 }
             });
 
-            // --- 3. DEGRADATION (Using Clean Data) ---
-            if (metrics1 && metrics2) {  // metrics1 & metrics2 should be passed in or recalculated with clean laps
+            // --- 4. DEGRADATION (Using Clean Data) ---
+            if (metrics1 && metrics2) {
                 const deg1 = metrics1.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics1.stintStats.length;
                 const deg2 = metrics2.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics2.stintStats.length;
 
@@ -4038,7 +4103,7 @@
                 }
             }
 
-            // --- 4. TECHNIQUE INSIGHTS (Only if telemetry is available) ---
+            // --- 5. TECHNIQUE INSIGHTS (Only if telemetry is available) ---
             if (metrics1?.technique?.telemetryAvailable && metrics2?.technique?.telemetryAvailable) {
                 const oDiff = Math.abs(parseFloat(metrics1.technique.overlap.total) - parseFloat(metrics2.technique.overlap.total));
                 if (oDiff > 0.4) {
@@ -4048,7 +4113,7 @@
                 }
             }
 
-            // --- 5. PIT EFFICIENCY ---
+            // --- 6. PIT EFFICIENCY ---
             if (metrics1?.recoveryStats?.averageTotalLoss != null && metrics2?.recoveryStats?.averageTotalLoss != null) {
                 const pitDiff = Math.abs(metrics1.recoveryStats.averageTotalLoss - metrics2.recoveryStats.averageTotalLoss);
                 if (pitDiff > 1.0) {
@@ -4062,7 +4127,6 @@
                 ? insights.join(" ")
                 : "Both drivers followed very similar strategies with comparable pace and execution.";
         }
-
 
         function createStintTable(metrics1, metrics2, driver1, driver2) {
             // Simple table showing stint degradation
@@ -4096,10 +4160,26 @@
             if (!m1 || !m2) return "Insufficient data for comparison.";
 
             const bounds = getSessionBoundaries();
-
             let insights = [];
 
-            // --- 1. BASELINE PACE ---
+            // --- 1. ENVIRONMENTAL CONTEXT (Weather Analysis) ---
+            if (sessionWeatherData && sessionWeatherData.length > 0) {
+                const avgTrackTemp = sessionWeatherData.reduce((a, b) => a + b.track_temperature, 0) / sessionWeatherData.length;
+                const hasRain = sessionWeatherData.some(w => w.rainfall === 1);
+                const peakWind = Math.max(...sessionWeatherData.map(w => w.wind_speed * 3.6));
+
+                if (hasRain) {
+                    insights.push(`The session was defined by variable track conditions due to rainfall, shifting the performance advantage toward adaptive driving consistency.`);
+                } else if (avgTrackTemp > 45) {
+                    insights.push(`Extreme track temperatures (${avgTrackTemp.toFixed(1)}°C) placed a critical premium on thermal tire management and surface cooling.`);
+                }
+
+                if (peakWind > 25) {
+                    insights.push(`Significant wind gusts (peak ${peakWind.toFixed(0)} km/h) likely impacted aerodynamic stability, particularly through the high-speed sectors.`);
+                }
+            }
+
+            // --- 2. BASELINE PACE ---
             const avgDiff = Math.abs(m1.averageLap - m2.averageLap);
             if (avgDiff <= 0.05) {
                 insights.push("Both drivers demonstrated nearly identical baseline pace throughout the session.");
@@ -4108,14 +4188,14 @@
                 insights.push(`${fasterDriver} demonstrated superior sustained pace, holding an average advantage of ${avgDiff.toFixed(3)}s per lap across the analyzed stints.`);
             }
 
-            // --- 2. PEAK PERFORMANCE (PB) ---
+            // --- 3. PEAK PERFORMANCE (PB) ---
             if (Math.abs(m1.fastestLap - m2.fastestLap) > 0.05) {
                 const fastestDiff = Math.abs(m1.fastestLap - m2.fastestLap);
                 const fastestDriver = m1.fastestLap < m2.fastestLap ? d1.last_name : d2.last_name;
                 insights.push(`${fastestDriver} set the ultimate benchmark for the session, outpacing their rival's personal best by ${fastestDiff.toFixed(3)}s.`);
             }
 
-            // --- 3. INPUT TECHNIQUE: TRANSITIONS ---
+            // --- 4. INPUT TECHNIQUE: TRANSITIONS ---
             if (m1.technique.telemetryAvailable && m2.technique.telemetryAvailable) {
                 const tDiff = parseFloat(m1.technique.transitions.avgTotal) - parseFloat(m2.technique.transitions.avgTotal);
                 if (Math.abs(tDiff) > 0.04) {
@@ -4123,14 +4203,14 @@
                     insights.push(`${faster} was notably more aggressive on corner exit, reaching 100% throttle ${Math.abs(tDiff).toFixed(3)}s sooner after releasing the brake.`);
                 }
 
-                // --- 4. INPUT TECHNIQUE: OVERLAP (THE STABILIZATION & REGEN DUALITY) ---
+                // --- 5. INPUT TECHNIQUE: OVERLAP (THE STABILIZATION & REGEN DUALITY) ---
                 const oDiff = parseFloat(m1.technique.overlap.total) - parseFloat(m2.technique.overlap.total);
                 if (Math.abs(oDiff) > 0.3) {
                     const moreOverlap = oDiff > 0 ? d1.last_name : d2.last_name;
                     insights.push(`${moreOverlap} utilized significantly more brake/throttle overlap; while this can be used to stabilize car pitch into corners, it is often employed to maximize battery regeneration and ERS harvesting under combined inputs.`);
                 }
 
-                // --- 5. INPUT TECHNIQUE: COASTING ---
+                // --- 6. INPUT TECHNIQUE: COASTING ---
                 const cDiff = parseFloat(m1.technique.coasting.total) - parseFloat(m2.technique.coasting.total);
                 if (Math.abs(cDiff) > 0.4) {
                     const moreCoasting = cDiff > 0 ? d1.last_name : d2.last_name;
@@ -4138,7 +4218,7 @@
                 }
             }
 
-            // --- 6. COMPOUND PERFORMANCE ---
+            // --- 7. COMPOUND PERFORMANCE ---
             if (m1.tireBreakdown && m2.tireBreakdown) {
                 const tires = Object.keys(m1.tireBreakdown);
                 tires.forEach(tire => {
@@ -4154,7 +4234,7 @@
                 });
             }
 
-            // --- 7. TIRE MANAGEMENT ---
+            // --- 8. TIRE MANAGEMENT ---
             if (m1.stintStats?.length > 0 && m2.stintStats?.length > 0) {
                 const deg1 = m1.stintStats.reduce((a, b) => a + b.degradation, 0) / m1.stintStats.length;
                 const deg2 = m2.stintStats.reduce((a, b) => a + b.degradation, 0) / m2.stintStats.length;
@@ -4164,7 +4244,7 @@
                 }
             }
 
-            // --- 8. PIT EFFICIENCY ---
+            // --- 9. PIT EFFICIENCY ---
             if (m1.recoveryStats?.averageTotalLoss != null && m2.recoveryStats?.averageTotalLoss != null) {
                 const pitDiff = Math.abs(m1.recoveryStats.averageTotalLoss - m2.recoveryStats.averageTotalLoss);
                 if (pitDiff > 1.0) {
@@ -4173,7 +4253,7 @@
                 }
             }
 
-            // --- 9. CONSISTENCY ---
+            // --- 10. CONSISTENCY ---
             const consistencyDiff = Math.abs(m1.consistencyScore - m2.consistencyScore);
             if (consistencyDiff > 2.0) {
                 const moreConsistent = m1.consistencyScore > m2.consistencyScore ? d1.last_name : d2.last_name;
@@ -4181,7 +4261,7 @@
             }
 
 
-            // --- 10. INTERVENTION IMPACT ---
+            // --- 11. INTERVENTION IMPACT ---
             const scEvents = sessionRaceControl.filter(m => {
                 const t = m.message.toUpperCase();
                 return t.includes("SAFETY CAR DEPLOYED") || t.includes("VIRTUAL SAFETY CAR DEPLOYED");
@@ -4189,7 +4269,7 @@
 
             if (scEvents.length > 0) {
                 const lastSC = scEvents[scEvents.length - 1];
-                if (lastSC.lap_number > (bounds.laps * 0.7)) { // If SC happened in the last 30% of the race
+                if (lastSC.lap_number > (bounds.laps * 0.7)) {
                     insights.push(`Late-race interventions significantly compressed the field, neutralizing the historical pace advantages built during the earlier green-flag stints and forcing a high-pressure sprint finish.`);
                 } else {
                     insights.push(`Strategic deployment of the Safety Car early in the race provided critical 'cheap' pit windows that disrupted the natural tire-degradation curves.`);
@@ -4361,9 +4441,6 @@
             });
         }
 
-        let isTimelineVisible = false; // Changed from true to false
-        let isTimelineFull = false;
-
         function toggleTimelineVisibility() {
             const wrapper = document.getElementById('timelineWrapper');
             const btn = document.getElementById('btnToggleTimeline');
@@ -4506,6 +4583,21 @@
                     (category === "Flag" && flag === "GREEN" && currentStatus)
                 ) {
                     currentStatus = null;
+                }
+            }
+
+            // --- NEW: Weather Integration ---
+            if (sessionWeatherData && sessionWeatherData.length > 0) {
+                const closestWeather = sessionWeatherData.reduce((prev, curr) => {
+                    const currDiff = Math.abs(new Date(curr.date).getTime() - pitLapStart);
+                    const prevDiff = Math.abs(new Date(prev.date).getTime() - pitLapStart);
+                    return currDiff < prevDiff ? curr : prev;
+                });
+
+                if (closestWeather.rainfall === 1) {
+                    currentStatus = currentStatus ? `${currentStatus} + RAIN` : "RAIN";
+                } else if (closestWeather.humidity > 85 && closestWeather.track_temperature < 25) {
+                    currentStatus = currentStatus ? `${currentStatus} + DAMP TRACK` : "DAMP TRACK";
                 }
             }
 
@@ -5144,6 +5236,203 @@
 
             // Navigate to your preconfigured comparison
             window.location.href = 'https://rapidtelem.com/?session=11291&d1=3&l1=68&d2=44&l2=68';
+        }
+
+        function toggleWeatherVisibility() {
+            const wrapper = document.getElementById('weatherWrapper');
+            const btn = document.getElementById('btnToggleWeather');
+
+            isWeatherVisible = !isWeatherVisible;
+
+            if (isWeatherVisible) {
+                wrapper.style.display = 'block';
+                btn.innerText = 'Hide Weather';
+                btn.style.backgroundColor = '#444';
+
+                // Load and render weather chart if data isn't already loaded
+                if (sessionWeatherData.length === 0) {
+                    loadSessionWeatherData().then(() => renderWeatherChart());
+                } else {
+                    renderWeatherChart();
+                }
+            } else {
+                wrapper.style.display = 'none';
+                btn.innerText = 'Weather';
+                btn.style.backgroundColor = 'var(--primary-color)';
+            }
+        }
+
+        async function loadSessionWeatherData() {
+            const sessionKey = document.getElementById('paceSessionSelect').value;
+            if (!sessionKey) return;
+
+            try {
+                const response = await fetchSafe(`${API_BASE}/weather?session_key=${sessionKey}`);
+                sessionWeatherData = Array.isArray(response) ? response : [];
+                console.log(`Loaded ${sessionWeatherData.length} weather reports for session ${sessionKey}`);
+            } catch (error) {
+                console.error('Error loading session weather data:', error);
+                sessionWeatherData = [];
+            }
+        }
+
+        function formatMinutesToTime(minutes) {
+            if (typeof minutes !== 'number' || isNaN(minutes) || minutes < 0) return '00:00:00';
+            const totalSeconds = Math.round(minutes * 60);
+            const hours = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function renderWeatherChart() {
+            const canvas = document.getElementById('weatherChart');
+            if (!canvas || sessionWeatherData.length === 0) return;
+
+            const ctx = canvas.getContext('2d');
+            if (weatherChartInstance) weatherChartInstance.destroy();
+
+            const startMsg = sessionRaceControl.find(m => (m.message || '').toUpperCase().includes("STARTED"));
+            const sessionStart = startMsg ? new Date(startMsg.date).getTime() : new Date(sessionWeatherData[0].date).getTime();
+
+            const airTemp = [], trackTemp = [], humidity = [], windSpeed = [], pressure = [];
+            const conditionAnnotations = {};
+
+            sessionWeatherData.forEach((w, i) => {
+                const t = new Date(w.date);
+                const timeOffset = (t.getTime() - sessionStart) / 60000;
+
+                airTemp.push({ x: timeOffset, y: w.air_temperature });
+                trackTemp.push({ x: timeOffset, y: w.track_temperature });
+                humidity.push({ x: timeOffset, y: w.humidity });
+                windSpeed.push({ x: timeOffset, y: w.wind_speed * 3.6 });
+                pressure.push({ x: timeOffset, y: w.pressure });
+
+                // Calculate a "box" for the track condition bar at the bottom
+                // We look at the time until the next data point to determine the width of the box
+                const nextT = sessionWeatherData[i + 1] ? new Date(sessionWeatherData[i + 1].date) : null;
+                const nextOffset = nextT ? (nextT.getTime() - sessionStart) / 60000 : timeOffset + 1;
+
+                const state = getConditionState(w);
+
+                conditionAnnotations['box' + i] = {
+                    type: 'box',
+                    xMin: timeOffset,
+                    xMax: nextOffset,
+                    yMin: -2, // Positions it just slightly below the 0 line
+                    yMax: 2,  // Thickness of the bar
+                    backgroundColor: state.color,
+                    borderWidth: 0,
+                    label: {
+                        display: false // Keeps it clean, hover tooltip provides detail
+                    }
+                };
+            });
+
+            const bounds = getSessionBoundaries();
+
+            weatherChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'Track Temp', data: trackTemp, borderColor: '#ffc107', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 }, // Added tension
+                        { label: 'Air Temp', data: airTemp, borderColor: '#e10600', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 },   // Added tension
+                        { label: 'Humidity %', data: humidity, borderColor: '#00d2be', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, yAxisID: 'y1', tension: 0.3 }, // Added tension
+                        { label: 'Wind km/h', data: windSpeed, borderColor: '#28a745', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y2', tension: 0.3 }, // Added tension
+                        { label: 'Pressure hPa', data: pressure, borderColor: '#800080', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y3', tension: 0.3 } // Added tension
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: bounds.minutes,
+                            title: { display: true, text: 'Session Minutes', color: '#888' },
+                            grid: { color: '#333' },
+                            ticks: { color: '#888' }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            min: 0, // Ensure bottom bar is visible
+                            title: { display: true, text: 'Temp °C', color: '#eee' },
+                            ticks: { color: '#eee' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: 'Humid %', color: '#00d2be' },
+                            ticks: { color: '#00d2be' },
+                            grid: { drawOnChartArea: false }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Wind', color: '#28a745' },
+                            ticks: { color: '#28a745' }, // Added color for y2 ticks for consistency
+                            grid: { drawOnChartArea: false }
+                        },
+                        y3: { // New Y-axis for pressure
+                            type: 'linear',
+                            position: 'left', // Or 'right' if preferred, but can get crowded
+                            title: { display: true, text: 'Pressure hPa', color: '#800080' },
+                            ticks: {
+                                color: '#800080',
+                                callback: function (value, index, ticks) {
+                                    return value.toFixed(1);
+                                }
+                            },
+                            grid: { drawOnChartArea: false } // No grid lines to prevent clutter
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#ccc', boxWidth: 10, font: { size: 10 } } },
+                        annotation: {
+                            annotations: conditionAnnotations
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (context) => {
+                                    if (context[0]) {
+                                        const minutes = context[0].parsed.x;
+                                        return `Session Time: ${formatMinutesToTime(minutes)}`;
+                                    }
+                                    return '';
+                                },
+                                label: (context) => {
+                                    let label = context.dataset.label || '';
+                                    const val = context.parsed.y;
+                                    if (label.includes('Temp')) return `${label}: ${val.toFixed(1)}°C`;
+                                    if (label.includes('Humidity')) return `${label}: ${val.toFixed(0)}%`;
+                                    if (label.includes('Wind')) {
+                                        const entry = sessionWeatherData[context.dataIndex];
+                                        const dir = entry ? getWindDir(entry.wind_direction) : '??';
+                                        return `${label}: ${val.toFixed(1)} km/h (${dir})`;
+                                    }
+                                    if (label.includes('Pressure')) return `${label}: ${val.toFixed(0)} hPa`; // Added for pressure
+                                    return `${label}: ${val.toFixed(0)}`;
+                                },
+                                footer: (tooltipItems) => {
+                                    const dataIndex = tooltipItems[0].dataIndex;
+                                    const entry = sessionWeatherData[dataIndex];
+                                    if (entry) {
+                                        const state = getConditionState(entry);
+                                        return `Condition: ${state.label}`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // Update your existing DOMContentLoaded listener:
