@@ -545,11 +545,15 @@
             color: white;
             transition: background-color 0.2s, border-color 0.2s;
             margin-top: 15px;
+            height: auto !important;
+            overflow: visible !important;
         }
 
             #sessionResultsWrapper button:hover, #drivingReportWrapper button:hover {
                 background-color: #ff3333;
                 border-color: #ff3333;
+                height: auto !important;
+                overflow: visible !important;
             }
 
 
@@ -1045,6 +1049,9 @@
                         <button class="btn-secondary" id="btnToggleTimeline" onclick="toggleTimelineVisibility()">Timeline</button>
                         <button class="btn-secondary" id="btnFullTimeline" onclick="toggleTimelineFocus()">Full View</button>
                     </div>
+                    <!-- NEW EXPORT BUTTON -->
+                    <button class="btn-analysis" style="border-color: #28a745; color: #28a745;" onclick="exportModalReport()">📸 Export Report</button>
+
                     <button class="btn-analysis" onclick="showDrivingReport()">📊 Driving Report</button>
                     <button class="btn-analysis" onclick="showSessionResults()">🏁 Session Results</button>
                 </div>
@@ -2167,11 +2174,15 @@
                 const start1 = new Date(s1[0].date).getTime();
                 const start2 = new Date(s2[0].date).getTime();
 
+                // Find the maximum distance Slot 2 reached
+                const maxDist2 = s2[s2.length - 1].distance;
+
                 // Helper function to find interpolated time at a specific distance
                 function getInterpolatedTime(targetDist, telemetry, startTime) {
-                    // Find the index of the first point that is past our target distance
                     const idx = telemetry.findIndex(p => p.distance >= targetDist);
-                    if (idx <= 0) return (new Date(telemetry[0].date).getTime() - startTime) / 1000;
+
+                    if (idx === 0) return (new Date(telemetry[0].date).getTime() - startTime) / 1000;
+                    if (idx === -1) return null; // Beyond the end of the telemetry
 
                     const pA = telemetry[idx - 1];
                     const pB = telemetry[idx];
@@ -2179,26 +2190,34 @@
                     const timeA = (new Date(pA.date).getTime() - startTime) / 1000;
                     const timeB = (new Date(pB.date).getTime() - startTime) / 1000;
 
-                    // Linear Interpolation Formula: y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
-                    const interpolatedTime = timeA + (targetDist - pA.distance) * (timeB - timeA) / (pB.distance - pA.distance);
-                    return interpolatedTime;
+                    // Prevent division by zero if two points have identical distances
+                    if (pB.distance === pA.distance) return timeA;
+
+                    // Linear Interpolation
+                    return timeA + (targetDist - pA.distance) * (timeB - timeA) / (pB.distance - pA.distance);
                 }
 
-                // Use Slot 1 as the reference grid (every 5th point to reduce noise)
+                // Use Slot 1 as the reference grid (every 2nd point to reduce noise)
                 for (let i = 0; i < s1.length; i += 2) {
                     const p1 = s1[i];
-                    const time1 = (new Date(p1.date).getTime() - start1) / 1000;
 
-                    // Find exactly where Slot 2 was at this distance
+                    // STOP comparing if Slot 1 has driven further than Slot 2's total distance
+                    if (p1.distance > maxDist2) break;
+
+                    const time1 = (new Date(p1.date).getTime() - start1) / 1000;
                     const time2 = getInterpolatedTime(p1.distance, s2, start2);
 
-                    deltaData.push({ x: p1.distance, y: time1 - time2 });
+                    if (time2 !== null) {
+                        deltaData.push({ x: p1.distance, y: time1 - time2 });
+                    }
                 }
 
                 charts.delta.data.datasets[0].data = deltaData;
                 charts.delta.update('none');
+            } else {
+                charts.delta.data.datasets[0].data = [];
+                charts.delta.update();
             }
-
 
             const getTechniqueData = (tel, coastY, overlapY) => {
                 const coast = [];
@@ -4918,6 +4937,200 @@
 
             if (!skipInitialLoad) {
                 await loadMeetings();   // only for normal use, not shared URLs
+            }
+        }
+
+        async function exportModalReport() {
+            updateStatus("Generating report image...", "info");
+
+            const modalContent = document.getElementById('modalContainer');
+
+            // 1. Gather Metadata
+            const year = document.getElementById('year-select').value || "2024";
+            const track = document.getElementById('meeting-select').options[document.getElementById('meeting-select').selectedIndex]?.text || "Track";
+            const sessionName = document.getElementById('paceSessionSelect').options[document.getElementById('paceSessionSelect').selectedIndex]?.text || "Session";
+            const sessionKey = document.getElementById('paceSessionSelect').value;
+
+            // Gather Drivers
+            const d1Select = document.getElementById('paceDriver1Select');
+            const d2Select = document.getElementById('paceDriver2Select');
+            const d1Text = d1Select.value ? d1Select.options[d1Select.selectedIndex].text : "";
+            const d2Text = d2Select.value ? d2Select.options[d2Select.selectedIndex].text : "";
+
+            // Determine current view
+            let viewName = "Pace Analysis";
+            const drivingReportVisible = document.getElementById('drivingReportWrapper').style.display === 'block';
+            const sessionResultsVisible = document.getElementById('sessionResultsWrapper').style.display === 'block';
+
+            if (drivingReportVisible) viewName = "Driving Report";
+            else if (sessionResultsVisible) viewName = "Session Results";
+
+            // Driver text for header – special case for Session Results
+            let driversStr;
+            if (viewName === "Session Results") {
+                // Always show this for results, no driver names
+                driversStr = "Full Grid";
+            } else {
+                let tmp = d1Text;
+                if (d2Text) tmp += (tmp ? " vs " : "") + d2Text;
+                driversStr = tmp || "Full Field";
+            }
+
+            // 2. Create a temporary container for the export
+            const exportClone = modalContent.cloneNode(true);
+
+            // Base style for the clone (Keeping original width)
+            exportClone.style.width = "1000px";
+            exportClone.style.height = "auto";
+            exportClone.style.overflow = "visible";
+            exportClone.style.backgroundColor = "#1a1a1a";
+            exportClone.style.padding = "40px";
+            exportClone.style.position = "absolute";
+            exportClone.style.left = "-9999px";
+            exportClone.style.top = "0";
+            exportClone.style.fontFamily = "sans-serif";
+
+            // Add the styled metadata header
+            const header = document.createElement('div');
+            header.style.borderBottom = "2px solid #e10600";
+            header.style.paddingBottom = "15px";
+            header.style.marginBottom = "25px";
+            header.innerHTML = `
+        <h1 style="margin: 0; font-size: 34px; color: #e10600; font-weight: 900; line-height: 1;">RAPID TELEMETRY</h1>
+        <p style="margin: 8px 0 0 0; font-size: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
+            ${year} ${track} | ${sessionName} | ${viewName}
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 20px; color: #fff; font-weight: bold;">
+            ${driversStr}
+        </p>
+    `;
+            exportClone.prepend(header);
+
+            // --- NEW: INJECT STRATEGY ANALYSIS AT THE BOTTOM OF THE DRIVING REPORT ---
+            if (viewName === "Driving Report" && currentReportData1 && currentReportData2 && currentReportDriver1 && currentReportDriver2) {
+
+                // Generate strategy metrics in the background
+                const slot1Data = (loadedData.ref.lap && loadedData.ref.lap.driver_number == currentReportDriver1.driver_number) ? loadedData.ref : null;
+                const slot2Data = (loadedData.comp.lap && loadedData.comp.lap.driver_number == currentReportDriver2.driver_number) ? loadedData.comp : null;
+
+                const m1 = calculateAdvancedMetrics(currentReportData1.laps, slot1Data, currentReportData1.laps, currentReportData2.laps);
+                const m2 = calculateAdvancedMetrics(currentReportData2.laps, slot2Data, currentReportData1.laps, currentReportData2.laps);
+
+                const s1 = analyzeStints(currentReportData1.stints, currentReportData1.laps);
+                const s2 = analyzeStints(currentReportData2.stints, currentReportData2.laps);
+
+                const insight = await compareStrategies(s1, s2, currentReportDriver1, currentReportDriver2, currentReportData1, currentReportData2, sessionKey, m1, m2);
+
+                const best1 = Math.min(...currentReportData1.laps.map(l => l.lap_duration));
+                const best2 = Math.min(...currentReportData2.laps.map(l => l.lap_duration));
+
+                // Build Strategy HTML Block (Styled to match the main report)
+                const strategyHTML = `
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #444;">
+                <h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px;">Strategic Analysis & Outcomes</h3>
+                <table class="results-table" style="margin-bottom:25px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Metric</th>
+                            <th>${currentReportDriver1.last_name}</th>
+                            <th>${currentReportDriver2.last_name}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Strategy Profile</td><td>${s1.strategyType}</td><td>${s2.strategyType}</td></tr>
+                        <tr><td>Starting Tire</td><td>${s1.startingTire || 'N/A'}</td><td>${s2.startingTire || 'N/A'}</td></tr>
+                        <tr><td>Pit Stop Lap(s)</td>
+                            <td>${formatPitLaps(s1.pitLaps, currentReportData1.laps, currentReportData2.laps)}</td>
+                            <td>${formatPitLaps(s2.pitLaps, currentReportData1.laps, currentReportData2.laps)}</td>
+                        </tr>
+                        <tr><td>Avg Pit Time Loss</td>
+                            <td>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                            <td>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                        </tr>
+                        <tr><td>Best Lap Time</td>
+                            <td>${formatTime(best1)}</td>
+                            <td>${formatTime(best2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7; margin-bottom: 20px;">
+                    <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
+                        Tactical Insights
+                    </strong>
+                    <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
+                </div>
+            </div>
+        `;
+
+                // Append directly to the bottom of the cloned report wrapper
+                const clonedReportWrapper = exportClone.querySelector('#drivingReportWrapper');
+                const strategySection = document.createElement('div');
+                strategySection.innerHTML = strategyHTML;
+                clonedReportWrapper.appendChild(strategySection);
+            }
+            // ----------------------------------------------------------------------
+
+            // 3. Clean up UI elements from the export (Remove all buttons)
+            exportClone.querySelectorAll('button').forEach(btn => btn.remove());
+            exportClone.querySelectorAll('tr').forEach(row => {
+                if (row.innerHTML.includes('View Strategy Analysis')) row.remove();
+            });
+
+            // 3b. Add export footer (same style as main snapshot footer)
+            const exportFooter = document.createElement('div');
+            exportFooter.style.marginTop = "20px";
+            exportFooter.style.textAlign = "center";
+            exportFooter.style.fontSize = "13px";
+            exportFooter.style.color = "#555";
+            exportFooter.style.borderTop = "1px solid #333";
+            exportFooter.style.paddingTop = "10px";
+            exportFooter.style.flexShrink = "0";
+            exportFooter.textContent = "Generated by Rapid Telemetry (rapidtelem.com) | Data via OpenF1";
+            exportClone.appendChild(exportFooter);
+
+            // 4. Handle Canvases (Stamping them as images)
+            const originalCanvases = modalContent.querySelectorAll('canvas');
+            const clonedCanvases = exportClone.querySelectorAll('canvas');
+
+            originalCanvases.forEach((orig, idx) => {
+                if (orig.style.display !== 'none' && orig.width > 0) {
+                    const img = new Image();
+                    img.src = orig.toDataURL("image/png", 1.0);
+                    img.style.width = "100%";
+                    clonedCanvases[idx].replaceWith(img);
+                } else {
+                    clonedCanvases[idx].remove(); // Clean up hidden canvases
+                }
+            });
+
+            document.body.appendChild(exportClone);
+
+            // 5. Capture and Download
+            try {
+                const canvas = await html2canvas(exportClone, {
+                    backgroundColor: '#1a1a1a',
+                    scale: 2, // High DPI
+                    useCORS: true,
+                    logging: false,
+                    windowHeight: exportClone.scrollHeight
+                });
+
+                // Format filename cleanly
+                const cleanTrack = track.split(' ')[0].replace(/\W/g, '');
+                const cleanView = viewName.replace(/\s+/g, '');
+                const cleanDrivers = driversStr.replace(/\s+/g, '_').replace(/#/g, '').replace(/\s-\s[a-zA-Z]+/g, '');
+
+                const link = document.createElement('a');
+                link.download = `RapidTelem_${year}_${cleanTrack}_${cleanView}_${cleanDrivers}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+
+                updateStatus("Report Exported!", "success");
+            } catch (err) {
+                console.error("Export failed", err);
+                updateStatus("Export Failed", "error");
+            } finally {
+                document.body.removeChild(exportClone);
             }
         }
 
