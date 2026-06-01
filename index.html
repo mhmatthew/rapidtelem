@@ -1573,12 +1573,20 @@
                     return time >= lapStartTimestamp && time <= lapEndTimestamp;
                 }) : [];
 
-                // 2. Determine Tire Compound
+                // 2. Determine Tire Compound (Robust Version)
                 let tireCompound = "UNK";
-                if (Array.isArray(stintData)) {
-                    const currentStint = stintData.find(s =>
-                        lapObj.lap_number >= s.lap_start && (s.lap_end === null || lapObj.lap_end == null || lapObj.lap_number <= s.lap_end)
-                    );
+                if (Array.isArray(stintData) && stintData.length > 0) {
+                    // Sort by stint_number descending to ensure the latest stint on a specific lap is found
+                    const sortedStints = [...stintData].sort((a, b) => b.stint_number - a.stint_number);
+
+                    const currentStint = sortedStints.find(s => {
+                        const lap = lapObj.lap_number;
+                        const isAfterStart = lap >= s.lap_start;
+                        // Handle cases where lap_end is 0 or null (active stint)
+                        const isBeforeEnd = (s.lap_end === 0 || s.lap_end === null || lap <= s.lap_end);
+                        return isAfterStart && isBeforeEnd;
+                    });
+
                     if (currentStint) tireCompound = currentStint.compound.toUpperCase();
                 }
 
@@ -2759,7 +2767,8 @@
                     });
 
                     data.stints.forEach(stint => {
-                        if (stint.is_pit_in_lap && stint.is_pit_in_lap > 1) {
+                        // FIX: Allow the marker if is_pit_in_lap is not null (includes Lap 1)
+                        if (stint.is_pit_in_lap !== null) {
                             annotations[`line${annotationIndex++}`] = {
                                 type: 'line',
                                 xMin: stint.is_pit_in_lap,
@@ -2849,67 +2858,46 @@
                 let rawLaps = [];
                 let rawStints = [];
 
-                // --- FETCH LAPS ---
                 const lapsUrl = `${API_BASE}/laps?session_key=${sessionKey}&driver_number=${driverNumber}`;
                 const fetchLaps = async () => {
                     const lapsRes = await fetch(lapsUrl);
                     if (lapsRes.status === 429) {
-                        console.warn(`Rate limit hit for laps (driver ${driverNumber}). Waiting 1 sec and retrying...`);
-                        await delay(1000); // Wait longer if rate-limited
-                        return fetchLaps(); // Recursive call to retry fetching laps
-                    }
-                    if (!lapsRes.ok) {
-                        throw new Error(`Failed to fetch laps for driver ${driverNumber}: ${lapsRes.statusText}`);
+                        await delay(1000);
+                        return fetchLaps();
                     }
                     return lapsRes.json();
                 };
 
-                rawLaps = await fetchLaps(); // Execute and wait for laps fetch (with retry logic)
+                rawLaps = await fetchLaps();
+                await delay(300);
 
-                if (!Array.isArray(rawLaps)) {
-                    console.warn('Unexpected laps response for driver', driverNumber, rawLaps);
-                    rawLaps = [];
-                }
-
-                // --- ADD DELAY BETWEEN LAPS AND STINTS FETCH ---
-                await delay(300); // Crucial: Add a delay here to space out API calls for the same driver
-
-                // --- FETCH STINTS ---
                 const stintsUrl = `${API_BASE}/stints?session_key=${sessionKey}&driver_number=${driverNumber}`;
                 const fetchStints = async () => {
                     const stintsRes = await fetch(stintsUrl);
                     if (stintsRes.status === 429) {
-                        console.warn(`Rate limit hit for stints (driver ${driverNumber}). Waiting 1 sec and retrying...`);
-                        await delay(1000); // Wait longer if rate-limited
-                        return fetchStints(); // Recursive call to retry fetching stints
-                    }
-                    if (!stintsRes.ok) {
-                        throw new Error(`Failed to fetch stints for driver ${driverNumber}: ${stintsRes.statusText}`);
+                        await delay(1000);
+                        return fetchStints();
                     }
                     return stintsRes.json();
                 };
 
-                rawStints = await fetchStints(); // Execute and wait for stints fetch (with retry logic)
+                rawStints = await fetchStints();
 
-                if (!Array.isArray(rawStints)) {
-                    console.warn('Unexpected stints response for driver', driverNumber, rawStints);
-                    rawStints = [];
-                }
-
-                // Normalize stints: compound upper-cased, keep lap_start/lap_end
                 const processedStints = rawStints.map(stint => ({
                     stint_number: Number(stint.stint_number),
                     compound: (stint.compound || 'UNKNOWN').toUpperCase(),
                     stint_start_lap: Number(stint.lap_start),
-                    stint_end_lap: stint.lap_end != null
+                    stint_end_lap: stint.lap_end != null && stint.lap_end !== 0
                         ? Number(stint.lap_end)
-                        : Number(stint.lap_start),   // fallback
-                    is_pit_in_lap: (stint.lap_start > 1) ? Number(stint.lap_start) : null
+                        : 999, // Use 999 for active/superseded stints to ensure range matching
+                    // FIX: If stint_number > 1, any start lap (including 1) is a pit stop
+                    is_pit_in_lap: (stint.stint_number > 1) ? Number(stint.lap_start) : null
                 }));
 
-                // Helper: find stint for a given lap_number by lap range
                 function findStintForLap(lapNumber) {
-                    for (const s of processedStints) {
+                    // Sort by stint_number descending to find the latest compound assigned to this lap
+                    const reverseStints = [...processedStints].sort((a, b) => b.stint_number - a.stint_number);
+                    for (const s of reverseStints) {
                         if (lapNumber >= s.stint_start_lap && lapNumber <= s.stint_end_lap) {
                             return s;
                         }
@@ -2918,33 +2906,23 @@
                 }
 
                 const processedLaps = [];
-
                 rawLaps.forEach(lap => {
                     const duration = Number(lap.lap_duration);
-                    if (!Number.isFinite(duration) || duration <= 0) {
-                        return; // skip invalid laps
-                    }
+                    if (!Number.isFinite(duration) || duration <= 0) return;
 
                     const lapNum = Number(lap.lap_number);
                     const stint = findStintForLap(lapNum);
-
-                    const compound = stint && stint.compound
-                        ? stint.compound
-                        : 'UNKNOWN';
 
                     processedLaps.push({
                         lap_number: lapNum,
                         lap_duration: duration,
                         stintNumber: stint ? stint.stint_number : null,
-                        tireCompound: compound,
-                        isPitLap: (stint && stint.is_pit_in_lap === lapNum && lapNum !== 1)
+                        tireCompound: stint ? stint.compound : 'UNKNOWN',
+                        isPitLap: (stint && stint.is_pit_in_lap === lapNum)
                     });
                 });
 
-                // Sort laps by lap_number to avoid weird line jumps
                 processedLaps.sort((a, b) => a.lap_number - b.lap_number);
-
-                console.log(`Driver ${driverNumber} valid laps in session ${sessionKey}:`, processedLaps.length);
                 return { laps: processedLaps, stints: processedStints };
             } catch (error) {
                 console.error(`Failed to get pace data for driver ${driverNumber}:`, error);
@@ -3829,7 +3807,7 @@
 
         /**
          * Determines strategy profile and identifies pit laps using stint data
-         * (Updated to include starting tire and correctly list all pit laps)
+         * (Updated to correctly detect Lap 1 pit stops by checking stint number)
          */
         function analyzeStints(stints, laps) {
             if (!stints || stints.length === 0) {
@@ -3842,32 +3820,32 @@
             }
 
             const actualPitLaps = [];
-            // Iterate through stints to find where a new stint starts after lap 1.
-            // A new stint starting on `lap_X` means a pit stop occurred on `lap_X - 1`.
+            // Iterate through stints.
+            // Stint 1 is always the start of the race.
+            // Any stint_number > 1 indicates a pit stop occurred, even on Lap 1.
             for (let i = 0; i < stints.length; i++) {
                 const stint = stints[i];
-                // The API's stint.lap_start indicates the LAP ON WHICH THE STINT *STARTED*.
-                // If stint.lap_start is 1, it's the race start.
-                // If stint.lap_start is > 1, the pit stop happened on stint.lap_start - 1.
-                if (stint.stint_start_lap > 1) {
-                    actualPitLaps.push(stint.stint_start_lap - 1);
+
+                if (stint.stint_number > 1) {
+                    // We use the stint_start_lap directly because if a driver pits 
+                    // on Lap 1, the new stint begins on Lap 1.
+                    actualPitLaps.push(stint.stint_start_lap);
                 }
             }
 
             let strategyType = "One-Stop"; // Default, assuming most races are one-stop
             if (actualPitLaps.length >= 2) strategyType = "Multi-Stop";
-            else if (actualPitLaps.length === 0 && stints.length > 0) strategyType = "Sprint/No-Stop"; // If there are stints but no pits
-            // If stints.length is 0, strategyType remains "No Data" from the initial check
+            else if (actualPitLaps.length === 0 && stints.length > 0) strategyType = "Sprint/No-Stop";
 
-            // Determine the starting tire (compound of the very first stint, which has stint_number 1)
+            // Determine the starting tire (compound of the very first stint)
             const firstStint = stints.find(s => s.stint_number === 1);
             const startingTire = firstStint ? (firstStint.compound || "UNKNOWN").toUpperCase() : "N/A";
 
             return {
                 stintCount: stints.length,
-                pitLaps: actualPitLaps, // This now contains the actual lap numbers when pits occurred
+                pitLaps: actualPitLaps,
                 strategyType: strategyType,
-                startingTire: startingTire // <-- This is now returned
+                startingTire: startingTire
             };
         }
 
