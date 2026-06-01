@@ -4331,7 +4331,7 @@
                 const text = msg.message.toUpperCase();
                 const event = { x: parseFloat(timeOffset.toFixed(2)), y: 0, label: msg.message, lap: msg.lap_number };
 
-                if (msg.category === "SessionStatus" || text.includes("CHEQUERED") || msg.flag === "RED" || text.includes("SAFETY CAR") || text.includes("VIRTUAL")) {
+                if (msg.category === "SessionStatus" || msg.category === "SafetyCar" || text.includes("CHEQUERED") || msg.flag === "RED" || text.includes("SAFETY CAR") || text.includes("VIRTUAL")) {
                     event.y = 4; catTrack.push(event);
                 } else if (msg.category === "Drs" || text.includes("PIT EXIT") || text.includes("RAIN") || (msg.category === "Flag" && msg.flag === "CLEAR")) {
                     event.y = 3; catRaceMgmt.push(event);
@@ -4341,6 +4341,7 @@
                     event.y = 1; catInfractions.push(event);
                 }
             });
+
 
             timelineChartInstance = new Chart(ctx, {
                 type: 'scatter',
