@@ -4792,7 +4792,16 @@
                     const link = document.createElement('a');
                     const cleanChartName = selectedChartName.replace(/\s+/g, '');
                     const cleanSectorName = sectorText.replace(/\s+/g, '');
-                    link.download = `RapidTelem_${track.split(' ')[0]}_${cleanSectorName}_${cleanChartName}.png`;
+
+                    // Build driver names string for filename
+                    let driversStr = '';
+                    if (loadedData.ref.driverName) driversStr += loadedData.ref.driverName;
+                    if (loadedData.comp.driverName) {
+                        driversStr += (driversStr ? '_vs_' : '') + loadedData.comp.driverName;
+                    }
+                    if (!driversStr) driversStr = 'Comparison'; // Fallback
+
+                    link.download = `RapidTelem_${year}_${track.split(' ')[0]}_${driversStr}_${cleanSectorName}_${cleanChartName}.png`;
                     link.href = canvas.toDataURL("image/png");
                     link.click();
                     updateStatus("Export Complete", "success");
