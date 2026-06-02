@@ -4285,16 +4285,36 @@
                 }
             }
 
+            // --- penalties meta (must be BEFORE any use of penServed*) ---
+            const {
+                penServed1 = 0, penServed2 = 0,
+                penRecv1 = 0, penRecv2 = 0
+            } = penaltyMeta || {};
+
             // --- 6. PIT EFFICIENCY ---
             if (metrics1?.recoveryStats?.averageTotalLoss != null && metrics2?.recoveryStats?.averageTotalLoss != null) {
                 const pitDiff = Math.abs(metrics1.recoveryStats.averageTotalLoss - metrics2.recoveryStats.averageTotalLoss);
                 if (pitDiff > 1.0) {
-                    const betterPit = metrics1.recoveryStats.averageTotalLoss < metrics2.recoveryStats.averageTotalLoss
-                        ? driver1.last_name : driver2.last_name;
-                    insights.push(`${betterPit} gained time through better pit execution and recovery pace.`);
+                    const betterPitIs1 = metrics1.recoveryStats.averageTotalLoss < metrics2.recoveryStats.averageTotalLoss;
+                    const betterPitDriver = betterPitIs1 ? driver1.last_name : driver2.last_name;
+
+                    const betterDriverServedPenalties = betterPitIs1 ? (penServed1 > 0) : (penServed2 > 0);
+
+                    // If there is an asymmetry in penalties served, a dedicated penalty insight will be added later.
+                    // Avoid duplicating the same caveat here.
+                    const penServedDiffExists = penServed1 !== penServed2;
+
+                    if (!betterDriverServedPenalties) {
+                        insights.push(`${betterPitDriver} gained time through better pit execution and recovery pace.`);
+                    } else if (!penServedDiffExists) {
+                        insights.push(
+                            `${betterPitDriver} served penalties, so pit-cycle comparisons may not reflect pure pit execution.`
+                        );
+                    }
                 }
             }
 
+            // --- extra stops ---
             const stops1 = s1.pitLaps?.length || 0;
             const stops2 = s2.pitLaps?.length || 0;
 
@@ -4306,35 +4326,28 @@
                 insights.push(
                     `${moreStopsDriver} ran **${diff} extra stop(s)** versus ${fewerStopsDriver}; in normal green-flag conditions this is a net handicap unless offset by a sustained pace advantage or multiple “cheap stop” interventions.`
                 );
-        }
+            }
 
-            const {
-                penServed1 = 0, penServed2 = 0,
-                penRecv1 = 0, penRecv2 = 0
-            } = penaltyMeta || {};
-
+            // --- penalties served difference (qualifier language, not double-counting time) ---
             if (penServed1 !== penServed2) {
                 const worse = penServed1 > penServed2 ? driver1.last_name : driver2.last_name;
                 const better = penServed1 > penServed2 ? driver2.last_name : driver1.last_name;
                 const diffCount = Math.abs(penServed1 - penServed2);
+                const penServedDiffExists = penServed1 !== penServed2;
+
 
                 insights.push(
-                    `${worse} served **${diffCount} more penalty(ies)** than ${better}, adding further time loss on top of any extra-stop disadvantage and reducing the likelihood that pit-window timing alone produced a net gain.`
+                    `${worse} served **${diffCount} more penalty(ies)** than ${better}, which complicates pit-cycle and pit-window comparisons for ${worse} (penalty service is often embedded in pit-lane loss and track position).`
                 );
             }
 
-            // Optional: call out “served > received” as an anomaly worth attention
+            // Optional anomaly checks (outside the block above)
             if (penServed1 > penRecv1) {
-                insights.push(
-                    `${driver1.last_name} shows **more penalties served than received** in the log; verify Race Control messages (multiple 'SERVED' lines or parsing duplicates can inflate counts).`
-                );
+                insights.push(`${driver1.last_name} shows **more penalties served than received** in the log; verify Race Control messages (duplicates can inflate counts).`);
             }
             if (penServed2 > penRecv2) {
-                insights.push(
-                    `${driver2.last_name} shows **more penalties served than received** in the log; verify Race Control messages (multiple 'SERVED' lines or parsing duplicates can inflate counts).`
-                );
+                insights.push(`${driver2.last_name} shows **more penalties served than received** in the log; verify Race Control messages (duplicates can inflate counts).`);
             }
-
 
             return insights.length > 0
                 ? insights.join(" ")
