@@ -4236,6 +4236,32 @@
                 }
             }
 
+            // --- 2a. COASTING CONSIDERATION (dynamic, PB-only) ---
+            if (metrics1?.technique?.telemetryAvailable && metrics2?.technique?.telemetryAvailable) {
+                const c1 = parseFloat(metrics1.technique.coasting?.total || 0);
+                const c2 = parseFloat(metrics2.technique.coasting?.total || 0);
+
+                // Dynamic threshold: average coasting + 25%, but never below 0.7s
+                const avgCoast = (c1 + c2) / 2;
+                const minFloor = 0.7;
+                const margin = 0.25 * avgCoast;
+                const significantCoastingThreshold = Math.max(minFloor, avgCoast + margin);
+
+                // Only talk about it if the lap is actually their fastest
+                if (metrics1.technique.isFastestLap && c1 > significantCoastingThreshold) {
+                    insights.push(
+                        `${driver1.last_name} maintained noticeably high lift‑and‑coast even on their ` +
+                        `fastest lap, suggesting deliberate fuel or temperature management at peak pace.`
+                    );
+                }
+                if (metrics2.technique.isFastestLap && c2 > significantCoastingThreshold) {
+                    insights.push(
+                        `${driver2.last_name} maintained noticeably high lift‑and‑coast even on their ` +
+                        `fastest lap, suggesting deliberate fuel or temperature management at peak pace.`
+                    );
+                }
+            }
+
             // --- 3. COMPOUND PERFORMANCE (Using Clean Laps) ---
             const getTireAverages = (laps) => {
                 const dict = {};
@@ -4445,6 +4471,29 @@
                 if (Math.abs(cDiff) > 0.4) {
                     const moreCoasting = cDiff > 0 ? d1.last_name : d2.last_name;
                     insights.push(`${moreCoasting} spent more time in a neutral coasting state, suggesting a smoother, more "V-shaped" cornering line or a focus on lift-and-coast fuel saving.`);
+                }
+
+                if (m1.technique?.telemetryAvailable && m2.technique?.telemetryAvailable) {
+                    const c1 = parseFloat(m1.technique.coasting?.total || 0);
+                    const c2 = parseFloat(m2.technique.coasting?.total || 0);
+
+                    const avgCoast = (c1 + c2) / 2;
+                    const minFloor = 0.7;
+                    const margin = 0.25 * avgCoast;
+                    const significantCoastingThreshold = Math.max(minFloor, avgCoast + margin);
+
+                    if (m1.technique.isFastestLap && c1 > significantCoastingThreshold) {
+                        insights.push(
+                            `${d1.last_name} carried significant lift‑and‑coast on their personal best lap, ` +
+                            `indicating that peak time was achieved with margin left in fuel or temperature management.`
+                        );
+                    }
+                    if (m2.technique.isFastestLap && c2 > significantCoastingThreshold) {
+                        insights.push(
+                            `${d2.last_name} carried significant lift‑and‑coast on their personal best lap, ` +
+                            `indicating that peak time was achieved with margin left in fuel or temperature management.`
+                        );
+                    }
                 }
             }
 
