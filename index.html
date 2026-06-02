@@ -2806,27 +2806,26 @@
                         pointBorderWidth: 2,           // Thick outline
                     });
 
-                    data.stints.forEach(stint => {
-                        // FIX: Allow the marker if is_pit_in_lap is not null (includes Lap 1)
-                        if (stint.is_pit_in_lap !== null) {
+                    data.laps
+                        .filter(l => l.is_pit_out_lap)
+                        .forEach(l => {
                             annotations[`line${annotationIndex++}`] = {
                                 type: 'line',
-                                xMin: stint.is_pit_in_lap,
-                                xMax: stint.is_pit_in_lap,
+                                xMin: l.lap_number,
+                                xMax: l.lap_number,
                                 borderColor: DRIVER_CHART_COLORS[slotType],
                                 borderWidth: 2,
                                 borderDash: (slotType === 'ref' ? [5, 5] : [2, 2]),
                                 label: {
                                     enabled: true,
-                                    content: 'Pit',
+                                    content: 'Pit Out',
                                     position: (slotType === 'ref' ? 'end' : 'start'),
                                     color: DRIVER_CHART_COLORS[slotType],
                                     font: { size: 10 }
                                 },
                                 z: 0
                             };
-                        }
-                    });
+                        });
 
                 } catch (err) {
                     console.error(`Error adding driver ${driverNumber} (${slotType}) to pace chart:`, err);
@@ -2956,8 +2955,8 @@
                     processedLaps.push({
                         lap_number: lapNum,
                         lap_duration: duration,
-                        // ADD THIS LINE: Ensure date_start is part of the processed lap object
-                        date_start: lap.date_start, // <--- THIS IS THE CRITICAL ADDITION
+                        date_start: lap.date_start,
+                        is_pit_out_lap: !!lap.is_pit_out_lap,   
                         stintNumber: stint ? stint.stint_number : null,
                         tireCompound: stint ? stint.compound : 'UNKNOWN',
                         isPitLap: (stint && stint.is_pit_in_lap === lapNum)
@@ -3930,46 +3929,50 @@
         }
 
         /**
-         * Determines strategy profile and identifies pit laps using stint data
-         * (Updated to correctly detect Lap 1 pit stops by checking stint number)
+         * Determines strategy profile and identifies PIT OUT laps.
+         * Prefers lap-based pit-out flags (most accurate), with a stint-based fallback.
          */
         function analyzeStints(stints, laps) {
-            if (!stints || stints.length === 0) {
-                return {
-                    stintCount: 0,
-                    pitLaps: [], // No pit stops if no stints
-                    strategyType: "No Data",
-                    startingTire: "N/A"
-                };
-            }
+            const safeStints = Array.isArray(stints) ? stints : [];
+            const safeLaps = Array.isArray(laps) ? laps : [];
 
-            const actualPitLaps = [];
-            // Iterate through stints.
-            // Stint 1 is always the start of the race.
-            // Any stint_number > 1 indicates a pit stop occurred, even on Lap 1.
-            for (let i = 0; i < stints.length; i++) {
-                const stint = stints[i];
+            // 1) PIT OUT laps from laps feed (best)
+            const pitOutLaps = safeLaps
+                .filter(l => l && (l.is_pit_out_lap === true || l.is_pit_out_lap === 1))
+                .map(l => Number(l.lap_number))
+                .filter(n => Number.isFinite(n));
 
-                if (stint.stint_number > 1) {
-                    // We use the stint_start_lap directly because if a driver pits 
-                    // on Lap 1, the new stint begins on Lap 1.
-                    actualPitLaps.push(stint.stint_start_lap);
+            // 2) Fallback: infer PIT OUT lap from stints (new stint starts right after the pit)
+            // If the API's lap_start behaves like the in-lap for your data, this may still be off by one,
+            // but it's only used when pit-out flags aren't available.
+            const pitOutFromStints = [];
+            for (const s of safeStints) {
+                const sn = Number(s.stint_number);
+                const lapStart = Number(s.lap_start ?? s.stint_start_lap);
+                if (Number.isFinite(sn) && sn > 1 && Number.isFinite(lapStart)) {
+                    pitOutFromStints.push(lapStart);
                 }
             }
 
-            let strategyType = "One-Stop"; // Default, assuming most races are one-stop
-            if (actualPitLaps.length >= 2) strategyType = "Multi-Stop";
-            else if (actualPitLaps.length === 0 && stints.length > 0) strategyType = "Sprint/No-Stop";
+            const finalPitOutLaps = pitOutLaps.length > 0 ? pitOutLaps : pitOutFromStints;
 
-            // Determine the starting tire (compound of the very first stint)
-            const firstStint = stints.find(s => s.stint_number === 1);
-            const startingTire = firstStint ? (firstStint.compound || "UNKNOWN").toUpperCase() : "N/A";
+            // Strategy type
+            let strategyType = "No Data";
+            if (safeStints.length > 0) {
+                if (finalPitOutLaps.length >= 2) strategyType = "Multi-Stop";
+                else if (finalPitOutLaps.length === 1) strategyType = "One-Stop";
+                else strategyType = "Sprint/No-Stop";
+            }
+
+            // Starting tire
+            const firstStint = safeStints.find(s => Number(s.stint_number) === 1);
+            const startingTire = firstStint ? String(firstStint.compound || "UNKNOWN").toUpperCase() : "N/A";
 
             return {
-                stintCount: stints.length,
-                pitLaps: actualPitLaps,
-                strategyType: strategyType,
-                startingTire: startingTire
+                stintCount: safeStints.length,
+                pitLaps: finalPitOutLaps, // <-- PIT OUT laps
+                strategyType,
+                startingTire
             };
         }
 
@@ -4619,19 +4622,30 @@
         function getTrackStatusAtLap(lapNumber, allLapsData1, allLapsData2) {
             if (!sessionRaceControl || sessionRaceControl.length === 0) return null;
 
-            const lapData = (allLapsData1 && allLapsData1.find(l => l.lap_number === lapNumber)) ||
-                (allLapsData2 && allLapsData2.find(l => l.lap_number === lapNumber));
+            // Prefer whichever lap entry has a valid date_start (don’t blindly prefer Slot 1)
+            const cand1 = allLapsData1?.find(l => l.lap_number === lapNumber) || null;
+            const cand2 = allLapsData2?.find(l => l.lap_number === lapNumber) || null;
+
+            const hasValidDateStart = (lap) => {
+                if (!lap || !lap.date_start) return false;
+                const t = new Date(lap.date_start).getTime();
+                return Number.isFinite(t);
+            };
+
+            const lapData =
+                (hasValidDateStart(cand1) ? cand1 : null) ||
+                (hasValidDateStart(cand2) ? cand2 : null) ||
+                null;
 
             if (!lapData) return null;
 
-            // For pit classification, sample at the **start** of the out‑lap,
-            // not at its end.
+            // Sample at the start of the out-lap
             const pitRefTime = new Date(lapData.date_start).getTime();
-            // Optional: look a tiny bit *before* out‑lap start if you want to
-            // bias towards in‑lap entry:
-            // const pitRefTime = new Date(lapData.date_start).getTime() - 5000;
+            if (!Number.isFinite(pitRefTime)) return null;
 
             let currentStatus = null;
+
+            // Sort once per call (you can cache this globally for performance)
             const sortedMsgs = [...sessionRaceControl].sort(
                 (a, b) => new Date(a.date) - new Date(b.date)
             );
@@ -4642,11 +4656,9 @@
 
                 const text = (m.message || "").toUpperCase();
 
-                if (text.includes("VIRTUAL SAFETY CAR DEPLOYED") ||
-                    text.includes("VSC DEPLOYED")) {
+                if (text.includes("VIRTUAL SAFETY CAR DEPLOYED") || text.includes("VSC DEPLOYED")) {
                     currentStatus = "VSC";
-                } else if (text.includes("SAFETY CAR DEPLOYED") ||
-                    m.category === "SafetyCar") {
+                } else if (text.includes("SAFETY CAR DEPLOYED") || m.category === "SafetyCar") {
                     currentStatus = "SC";
                 } else if (m.flag === "RED" && m.scope === "Track") {
                     currentStatus = "RED FLAG";
