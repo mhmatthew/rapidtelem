@@ -1296,19 +1296,43 @@
 
                     let hasRadio = false;
                     if (currentDriverRadio.length > 0) {
+
+                        // Prefer Race Control "SESSION STARTED" as the anchor for pre-race radios
+                        const startedMsg = (sessionRaceControl && sessionRaceControl.length > 0)
+                            ? sessionRaceControl.find(m => (m.message || '').toUpperCase().includes('SESSION STARTED'))
+                            : null;
+
+                        const sessionStartMs = startedMsg
+                            ? new Date(startedMsg.date).getTime()
+                            : null;
+
+                        // Increase this to whatever you consider “pre-race”
+                        const PRE_RACE_BUFFER_MS = 120 * 60 * 1000; // 120 minutes
+                        const POST_WINDOW_MS = 15 * 60 * 1000;      // 15 minutes
+
                         hasRadio = currentDriverRadio.some(msg => {
-                            const d = new Date(msg.date);
+                            const msgMs = new Date(msg.date).getTime();
                             let isMatch = false;
-                            if (index === 0) {
-                                isMatch = (d >= lapStart && d <= new Date(lapEnd.getTime() + 900000));
+
+                            if (index === reversedLaps.length - 1) {
+                                // FIRST chronological lap in the session list: include pre-race radios too
+                                const windowStartMs = (sessionStartMs != null)
+                                    ? (sessionStartMs - PRE_RACE_BUFFER_MS)
+                                    : (lapStart.getTime() - PRE_RACE_BUFFER_MS);
+
+                                const windowEndMs = (nextLapStart ? nextLapStart.getTime() : (lapEnd.getTime() + POST_WINDOW_MS));
+
+                                isMatch = (msgMs >= windowStartMs && msgMs <= windowEndMs);
+
+                            } else if (index === 0) {
+                                // Last lap (reversed list first): allow post-race radios
+                                isMatch = (msgMs >= lapStart.getTime() && msgMs <= (lapEnd.getTime() + POST_WINDOW_MS));
+
                             } else {
-                                isMatch = (d >= lapStart && d < nextLapStart);
+                                // Normal lap: radios between this lap start and next lap start
+                                isMatch = (msgMs >= lapStart.getTime() && msgMs < nextLapStart.getTime());
                             }
 
-                            // --- NEW: LOG INDIVIDUAL MATCHES ---
-                            if (isMatch) {
-                                console.log(`Radio Match Found: Message at ${msg.date} assigned to Lap ${l.lap_number}`);
-                            }
                             return isMatch;
                         });
                     }
@@ -1570,8 +1594,11 @@
             const lapEndISO = new Date(lapEndTimestamp).toISOString(); // For filters
 
             // Time window for radio, weather, stints - more generous than exact lap start/end
-            const radioWindowStart = new Date(lapStartTimestamp - (45 * 1000)); // 45 seconds before lap start
-            const radioWindowEnd = new Date(lapEndTimestamp + (900 * 1000)); // (15 minutes)
+            const isLapOne = Number(lapObj.lap_number) === 1;
+            const radioWindowStart = isLapOne
+                ? new Date(lapStartTimestamp - 20 * 60 * 1000) // 20 min before lap 1
+                : new Date(lapStartTimestamp - 45 * 1000);
+            const radioWindowEnd = new Date(lapEndTimestamp + 900 * 1000); // 15 min
 
             // Ensure times are ISO formatted for API calls
             const telemetryQueryStart = encodeURIComponent(lapObj.date_start);
@@ -1598,7 +1625,9 @@
                 await delay(300);
                 const stintData = await fetchSafe(`${API_BASE}/stints?${stintsFilter}`);
                 await delay(300);
-                const slotSpecificRadioData = await fetchSafe(`${API_BASE}/team_radio?${radioFilter}`);
+                const slotSpecificRadioData = await fetchSafe(
+                    `${API_BASE}/team_radio?session_key=${sessionKey}&driver_number=${driverNum}`
+                );
 
                 // --- Data Processing ---
 
@@ -2431,15 +2460,36 @@
 
             // 1. Gather Driver Radio from Slot Snapshots
             ['ref', 'comp'].forEach(slot => {
-                const slotData = loadedData[slot];
-                if (slotData && Array.isArray(slotData.radio)) {
-                    slotData.radio.forEach(msg => {
-                        if (!allEvents.some(e => e.recording_url === msg.recording_url)) {
+                const lap = loadedData[slot].lap;
+                if (lap && loadedData[slot].radio) {
+                    const lapStart = new Date(lap.date_start).getTime();
+                    const lapEnd = lap.date_end
+                        ? new Date(lap.date_end).getTime()
+                        : lapStart + (lap.lap_duration * 1000);
+
+                    const startedMsg = sessionRaceControl?.find(m => (m.message || '').toUpperCase().includes('SESSION STARTED'));
+                    const sessionStartMs = startedMsg ? new Date(startedMsg.date).getTime() : null;
+
+                    const PRE_RACE_BUFFER_MS = 120 * 60 * 1000;
+                    const preRaceWindow = (lap.lap_number === 1 || lap.lap_number === "1")
+                        ? ((sessionStartMs ?? lapStart) - PRE_RACE_BUFFER_MS)
+                        : lapStart;
+
+                    const relevantRadios = loadedData[slot].radio.filter(msg => {
+                        const msgTime = new Date(msg.date).getTime();
+                        // Include radios from pre-race window for lap 1, else normal lap window (+15min post)
+                        return msgTime >= preRaceWindow && msgTime <= (lapEnd + 15 * 60 * 1000);
+                    });
+
+                    relevantRadios.forEach(msg => {
+                        const eventId = `radio-${msg.recording_url}`;
+                        if (!allEvents.some(ev => ev.eventId === eventId)) {
                             allEvents.push({
                                 ...msg,
                                 type: 'radio',
+                                eventId: eventId,
                                 slot: slot,
-                                driver: slotData.driverName
+                                driver: loadedData[slot].driverName || `S${slot === "ref" ? 1 : 2}`
                             });
                         }
                     });
@@ -2456,13 +2506,18 @@
                         ? new Date(lap.date_end).getTime()
                         : lapStart + (lap.lap_duration * 1000);
 
-                    // USE sessionRaceControl instead of sessionFlags for better reliability
+                    // Use sessionRaceControl instead of sessionFlags for better reliability
                     const sourceData = (sessionRaceControl && sessionRaceControl.length > 0) ? sessionRaceControl : sessionFlags;
+
+                    // Expanded window for Lap 1: include messages up to 20 minutes before lapStart
+                    const preRaceWindow = (lap.lap_number === 1 || lap.lap_number === "1")
+                        ? lapStart - 20 * 60 * 1000
+                        : lapStart;
 
                     const lapFlags = sourceData.filter(f => {
                         const fDate = new Date(f.date).getTime();
-                        // Match flags from start of lap to 5 minutes after finish (to catch session end msgs)
-                        return fDate >= lapStart && fDate <= (lapEnd + 300000);
+                        // For Lap 1, accept 20min pre-race plus 5min post-lap window
+                        return fDate >= preRaceWindow && fDate <= (lapEnd + 300000);
                     });
 
                     lapFlags.forEach(f => {
@@ -2484,38 +2539,37 @@
                 return;
             }
 
-            // 3. Sort everything by time
+            // Sort all events by date ascending
             allEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            // 4. Render the combined log
+            // Render combined list: flags and radio messages with audio for radio
             radioLogElement.innerHTML = allEvents.map(ev => {
                 const timeStr = new Date(ev.date).toLocaleTimeString('en-GB', { hour12: false });
 
                 if (ev.type === 'flag') {
-                    // Race Control Styling (Yellow border)
                     return `
-                                                            <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
-                                                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                                                    <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
-                                                                    <span>${timeStr}</span>
-                                                                </div>
-                                                                <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
-                                                            </div>`;
-                } else {
-                    // Driver Radio Styling (Red/Cyan border)
+                <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                        <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
+                        <span>${timeStr}</span>
+                    </div>
+                    <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
+                </div>`;
+                } else { // radio
                     const color = ev.slot === 'ref' ? 'var(--primary-color)' : 'var(--compare-color)';
                     return `
-                                                            <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
-                                                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                                                                    <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
-                                                                    <span>${timeStr}</span>
-                                                                </div>
-                                                                <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
-                                                                <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
-                                                            </div>`;
+                <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                        <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
+                        <span>${timeStr}</span>
+                    </div>
+                    <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
+                    <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
+                </div>`;
                 }
             }).join('');
 
+            // Auto-scroll to bottom to show latest messages
             radioLogElement.scrollTop = radioLogElement.scrollHeight;
         }
 
@@ -4017,18 +4071,25 @@
                 const strategy1 = analyzeStints(data1.stints, data1.laps);
                 const strategy2 = analyzeStints(data2.stints, data2.laps);
 
+                const incidents = getRaceIncidents(sessionRaceControl);
+
+                const penServed1 = incidents.penaltiesServed.filter(p => String(p.driver) === String(driver1.driver_number)).length;
+                const penServed2 = incidents.penaltiesServed.filter(p => String(p.driver) === String(driver2.driver_number)).length;
+
+                const penRecv1 = incidents.penalties.filter(p => String(p.driver) === String(driver1.driver_number)).length;
+                const penRecv2 = incidents.penalties.filter(p => String(p.driver) === String(driver2.driver_number)).length;
+
+
                 // Pass metrics1 and metrics2 for cleaner tactical insights
                 const insight = await compareStrategies(
-                    strategy1,
-                    strategy2,
-                    driver1,
-                    driver2,
-                    data1,
-                    data2,
+                    strategy1, strategy2,
+                    driver1, driver2,
+                    data1, data2,
                     sessionKey,
-                    metrics1,
-                    metrics2
+                    metrics1, metrics2,
+                    { penServed1, penServed2, penRecv1, penRecv2 }
                 );
+
 
                 const best1 = Math.min(...data1.laps.map(l => l.lap_duration));
                 const best2 = Math.min(...data2.laps.map(l => l.lap_duration));
@@ -4038,31 +4099,38 @@
                                                 <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
                                             </div>
 
-                                            <table class="results-table" style="margin-bottom:25px; width:100%;">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="text-align:left;">Metric</th>
-                                                        <th>${driver1.last_name}</th>
-                                                        <th>${driver2.last_name}</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
-                                                    <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
-                                                    <tr><td>Pit Stop Out Lap(s)</td>
-                                                        <td>${formatPitLaps(strategy1.pitLaps, data1.laps, data2.laps)}</td>
-                                                        <td>${formatPitLaps(strategy2.pitLaps, data1.laps, data2.laps)}</td>
-                                                    </tr>
-                                                    <tr><td>Avg Pit Time Loss</td>
-                                                        <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                                                        <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                                                    </tr>
-                                                    <tr><td>Best Lap Time</td>
-                                                        <td>${formatTime(best1)}</td>
-                                                        <td>${formatTime(best2)}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+<table class="results-table" style="margin-bottom:25px; width:100%;">
+    <thead>
+        <tr>
+            <th style="text-align:left;">Metric</th>
+            <th>${driver1.last_name}</th>
+            <th>${driver2.last_name}</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
+        <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
+        <tr><td>Pit Stop Out Lap(s)</td>
+            <td>${formatPitLaps(strategy1.pitLaps, data1.laps)}</td>
+            <td>${formatPitLaps(strategy2.pitLaps, data2.laps)}</td>
+        </tr>
+        <tr><td>Avg Pit Time Loss</td>
+            <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+            <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+        </tr>
+        <tr>
+            <td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td>
+        </tr>
+        <tr>
+            <td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td>
+        </tr>
+        <tr><td>Best Lap Time</td>
+            <td>${formatTime(best1)}</td>
+            <td>${formatTime(best2)}</td>
+        </tr>
+    </tbody>
+</table>
+
 
                                             <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7;">
                                                 <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
@@ -4077,7 +4145,7 @@
             }
         }
 
-        async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey, metrics1, metrics2) {
+        async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey, metrics1, metrics2, penaltyMeta = {}) {
             let insights = [];
 
             // --- Get clean laps for both drivers ---
@@ -4100,6 +4168,25 @@
                 const status = getTrackStatusAtLap(lap, data1.laps, data2.laps);
                 if (status) driver2CheapStops.push({ lap, status });
             });
+
+            const isWetStart = t => ['INTERMEDIATE', 'WET'].includes((t || '').toUpperCase());
+            const firstPitLap1 = (s1.pitLaps && s1.pitLaps.length) ? Math.min(...s1.pitLaps) : null;
+            const firstPitLap2 = (s2.pitLaps && s2.pitLaps.length) ? Math.min(...s2.pitLaps) : null;
+
+            const mostlyDry = (sessionWeatherData?.length > 0)
+                ? (sessionWeatherData.filter(w => w.rainfall === 1).length / sessionWeatherData.length) < 0.25
+                : true; // fallback
+
+            if (isWetStart(s1.startingTire) && firstPitLap1 != null && firstPitLap1 <= 5 && mostlyDry) {
+                insights.unshift(
+                    `${driver1.last_name} effectively had a **forced early stop**: starting on ${s1.startingTire} and pitting on Lap ${firstPitLap1} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction rather than a strategic gain.`
+                );
+            }
+            if (isWetStart(s2.startingTire) && firstPitLap2 != null && firstPitLap2 <= 5 && mostlyDry) {
+                insights.unshift(
+                    `${driver2.last_name} effectively had a **forced early stop**: starting on ${s2.startingTire} and pitting on Lap ${firstPitLap2} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction rather than a strategic gain.`
+                );
+            }
 
             // Synchronized stops
             const syncLaps = driver1CheapStops.filter(d1 =>
@@ -4207,6 +4294,47 @@
                     insights.push(`${betterPit} gained time through better pit execution and recovery pace.`);
                 }
             }
+
+            const stops1 = s1.pitLaps?.length || 0;
+            const stops2 = s2.pitLaps?.length || 0;
+
+            if (stops1 !== stops2) {
+                const moreStopsDriver = stops1 > stops2 ? driver1.last_name : driver2.last_name;
+                const fewerStopsDriver = stops1 > stops2 ? driver2.last_name : driver1.last_name;
+                const diff = Math.abs(stops1 - stops2);
+
+                insights.push(
+                    `${moreStopsDriver} ran **${diff} extra stop(s)** versus ${fewerStopsDriver}; in normal green-flag conditions this is a net handicap unless offset by a sustained pace advantage or multiple “cheap stop” interventions.`
+                );
+        }
+
+            const {
+                penServed1 = 0, penServed2 = 0,
+                penRecv1 = 0, penRecv2 = 0
+            } = penaltyMeta || {};
+
+            if (penServed1 !== penServed2) {
+                const worse = penServed1 > penServed2 ? driver1.last_name : driver2.last_name;
+                const better = penServed1 > penServed2 ? driver2.last_name : driver1.last_name;
+                const diffCount = Math.abs(penServed1 - penServed2);
+
+                insights.push(
+                    `${worse} served **${diffCount} more penalty(ies)** than ${better}, adding further time loss on top of any extra-stop disadvantage and reducing the likelihood that pit-window timing alone produced a net gain.`
+                );
+            }
+
+            // Optional: call out “served > received” as an anomaly worth attention
+            if (penServed1 > penRecv1) {
+                insights.push(
+                    `${driver1.last_name} shows **more penalties served than received** in the log; verify Race Control messages (multiple 'SERVED' lines or parsing duplicates can inflate counts).`
+                );
+            }
+            if (penServed2 > penRecv2) {
+                insights.push(
+                    `${driver2.last_name} shows **more penalties served than received** in the log; verify Race Control messages (multiple 'SERVED' lines or parsing duplicates can inflate counts).`
+                );
+            }
+
 
             return insights.length > 0
                 ? insights.join(" ")
@@ -4619,74 +4747,66 @@
          * Determines the track status (RED FLAG, SC, VSC) at the time of a specific pit lap.
          * Uses a time window around the pit lap instead of processing the entire session.
          */
-        function getTrackStatusAtLap(lapNumber, allLapsData1, allLapsData2) {
+        function getTrackStatusAtLap(lapNumber, allLapsData) {
             if (!sessionRaceControl || sessionRaceControl.length === 0) return null;
 
-            // Prefer whichever lap entry has a valid date_start (don’t blindly prefer Slot 1)
-            const cand1 = allLapsData1?.find(l => l.lap_number === lapNumber) || null;
-            const cand2 = allLapsData2?.find(l => l.lap_number === lapNumber) || null;
-
-            const hasValidDateStart = (lap) => {
-                if (!lap || !lap.date_start) return false;
-                const t = new Date(lap.date_start).getTime();
-                return Number.isFinite(t);
-            };
-
-            const lapData =
-                (hasValidDateStart(cand1) ? cand1 : null) ||
-                (hasValidDateStart(cand2) ? cand2 : null) ||
-                null;
-
+            const lapData = allLapsData?.find(l => l.lap_number === lapNumber) || null;
             if (!lapData) return null;
 
-            // Sample at the start of the out-lap
-            const pitRefTime = new Date(lapData.date_start).getTime();
-            if (!Number.isFinite(pitRefTime)) return null;
+            const refTime = new Date(lapData.date_start).getTime();
+            if (!Number.isFinite(refTime)) return null;
 
+            // We'll scan from session start up to this lap's start time:
             let currentStatus = null;
+            let statusStack = [];
 
-            // Sort once per call (you can cache this globally for performance)
-            const sortedMsgs = [...sessionRaceControl].sort(
-                (a, b) => new Date(a.date) - new Date(b.date)
-            );
-
-            for (const m of sortedMsgs) {
+            // We will track both VSC and SC separately.
+            for (const m of sessionRaceControl) {
                 const mTime = new Date(m.date).getTime();
-                if (mTime > pitRefTime) break;
+                if (mTime > refTime) break;
 
-                const text = (m.message || "").toUpperCase();
+                const msg = (m.message || "").toUpperCase();
+                const cat = m.category || "";
 
-                if (text.includes("VIRTUAL SAFETY CAR DEPLOYED") || text.includes("VSC DEPLOYED")) {
+                // --- VSC logic ---
+                if (msg.includes("VSC DEPLOYED")) {
+                    statusStack.push("VSC");
                     currentStatus = "VSC";
-                } else if (text.includes("SAFETY CAR DEPLOYED") || m.category === "SafetyCar") {
+                } else if (msg.includes("VSC ENDING")) {
+                    // Remove the top-most VSC, if any.
+                    let lastVSC = statusStack.lastIndexOf("VSC");
+                    if (lastVSC > -1) statusStack.splice(lastVSC, 1);
+                    currentStatus = statusStack.length > 0 ? statusStack[statusStack.length - 1] : null;
+                }
+                // --- Full Safety Car logic ---
+                else if (msg.includes("SAFETY CAR DEPLOYED")) {
+                    statusStack.push("SC");
                     currentStatus = "SC";
-                } else if (m.flag === "RED" && m.scope === "Track") {
-                    currentStatus = "RED FLAG";
+                } else if (msg.includes("SAFETY CAR IN THIS LAP") || msg.includes("SAFETY CAR IN") || msg.includes("SAFETY CAR ENDING")) {
+                    // Remove the top-most SC, if any.
+                    let lastSC = statusStack.lastIndexOf("SC");
+                    if (lastSC > -1) statusStack.splice(lastSC, 1);
+                    currentStatus = statusStack.length > 0 ? statusStack[statusStack.length - 1] : null;
                 }
 
-                const isRestart =
-                    text.includes("TRACK CLEAR") ||
-                    text.includes("OVERTAKE ENABLED") ||
-                    text.includes("RESTART") ||
-                    (m.flag === "CLEAR" && m.scope === "Track") ||
-                    (m.flag === "GREEN" && m.scope === "Track");
-
-                if (isRestart) currentStatus = null;
+                // Optionally, you may treat "TRACK CLEAR" or "OVERTAKE ENABLED" as a global reset:
+                else if (msg.includes("TRACK CLEAR") || msg.includes("OVERTAKE ENABLED") || msg.includes("SESSION RESTARTED")) {
+                    statusStack = [];
+                    currentStatus = null;
+                }
             }
 
             return currentStatus;
         }
 
-        function formatPitLaps(pitLapsArr, allDriverLaps1, allDriverLaps2) {
+        function formatPitLaps(pitLapsArr, allDriverLaps) {
             if (!Array.isArray(pitLapsArr) || pitLapsArr.length === 0) return 'N/A';
-
             return pitLapsArr.map(lapNum => {
-                const status = getTrackStatusAtLap(lapNum, allDriverLaps1, allDriverLaps2);
-                // Map the code back to the label
+                const status = getTrackStatusAtLap(lapNum, allDriverLaps);
                 if (status === "SC") return `${lapNum} (Safety Car)`;
                 if (status === "VSC") return `${lapNum} (VSC)`;
                 if (status === "RED FLAG") return `${lapNum} (Red Flag)`;
-                return `${lapNum}`; // Return just number for Green stops
+                return `${lapNum}`;
             }).join(', ');
         }
 
@@ -4745,14 +4865,14 @@
                         });
                     }
                     // Otherwise it's a penalty being issued
-                    else if (upperText.includes("TIME PENALTY") ||
+                    else if (
+                        upperText.includes("TIME PENALTY") ||
+                        upperText.includes("DRIVE THROUGH") ||
+                        upperText.includes("DRIVE-THROUGH") ||
                         upperText.includes("STOP AND GO") ||
-                        upperText.includes("DRIVE THROUGH")) {
-                        penalties.push({
-                            lap: lap,
-                            message: text,
-                            driver: extractedDriver
-                        });
+                        upperText.includes("STOP-AND-GO")
+                    ) {
+                        penalties.push({ lap, message: text, driver: extractedDriver });
                     }
                 }
 
