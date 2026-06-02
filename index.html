@@ -1431,10 +1431,14 @@
         async function fetchSessionRaceControl() {
             const sessionKey = document.getElementById('session-select').value;
             try {
-                const res = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
-                sessionRaceControl = await res.json();
+                const response = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
+                const data = await response.json();
+                sessionRaceControl = Array.isArray(data) ? data : []; // Ensure it's always an array
                 console.log(`Cached ${sessionRaceControl.length} session messages.`);
-            } catch (e) { console.error("Failed to cache session race control", e); }
+            } catch (e) {
+                console.error("Failed to cache session race control", e);
+                sessionRaceControl = []; // Fallback
+            }
         }
 
         async function loadDrivers(sessionKeyOverride) {
