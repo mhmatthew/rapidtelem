@@ -2070,43 +2070,112 @@
             const commonOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,
+                animation: false, // Maximum performance, zero animation jitter
+
+                // CORE FIX: Use 'nearest' on the 'x' axis to bridge the gap between misaligned data points
                 interaction: {
-                    mode: 'index',
+                    mode: 'nearest',
+                    axis: 'x',
                     intersect: false,
                 },
-                // Handler for the Map Indicator (from previous step)
-                // Inside initCharts() -> commonOptions
-                onHover: (event, elements, chart) => {
-                    // 1. Check if elements exist
-                    // 2. Check if the dataset and the specific data point exist
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
-                        const dataset = chart.data.datasets[0];
 
-                        // Safety Check: Ensure the data point exists before reading .x
-                        if (dataset && dataset.data && dataset.data[index]) {
-                            const dist = dataset.data[index].x;
-                            updateTrackCursor(dist);
-                        }
+                // Handles the Map Indicator Cursor using spatial coordinates instead of array indices
+                onHover: (event, elements, chart) => {
+                    const chartX = chart.scales.x.getValueForPixel(event.x);
+                    if (chartX !== undefined && chartX !== null) {
+                        updateTrackCursor(chartX);
                     }
                 },
+
                 onLeave: () => {
                     if (charts.map) {
                         charts.map.data.datasets[1].data = [];
                         charts.map.update('none');
                     }
                 },
+
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#eee',
+                            boxWidth: 10,
+                            font: { family: "'Inter', sans-serif", size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        titleColor: '#ffc107',
+                        borderColor: '#444',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 4,
+
+                        // Visual Stability Fixes:
+                        caretSize: 0,                // Removes the triangle pointer that causes box-flipping
+                        position: 'nearest',         // Anchors box to data
+                        animation: false,            // Disables the box "sliding" effect
+
+                        // Interaction Alignment Fixes:
+                        mode: 'index',               // Allows showing BOTH drivers in one box
+                        axis: 'x',                   // Syncs both drivers to the vertical mouse line
+
+                        // Technical Branding:
+                        titleFont: {
+                            family: "'Roboto Mono', monospace",
+                            size: 13,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            family: "'Roboto Mono', monospace",
+                            size: 12
+                        },
+
+                        callbacks: {
+                            title: (context) => {
+                                if (context[0]) {
+                                    // Shows the distance of the vertical slice
+                                    return `DIST: ${context[0].parsed.x.toFixed(1)}m`;
+                                }
+                                return '';
+                            },
+                            label: (context) => {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    // Units & Precision
+                                    if (label.includes('Speed')) return label + context.parsed.y.toFixed(1) + ' km/h';
+                                    if (label.includes('RPM')) return label + context.parsed.y.toFixed(0);
+                                    if (label.includes('Gear')) return label + context.parsed.y.toFixed(0);
+                                    if (label.includes('Thr') || label.includes('Brk')) return label + context.parsed.y.toFixed(0) + '%';
+                                    return label + context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: 'Distance (m)', color: '#888' },
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: '#888' }
+                        title: {
+                            display: true,
+                            text: 'Distance (m)',
+                            color: '#888',
+                            font: { family: "'Inter', sans-serif", weight: 'bold' }
+                        },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#888',
+                            font: { family: "'Roboto Mono', monospace", size: 10 }
+                        }
                     },
                     y: {
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: '#888' }
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#888',
+                            font: { family: "'Roboto Mono', monospace", size: 10 }
+                        }
                     }
                 },
                 plugins: {
