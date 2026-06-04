@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -818,10 +819,12 @@
         }
         /* Bone dry */
 
-        /* Specific tweaks for the welcome modal */
-        #welcomeModal .modal-content {
-            box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
-        }
+/* Specific tweaks for the welcome modal */
+#welcomeModal .modal-content {
+    box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
+    max-height: 90vh; /* Restricts the modal to 90% of the screen height */
+    overflow-y: auto; /* Adds a scrollbar if the content is taller than the max-height */
+}
 
         #welcomeModal p {
             margin-top: 0;
