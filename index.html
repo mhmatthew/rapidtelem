@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5881,19 +5882,65 @@
     <!-- WELCOME MODAL -->
     <div id="welcomeModal" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px; height: auto; text-align: center; border-top: 4px solid var(--primary-color);">
-            <div class="modal-header" style="justify-content: center;">
-                <h2 style="color: var(--text-color);">Welcome to Rapid Telemetry</h2>
+            <div class="modal-header" style="flex-direction: column; align-items: center; border-bottom: none; padding-bottom: 0;">
+                <p style="color: var(--primary-color); font-weight: 800; letter-spacing: 2px; font-size: 0.8em; margin-bottom: 5px; text-transform: uppercase;">Welcome to</p>
+
+                <!-- Using a copy of your header SVG logo -->
+                <svg width="280" height="54" viewBox="0 0 1344 256" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                    <g transform="translate(40, 40) scale(2.4)">
+                        <path fill="none" stroke="#e10600" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" d="m0 50 12-10 12 15 12-25 12 5 18-20" />
+                        <path d="M5 40c12-20 38-20 60-10" fill="none" stroke="#ffc107" stroke-width="5" stroke-linecap="round" opacity=".8" />
+                    </g>
+                    <text x="280" y="165" fill="#fff"
+                          font-family="'Arial Black', sans-serif"
+                          font-style="italic"
+                          font-weight="900"
+                          font-size="115"
+                          textLength="1030"
+                          lengthAdjust="spacingAndGlyphs">RAPID TELEMETRY</text>
+                </svg>
             </div>
-            <div style="padding: 20px; line-height: 1.6; color: var(--text-color-light);">
+            <div style="padding: 10px; line-height: 1.6; color: var(--text-color-light);">
                 <p style="font-style: italic; color: #aaa; margin-top: -10px; margin-bottom: 20px;">
                     Visualizing the stories hidden in the telemetry.
                 </p>
 
-                <div style="text-align: left; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <div style="margin-bottom: 10px;"><strong>1. Select:</strong> Use the top dropdowns to pick a Year, Event, and Session.</div>
-                    <div style="margin-bottom: 10px;"><strong>2. Load Driver:</strong> Select a driver to see their lap list. Click any lap to load it into <strong>Slot 1</strong>.</div>
-                    <div style="margin-bottom: 10px;"><strong>3. Compare:</strong> Switch to <strong>Slot 2</strong> in the sidebar, select another driver, and pick a second lap.</div>
-                    <div><strong>4. Explore:</strong> Hover over charts to see the track position move, or use <strong>Pace Analysis</strong> for full race insights.</div>
+                <div style="text-align: left; margin: 25px 0; display: grid; gap: 12px;">
+                    <!-- Step 1 -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid #333; border-left: 3px solid var(--primary-color); padding: 12px 15px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-family: monospace; color: var(--primary-color); font-weight: bold; font-size: 1.1em; margin-top: 2px;">01</span>
+                        <div>
+                            <strong style="display: block; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; color: #eee; margin-bottom: 2px;">Select Session</strong>
+                            <span style="font-size: 0.9em; color: #aaa;">Pick a <span style="color: #fff;">Year, Event, and Session</span> from the top header.</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid #333; border-left: 3px solid var(--primary-color); padding: 12px 15px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-family: monospace; color: var(--primary-color); font-weight: bold; font-size: 1.1em; margin-top: 2px;">02</span>
+                        <div>
+                            <strong style="display: block; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; color: #eee; margin-bottom: 2px;">Initialize Slot 1</strong>
+                            <span style="font-size: 0.9em; color: #aaa;">Select a driver and click a lap to load the <span style="color: var(--primary-color);">Target</span> data.</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid #333; border-left: 3px solid var(--compare-color); padding: 12px 15px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-family: monospace; color: var(--compare-color); font-weight: bold; font-size: 1.1em; margin-top: 2px;">03</span>
+                        <div>
+                            <strong style="display: block; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; color: #eee; margin-bottom: 2px;">Compare Slot 2</strong>
+                            <span style="font-size: 0.9em; color: #aaa;">Switch to Slot 2 in the sidebar to load <span style="color: var(--compare-color);">Comparison</span> telemetry.</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid #333; border-left: 3px solid var(--accent-color); padding: 12px 15px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-family: monospace; color: var(--accent-color); font-weight: bold; font-size: 1.1em; margin-top: 2px;">04</span>
+                        <div>
+                            <strong style="display: block; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; color: #eee; margin-bottom: 2px;">Analyze & Export</strong>
+                            <span style="font-size: 0.9em; color: #aaa;">Hover over charts to sync track position or use <span style="color: #fff;">Pace Analysis</span> for race reports.</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
