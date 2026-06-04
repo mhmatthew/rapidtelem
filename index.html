@@ -355,21 +355,21 @@
 
 
         /* --- PACE ANALYSIS MODAL STYLES --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000; /* Ensure it's on top of everything */
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
+.modal-overlay {
+    position: fixed;
+    top: 35px; /* Pushes the overlay down below the ticker */
+    left: 0;
+    width: 100%;
+    height: calc(100% - 35px); /* Occupies the remaining vertical space */
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
 
             .modal-overlay.visible {
                 opacity: 1;
@@ -819,11 +819,11 @@
         }
         /* Bone dry */
 
-/* Specific tweaks for the welcome modal */
 #welcomeModal .modal-content {
     box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
-    max-height: 90vh; /* Restricts the modal to 90% of the screen height */
-    overflow-y: auto; /* Adds a scrollbar if the content is taller than the max-height */
+    max-height: 90%; /* Use percentage relative to the *overlay's* new height */
+    overflow-y: auto; /* Adds a scrollbar if content exceeds max-height */
+    box-sizing: border-box; /* Ensures padding is included in width/height calculation */
 }
 
         #welcomeModal p {
