@@ -615,7 +615,7 @@
 
         .strategy-drawer {
             position: fixed; /* Changed from absolute to fixed to prevent scroll drift */
-            top: 0;
+            top: 35px;
             right: 0;
             width: 420px;
             height: 100%;
@@ -3863,19 +3863,23 @@
                 const driver1 = paceAvailableDrivers.find(d => d.driver_number == driver1Num);
                 const driver2 = paceAvailableDrivers.find(d => d.driver_number == driver2Num);
 
+                // Grab the session name from the dropdown
+                const sessionName = document.getElementById('paceSessionSelect').options[document.getElementById('paceSessionSelect').selectedIndex]?.text || "";
+
+                // Generate report (Pass sessionName as the last argument)
+                reportWrapper.innerHTML = generateAdvancedReport(
+                    metrics1, metrics2, driver1, driver2,
+                    trackLimits1, trackLimits2,
+                    penalties1, penalties2,
+                    penaltiesServed1, penaltiesServed2,
+                    sessionName // <--- ADD THIS
+                );
+
                 // === IMPORTANT: Store data globally for Strategy Drawer ===
                 currentReportData1 = rawData1;
                 currentReportData2 = rawData2;
                 currentReportDriver1 = driver1;
                 currentReportDriver2 = driver2;
-
-                // Generate report (now passing penalties served as well)
-                reportWrapper.innerHTML = generateAdvancedReport(
-                    metrics1, metrics2, driver1, driver2,
-                    trackLimits1, trackLimits2,
-                    penalties1, penalties2,
-                    penaltiesServed1, penaltiesServed2
-                );
 
                 // UI toggle
                 const paceChart = document.getElementById('paceAnalysisChart');
@@ -3916,7 +3920,11 @@
             const variance = durations.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / durations.length;
             const stdDev = Math.sqrt(variance);
             const cv = (stdDev / mean) * 100;
-            const within05s = durations.filter(t => t <= bestLap + 0.5).length;
+            const competitiveLaps = durations.filter(t => t <= bestLap + 0.5);
+            const within05s = competitiveLaps.length; // Kept as 'within05s' to avoid ReferenceError
+            const avgCompetitiveLap = within05s > 0
+                ? competitiveLaps.reduce((a, b) => a + b, 0) / within05s
+                : null;
 
             // === Pit analysis must use ALL laps (not clean laps) ===
             const recovery = calculateRecoveryPace(laps, mean);
@@ -3977,6 +3985,7 @@
                 stdDev: stdDev.toFixed(3),
                 consistencyScore: (100 - cv).toFixed(1),
                 competitiveLapsPercent: ((within05s / durations.length) * 100).toFixed(1),
+                avgCompetitiveLap: avgCompetitiveLap,
                 recoveryStats: recovery,                    // ← Now uses full laps
                 stintStats: calculateStintDegradation(cleanLaps, allLapsData1, allLapsData2),
                 // IMPORTANT: pass *all* laps here, not cleanLaps
@@ -4023,6 +4032,14 @@
             Object.keys(breakdown).forEach(t => {
                 const d = breakdown[t];
                 d.avg = d.total / d.laps;
+
+                // --- NEW LOGIC: Calculate Representative Push Pace ---
+                const threshold = 0.75; // Laps within 0.75s of compound best
+                const pushLaps = d.times.filter(time => time <= d.fastest + threshold);
+                d.pushAvg = pushLaps.length > 0 ? (pushLaps.reduce((a, b) => a + b, 0) / pushLaps.length) : null;
+                d.pushCount = pushLaps.length;
+                // ----------------------------------------------------
+
                 d.degradation = d.times.length > 1
                     ? ((d.times[d.times.length - 1] - d.times[0]) / (d.times.length - 1)).toFixed(3)
                     : "0.000";
@@ -4094,6 +4111,20 @@
             return bestTire;
         }
 
+        function getBestPushTire(metrics) {
+            if (!metrics || !metrics.tireBreakdown) return null;
+
+            let best = null;
+            Object.entries(metrics.tireBreakdown).forEach(([tire, data]) => {
+                if (!data.pushAvg || data.nonRepresentative) return;
+                if (!best || data.pushAvg < best.pushAvg) {
+                    best = { tire, pushAvg: data.pushAvg, fastest: data.fastest };
+                }
+            });
+            return best;
+        }
+
+
         function calculateStintDegradation(laps, allLapsData1, allLapsData2) {
             const cleanLaps = getCleanLaps(laps, allLapsData1, allLapsData2);
             const stints = {};
@@ -4163,7 +4194,7 @@
             m1, m2, d1, d2,
             trackLimits1 = 0, trackLimits2 = 0,
             penalties1 = 0, penalties2 = 0,
-            penaltiesServed1 = 0, penaltiesServed2 = 0
+            penaltiesServed1 = 0, penaltiesServed2 = 0, sessionName
         ) {
             if (!m1 && !m2) return `<div class="error">No data available for report.</div>`;
 
@@ -4190,6 +4221,10 @@
                     <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
                     <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
                     <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
+                    <tr><td style="color:var(--accent-color); padding-left: 20px;">└ Avg Competitive Lap</td>
+                    <td>${m1 && m1.avgCompetitiveLap ? formatTime(m1.avgCompetitiveLap) : '-'}</td>
+                    <td>${m2 && m2.avgCompetitiveLap ? formatTime(m2.avgCompetitiveLap) : '-'}</td>
+                    </tr>
 
                     <!-- DISCIPLINE & PENALTIES -->
                     <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
@@ -4301,12 +4336,12 @@
 
             // Key Takeaways
             html += `
-            <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
-                <strong>Key Takeaways:</strong><br>
-                <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2)}</span>
-            </div>
-            <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
-        `;
+    <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
+        <strong>Key Takeaways:</strong><br>
+        <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2, sessionName)}</span> 
+    </div>
+    <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+    `;
 
             return html;
         }
@@ -4477,6 +4512,17 @@
         async function compareStrategies(s1, s2, driver1, driver2, data1, data2, sessionKey, metrics1, metrics2, penaltyMeta = {}) {
             let insights = [];
 
+            // Derive session type locally for tactical wording
+            const paceSessionSelect = document.getElementById('paceSessionSelect');
+            const sessionLabel = paceSessionSelect && paceSessionSelect.value
+                ? (paceSessionSelect.options[paceSessionSelect.selectedIndex].text || '')
+                : '';
+
+            const name = sessionLabel.toUpperCase();
+            const isQualifying = name.includes("QUALIFYING") || name.includes("QUALI") || name.includes("QUALY") || name.includes("SHOOTOUT");
+            const isPractice = name.includes("PRACTICE") || name.includes("FP1") || name.includes("FP2") || name.includes("FP3");
+            const isRace = !isQualifying && !isPractice;
+
             // --- Get clean laps for both drivers ---
             const cleanLaps1 = getCleanLaps(data1.laps, data1.laps, data2.laps);
             const cleanLaps2 = getCleanLaps(data2.laps, data1.laps, data2.laps);
@@ -4587,47 +4633,68 @@
                 }
             }
 
-            // --- 3. COMPOUND PERFORMANCE (Using Clean Laps) ---
-            const getTireAverages = (laps) => {
+            // --- 3. COMPOUND USAGE PROFILE (no per‑compound averages) ---
+            const getTireUsage = (laps) => {
                 const dict = {};
                 laps.forEach(l => {
                     const c = (l.tireCompound || 'UNKNOWN').toUpperCase();
-                    if (!dict[c]) dict[c] = { sum: 0, count: 0 };
-                    dict[c].sum += l.lap_duration;
-                    dict[c].count++;
-                });
-                Object.keys(dict).forEach(key => {
-                    dict[key].avg = dict[key].sum / dict[key].count;
+                    if (!dict[c]) dict[c] = { laps: 0, stints: new Set() };
+                    dict[c].laps++;
+                    if (l.stintNumber) dict[c].stints.add(l.stintNumber);
                 });
                 return dict;
             };
 
-            const t1 = getTireAverages(cleanLaps1);
-            const t2 = getTireAverages(cleanLaps2);
+            const u1 = getTireUsage(cleanLaps1);
+            const u2 = getTireUsage(cleanLaps2);
 
-            Object.keys(t1).forEach(compound => {
-                if (t2[compound]) {
-                    const avg1 = t1[compound].avg;
-                    const avg2 = t2[compound].avg;
-                    const delta = Math.abs(avg1 - avg2);
+            // Note which compounds each driver actually leaned on
+            Object.keys(u1).forEach(compound => {
+                const d1Info = u1[compound];
+                const d2Info = u2[compound];
 
-                    // Only report meaningful differences (> 0.15s)
-                    if (delta > 0.15) {
-                        const faster = avg1 < avg2 ? driver1.last_name : driver2.last_name;
-                        insights.push(`On the **${compound}** compound, ${faster} was stronger, with an average pace advantage of ${delta.toFixed(3)}s per lap.`);
-                    }
+                if (d1Info && !d2Info) {
+                    insights.push(
+                        `${driver1.last_name} built part of their run plan around the **${compound}** ` +
+                        `compound, while ${driver2.last_name} never ran it in clean conditions.`
+                    );
                 }
             });
 
-            // --- 4. DEGRADATION (Using Clean Data) ---
-            if (metrics1 && metrics2) {
-                const deg1 = metrics1.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics1.stintStats.length;
-                const deg2 = metrics2.stintStats.reduce((a, b) => a + b.degradation, 0) / metrics2.stintStats.length;
+            Object.keys(u2).forEach(compound => {
+                const d1Info = u1[compound];
+                const d2Info = u2[compound];
 
-                if (Math.abs(deg1 - deg2) > 0.015) {
-                    const betterManager = deg1 < deg2 ? driver1.last_name : driver2.last_name;
-                    insights.push(`${betterManager} showed better tire management with lower average degradation.`);
+                if (!d1Info && d2Info) {
+                    insights.push(
+                        `${driver2.last_name} built part of their run plan around the **${compound}** ` +
+                        `compound, while ${driver1.last_name} never ran it in clean conditions.`
+                    );
                 }
+            });
+
+            // --- 4. PUSH PACE / TIRE MANAGEMENT (compound‑focused, no per‑compound averages) ---
+            if (metrics1 && metrics2 && metrics1.tireBreakdown && metrics2.tireBreakdown) {
+                const compounds = new Set([
+                    ...Object.keys(metrics1.tireBreakdown),
+                    ...Object.keys(metrics2.tireBreakdown)
+                ]);
+
+                compounds.forEach(tire => {
+                    const d1T = metrics1.tireBreakdown[tire];
+                    const d2T = metrics2.tireBreakdown[tire];
+
+                    // Require representative push data on both sides
+                    if (!d1T?.pushAvg || d1T.nonRepresentative || !d2T?.pushAvg || d2T.nonRepresentative) return;
+
+                    const faster = d1T.pushAvg < d2T.pushAvg ? driver1.last_name : driver2.last_name;
+                    const other = d1T.pushAvg < d2T.pushAvg ? driver2.last_name : driver1.last_name;
+
+                    insights.push(
+                        `On the **${tire}** compound, ${faster} was the stronger performer in push phases, ` +
+                        `consistently extracting more from that tyre whenever they committed to an attack run.`
+                    );
+                });
             }
 
             // --- 5. TECHNIQUE INSIGHTS (Only if telemetry is available) ---
@@ -4646,7 +4713,7 @@
                 penRecv1 = 0, penRecv2 = 0
             } = penaltyMeta || {};
 
-            // --- 6. PIT EFFICIENCY ---
+            // --- 6. PIT EFFICIENCY / STOP PROFILE ---
             if (metrics1?.recoveryStats?.averageTotalLoss != null && metrics2?.recoveryStats?.averageTotalLoss != null) {
                 const pitDiff = Math.abs(metrics1.recoveryStats.averageTotalLoss - metrics2.recoveryStats.averageTotalLoss);
                 if (pitDiff > 1.0) {
@@ -4654,22 +4721,31 @@
                     const betterPitDriver = betterPitIs1 ? driver1.last_name : driver2.last_name;
 
                     const betterDriverServedPenalties = betterPitIs1 ? (penServed1 > 0) : (penServed2 > 0);
-
-                    // If there is an asymmetry in penalties served, a dedicated penalty insight will be added later.
-                    // Avoid duplicating the same caveat here.
                     const penServedDiffExists = penServed1 !== penServed2;
 
-                    if (!betterDriverServedPenalties) {
-                        insights.push(`${betterPitDriver} gained time through better pit execution and recovery pace.`);
-                    } else if (!penServedDiffExists) {
+                    if (isRace) {
+                        if (!betterDriverServedPenalties) {
+                            insights.push(
+                                `${betterPitDriver} gained time through cleaner pit execution and stronger ` +
+                                `recovery laps around their stop windows.`
+                            );
+                        } else if (!penServedDiffExists) {
+                            insights.push(
+                                `${betterPitDriver} served penalties, so pit-cycle comparisons here fold in ` +
+                                `penalty service as well as raw pit execution.`
+                            );
+                        }
+                    } else if (isPractice || isQualifying) {
+                        // In practice/qualy: focus on prep, not race handicap
                         insights.push(
-                            `${betterPitDriver} served penalties, so pit-cycle comparisons may not reflect pure pit execution.`
+                            `${betterPitDriver} handled their in‑lap / out‑lap sequences more effectively, ` +
+                            `turning pit runs into better preparation windows for subsequent push efforts.`
                         );
                     }
                 }
             }
 
-            // --- extra stops ---
+            // --- extra stops / runs ---
             const stops1 = s1.pitLaps?.length || 0;
             const stops2 = s2.pitLaps?.length || 0;
 
@@ -4678,9 +4754,18 @@
                 const fewerStopsDriver = stops1 > stops2 ? driver2.last_name : driver1.last_name;
                 const diff = Math.abs(stops1 - stops2);
 
-                insights.push(
-                    `${moreStopsDriver} ran **${diff} extra stop(s)** versus ${fewerStopsDriver}; in normal green-flag conditions this is a net handicap unless offset by a sustained pace advantage or multiple “cheap stop” interventions.`
-                );
+                if (isRace) {
+                    insights.push(
+                        `${moreStopsDriver} ran **${diff} extra stop(s)** versus ${fewerStopsDriver}; ` +
+                        `in normal green‑flag conditions that usually needs to be offset by stronger ` +
+                        `push‑phase pace or 'cheap stop' opportunities.`
+                    );
+                } else if (isPractice || isQualifying) {
+                    insights.push(
+                        `${moreStopsDriver} cycled the pits more often, trading continuous long runs for ` +
+                        `additional resets on fuel/tyre state and out‑lap prep compared with ${fewerStopsDriver}.`
+                    );
+                }
             }
 
             // --- penalties served difference (qualifier language, not double-counting time) ---
@@ -4737,20 +4822,37 @@
             return html;
         }
 
-        function generateVerdict(m1, m2, d1, d2) {
+        function generateVerdict(m1, m2, d1, d2, sessionName = "") {
             if (!m1 || !m2) return "Insufficient data for comparison.";
 
             const bounds = getSessionBoundaries();
+            const name = sessionName.toUpperCase();
+
+            // --- Session Identification Logic ---
+            const isQualifying = name.includes("QUALIFYING") || name.includes("QUALI") || name.includes("QUALY") || name.includes("SHOOTOUT");
+            const isPractice = name.includes("PRACTICE");
+            const isRace = !isQualifying && !isPractice;
+
+            // Determine the specific session type string for insights
+            let sessionTypeString = "session";
+            if (isRace) {
+                sessionTypeString = "race";
+            } else if (isQualifying) {
+                sessionTypeString = "qualifying";
+            } else if (isPractice) {
+                sessionTypeString = "practice";
+            }
+
             let insights = [];
 
             // --- 1. ENVIRONMENTAL CONTEXT (Weather Analysis) ---
-            if (sessionWeatherData && sessionWeatherData.length > 0) {
+            if (typeof sessionWeatherData !== 'undefined' && sessionWeatherData && sessionWeatherData.length > 0) {
                 const avgTrackTemp = sessionWeatherData.reduce((a, b) => a + b.track_temperature, 0) / sessionWeatherData.length;
                 const hasRain = sessionWeatherData.some(w => w.rainfall === 1);
                 const peakWind = Math.max(...sessionWeatherData.map(w => w.wind_speed * 3.6));
 
                 if (hasRain) {
-                    insights.push(`The session was defined by variable track conditions due to rainfall, shifting the performance advantage toward adaptive driving consistency.`);
+                    insights.push(`The ${sessionTypeString} was defined by variable track conditions due to rainfall, shifting the performance advantage toward adaptive driving consistency.`);
                 } else if (avgTrackTemp > 45) {
                     insights.push(`Extreme track temperatures (${avgTrackTemp.toFixed(1)}°C) placed a critical premium on thermal tire management and surface cooling.`);
                 }
@@ -4760,129 +4862,212 @@
                 }
             }
 
-            // --- 2. BASELINE PACE ---
-            const avgDiff = Math.abs(m1.averageLap - m2.averageLap);
-            if (avgDiff <= 0.05) {
-                insights.push("Both drivers demonstrated nearly identical baseline pace throughout the session.");
-            } else {
-                const fasterDriver = m1.averageLap < m2.averageLap ? d1.last_name : d2.last_name;
-                insights.push(`${fasterDriver} demonstrated superior sustained pace, holding an average advantage of ${avgDiff.toFixed(3)}s per lap across the analyzed stints.`);
+            // --- 2. SESSION PROGRESSION & VOLUME (Practice/Qualy Focus) ---
+            if (isPractice || isQualifying) {
+                [{ m: m1, d: d1 }, { m: m2, d: d2 }].forEach(item => {
+                    if (item.m && item.d && item.m.tireBreakdown) {
+                        const totalLaps = Object.values(item.m.tireBreakdown).reduce((sum, t) => sum + (t.laps || 0), 0);
+                        const tireEntries = Object.entries(item.m.tireBreakdown).sort((a, b) => b[1].laps - a[1].laps);
+                        const mainTire = tireEntries.length > 0 ? tireEntries[0][0] : "UNK";
+
+                        if (isPractice) {
+                            insights.push(`${item.d.last_name} completed a high-volume run plan of ${totalLaps} laps, focusing heavily on the **${mainTire}** compound for data gathering during the practice session.`);
+                        } else if (isQualifying) {
+                            insights.push(`${item.d.last_name} completed ${totalLaps} laps in qualifying; progression into the final phases is evidenced by increased volume and peak track evolution usage.`);
+                        }
+                    }
+                });
             }
 
-            // --- 3. PEAK PERFORMANCE (PB) ---
+            // --- 3. BASELINE PACE ---
+            if (isRace) {
+                const avgDiff = Math.abs(m1.averageLap - m2.averageLap);
+                if (avgDiff <= 0.05) {
+                    insights.push(`Both drivers demonstrated nearly identical baseline pace throughout the ${sessionTypeString}.`);
+                } else {
+                    const fasterDriver = m1.averageLap < m2.averageLap ? d1.last_name : d2.last_name;
+                    insights.push(`${fasterDriver} demonstrated superior sustained pace, holding an average advantage of ${avgDiff.toFixed(3)}s per lap across the analyzed stints in the ${sessionTypeString}.`);
+                }
+            }
+
+            // --- 4. PEAK PERFORMANCE (PB) ---
             if (Math.abs(m1.fastestLap - m2.fastestLap) > 0.05) {
                 const fastestDiff = Math.abs(m1.fastestLap - m2.fastestLap);
                 const fastestDriver = m1.fastestLap < m2.fastestLap ? d1.last_name : d2.last_name;
-                insights.push(`${fastestDriver} set the ultimate benchmark for the session, outpacing their rival's personal best by ${fastestDiff.toFixed(3)}s.`);
+
+                if (isQualifying) {
+                    insights.push(`${fastestDriver} secured the ultimate benchmark, finding the peak track evolution and fuel burn-off window to lead by ${fastestDiff.toFixed(3)}s in qualifying.`);
+                } else {
+                    insights.push(`${fastestDriver} set the ultimate benchmark for the ${sessionTypeString}, outpacing their rival's personal best by ${fastestDiff.toFixed(3)}s.`);
+                }
             }
 
-            // --- 4. INPUT TECHNIQUE: TRANSITIONS ---
-            if (m1.technique.telemetryAvailable && m2.technique.telemetryAvailable) {
-                const tDiff = parseFloat(m1.technique.transitions.avgTotal) - parseFloat(m2.technique.transitions.avgTotal);
-                if (Math.abs(tDiff) > 0.04) {
-                    const faster = tDiff < 0 ? d1.last_name : d2.last_name;
-                    insights.push(`${faster} was notably more aggressive on corner exit, reaching 100% throttle ${Math.abs(tDiff).toFixed(3)}s sooner after releasing the brake.`);
+            // --- 5. INPUT TECHNIQUE ---
+            if (m1.technique?.telemetryAvailable && m2.technique?.telemetryAvailable) {
+                // Transitions
+                if (m1.technique.transitions && m2.technique.transitions) {
+                    const tDiff = parseFloat(m1.technique.transitions.avgTotal) - parseFloat(m2.technique.transitions.avgTotal);
+                    if (Math.abs(tDiff) > 0.04) {
+                        const faster = tDiff < 0 ? d1.last_name : d2.last_name;
+                        insights.push(`${faster} was notably more aggressive on corner exit, reaching 100% throttle ${Math.abs(tDiff).toFixed(3)}s sooner after releasing the brake.`);
+                    }
                 }
 
-                // --- 5. INPUT TECHNIQUE: OVERLAP (THE STABILIZATION & REGEN DUALITY) ---
-                const oDiff = parseFloat(m1.technique.overlap.total) - parseFloat(m2.technique.overlap.total);
-                if (Math.abs(oDiff) > 0.3) {
-                    const moreOverlap = oDiff > 0 ? d1.last_name : d2.last_name;
-                    insights.push(`${moreOverlap} utilized significantly more brake/throttle overlap; while this can be used to stabilize car pitch into corners, it is often employed to maximize battery regeneration and ERS harvesting under combined inputs.`);
+                // Overlap
+                if (m1.technique.overlap && m2.technique.overlap) {
+                    const oDiff = parseFloat(m1.technique.overlap.total) - parseFloat(m2.technique.overlap.total);
+                    if (Math.abs(oDiff) > 0.3) {
+                        const moreOverlap = oDiff > 0 ? d1.last_name : d2.last_name;
+                        insights.push(`${moreOverlap} utilized significantly more brake/throttle overlap; while this can be used to stabilize car pitch into corners, it is often employed to maximize battery regeneration and ERS harvesting under combined inputs.`);
+                    }
                 }
 
-                // --- 6. INPUT TECHNIQUE: COASTING ---
-                const cDiff = parseFloat(m1.technique.coasting.total) - parseFloat(m2.technique.coasting.total);
-                if (Math.abs(cDiff) > 0.4) {
-                    const moreCoasting = cDiff > 0 ? d1.last_name : d2.last_name;
-                    insights.push(`${moreCoasting} spent more time in a neutral coasting state, suggesting a smoother, more "V-shaped" cornering line or a focus on lift-and-coast fuel saving.`);
-                }
+                // Coasting & Lift-and-Coast Math
+                if (m1.technique.coasting && m2.technique.coasting) {
+                    const cDiff = parseFloat(m1.technique.coasting.total) - parseFloat(m2.technique.coasting.total);
+                    if (Math.abs(cDiff) > 0.4) {
+                        const moreCoasting = cDiff > 0 ? d1.last_name : d2.last_name;
+                        insights.push(`${moreCoasting} spent more time in a neutral coasting state, suggesting possibly a smoother, more "V-shaped" cornering line or a focus on lift-and-coast fuel saving.`);
+                    }
 
-                if (m1.technique?.telemetryAvailable && m2.technique?.telemetryAvailable) {
-                    const c1 = parseFloat(m1.technique.coasting?.total || 0);
-                    const c2 = parseFloat(m2.technique.coasting?.total || 0);
-
+                    const c1 = parseFloat(m1.technique.coasting.total || 0);
+                    const c2 = parseFloat(m2.technique.coasting.total || 0);
                     const avgCoast = (c1 + c2) / 2;
                     const minFloor = 0.7;
                     const margin = 0.25 * avgCoast;
                     const significantCoastingThreshold = Math.max(minFloor, avgCoast + margin);
 
                     if (m1.technique.isFastestLap && c1 > significantCoastingThreshold) {
-                        insights.push(
-                            `${d1.last_name} carried significant lift‑and‑coast on their personal best lap, ` +
-                            `indicating that peak time was achieved with margin left in fuel or temperature management.`
-                        );
+                        insights.push(`${d1.last_name} carried significant lift‑and‑coast on their personal best lap, indicating that peak time was achieved with margin left in fuel or temperature management.`);
                     }
                     if (m2.technique.isFastestLap && c2 > significantCoastingThreshold) {
-                        insights.push(
-                            `${d2.last_name} carried significant lift‑and‑coast on their personal best lap, ` +
-                            `indicating that peak time was achieved with margin left in fuel or temperature management.`
-                        );
+                        insights.push(`${d2.last_name} carried significant lift‑and‑coast on their personal best lap, indicating that peak time was achieved with margin left in fuel or temperature management.`);
                     }
                 }
             }
 
-            // --- 7. COMPOUND PERFORMANCE ---
-            if (m1.tireBreakdown && m2.tireBreakdown) {
+            // --- 6. COMPOUND PERFORMANCE (race‑only average deltas) ---
+            if (isRace && m1.tireBreakdown && m2.tireBreakdown) {
                 const tires = Object.keys(m1.tireBreakdown);
                 tires.forEach(tire => {
                     const t1 = m1.tireBreakdown[tire];
                     const t2 = m2.tireBreakdown[tire];
-                    if (t1 && t2) {
+
+                    // Only compare clean, representative averages in races
+                    if (t1 && t2 && !t1.nonRepresentative && !t2.nonRepresentative) {
                         const compoundDiff = Math.abs(t1.avg - t2.avg);
                         if (compoundDiff > 0.2) {
                             const fasterOnTire = t1.avg < t2.avg ? d1.last_name : d2.last_name;
-                            insights.push(`${fasterOnTire} showed a distinct performance edge on the ${tire} compound, averaging ${compoundDiff.toFixed(3)}s faster per lap than their counterpart.`);
+                            insights.push(
+                                `${fasterOnTire} showed a clear race‑pace edge on the ${tire} compound, ` +
+                                `with an average advantage of ${compoundDiff.toFixed(3)}s per lap over their rival.`
+                            );
                         }
                     }
                 });
             }
 
-            // --- 8. TIRE MANAGEMENT ---
-            if (m1.stintStats?.length > 0 && m2.stintStats?.length > 0) {
-                const deg1 = m1.stintStats.reduce((a, b) => a + b.degradation, 0) / m1.stintStats.length;
-                const deg2 = m2.stintStats.reduce((a, b) => a + b.degradation, 0) / m2.stintStats.length;
-                if (Math.abs(deg1 - deg2) > 0.02) {
-                    const betterManager = deg1 < deg2 ? d1.last_name : d2.last_name;
-                    insights.push(`${betterManager} displayed superior tire preservation, maintaining lap times more effectively with lower average degradation across the stints.`);
+            // --- 6a. PUSH PACE BY COMPOUND (uses pushAvg, session‑aware) ---
+            if (m1.tireBreakdown && m2.tireBreakdown) {
+                const allCompounds = new Set([
+                    ...Object.keys(m1.tireBreakdown),
+                    ...Object.keys(m2.tireBreakdown)
+                ]);
+
+                allCompounds.forEach(tire => {
+                    const d1T = m1.tireBreakdown[tire];
+                    const d2T = m2.tireBreakdown[tire];
+
+                    // Skip if no representative push data
+                    if (!d1T?.pushAvg || d1T.nonRepresentative || !d2T?.pushAvg || d2T.nonRepresentative) return;
+
+                    const diff = Math.abs(d1T.pushAvg - d2T.pushAvg);
+                    if (diff < 0.05) return; // ignore tiny differences
+
+                    const faster = d1T.pushAvg < d2T.pushAvg ? d1.last_name : d2.last_name;
+
+                    if (isQualifying || isPractice) {
+                        insights.push(
+                            `On the **${tire}** compound, ${faster} was stronger in pure push laps, ` +
+                            `with an average of ${diff.toFixed(3)}s per lap in their favour.`
+                        );
+                    } else if (isRace) {
+                        insights.push(
+                            `In race‑pace push phases on the **${tire}** compound, ${faster} held an ` +
+                            `average advantage of ${diff.toFixed(3)}s per lap.`
+                        );
+                    } else {
+                        insights.push(
+                            `Across the **${tire}** compound, ${faster} enjoyed a ` +
+                            `${diff.toFixed(3)}s per lap edge on representative push laps.`
+                        );
+                    }
+                });
+            }
+
+
+            // --- 7. COMPETITIVE PACE (PB‑adjacent) ---
+            if (m1.avgCompetitiveLap && m2.avgCompetitiveLap) {
+                const compDiff = Math.abs(m1.avgCompetitiveLap - m2.avgCompetitiveLap);
+                if (compDiff > 0.03) {
+                    const faster = m1.avgCompetitiveLap < m2.avgCompetitiveLap ? d1.last_name : d2.last_name;
+                    if (isQualifying || isPractice) {
+                        insights.push(
+                            `${faster} held the stronger push pace window, averaging ` +
+                            `${compDiff.toFixed(3)}s quicker over PB‑adjacent laps (within +0.5s of their best).`
+                        );
+                    } else if (isRace) {
+                        insights.push(
+                            `${faster} carried the better attack‑mode pace, averaging ` +
+                            `${compDiff.toFixed(3)}s quicker across their competitive lap cluster.`
+                        );
+                    } else {
+                        insights.push(
+                            `${faster} achieved the more effective peak‑pace profile, with an ` +
+                            `average gain of ${compDiff.toFixed(3)}s over their rival in PB‑adjacent laps.`
+                        );
+                    }
                 }
             }
 
-            // --- 9. PIT EFFICIENCY ---
-            if (m1.recoveryStats?.averageTotalLoss != null && m2.recoveryStats?.averageTotalLoss != null) {
+            // --- 8. PIT EFFICIENCY ---
+            if (isRace && m1.recoveryStats?.averageTotalLoss != null && m2.recoveryStats?.averageTotalLoss != null) {
                 const pitDiff = Math.abs(m1.recoveryStats.averageTotalLoss - m2.recoveryStats.averageTotalLoss);
                 if (pitDiff > 1.0) {
                     const betterPit = m1.recoveryStats.averageTotalLoss < m2.recoveryStats.averageTotalLoss ? d1.last_name : d2.last_name;
-                    insights.push(`${betterPit} gained time through superior pit-lane execution and recovery lap pace.`);
+                    insights.push(`${betterPit} gained time through superior pit-lane execution and recovery lap pace during the race.`);
                 }
             }
 
-            // --- 10. CONSISTENCY ---
-            const consistencyDiff = Math.abs(m1.consistencyScore - m2.consistencyScore);
-            if (consistencyDiff > 2.0) {
-                const moreConsistent = m1.consistencyScore > m2.consistencyScore ? d1.last_name : d2.last_name;
-                insights.push(`${moreConsistent} was the more consistent driver, maintaining a tighter performance window throughout the session.`);
+            // --- 9. CONSISTENCY ---
+            if (isRace) {
+                const consistencyDiff = Math.abs(m1.consistencyScore - m2.consistencyScore);
+                if (consistencyDiff > 2.0) {
+                    const moreConsistent = m1.consistencyScore > m2.consistencyScore ? d1.last_name : d2.last_name;
+                    insights.push(`${moreConsistent} was the more consistent driver, maintaining a tighter performance window throughout the race.`);
+                }
             }
 
+            // --- 10. INTERVENTION IMPACT ---
+            if (isRace && typeof sessionRaceControl !== 'undefined') {
+                const scEvents = sessionRaceControl.filter(m => {
+                    const t = m.message.toUpperCase();
+                    return t.includes("SAFETY CAR DEPLOYED") || t.includes("VIRTUAL SAFETY CAR DEPLOYED");
+                });
 
-            // --- 11. INTERVENTION IMPACT ---
-            const scEvents = sessionRaceControl.filter(m => {
-                const t = m.message.toUpperCase();
-                return t.includes("SAFETY CAR DEPLOYED") || t.includes("VIRTUAL SAFETY CAR DEPLOYED");
-            });
-
-            if (scEvents.length > 0) {
-                const lastSC = scEvents[scEvents.length - 1];
-                if (lastSC.lap_number > (bounds.laps * 0.7)) {
-                    insights.push(`Late-race interventions significantly compressed the field, neutralizing the historical pace advantages built during the earlier green-flag stints and forcing a high-pressure sprint finish.`);
-                } else {
-                    insights.push(`Strategic deployment of the Safety Car early in the race provided critical 'cheap' pit windows that disrupted the natural tire-degradation curves.`);
+                if (scEvents.length > 0) {
+                    const lastSC = scEvents[scEvents.length - 1];
+                    if (bounds && lastSC.lap_number > (bounds.laps * 0.7)) {
+                        insights.push(`Late-race interventions significantly compressed the field, neutralizing the historical pace advantages built during the earlier green-flag stints and forcing a high-pressure sprint finish.`);
+                    } else {
+                        insights.push(`Strategic deployment of the Safety Car early in the race provided critical 'cheap' pit windows that may have disrupted the natural tire-degradation curves.`);
+                    }
                 }
             }
 
             return insights.length > 0
                 ? insights.join(" ")
-                : "Both drivers operated at an extremely high and comparable level, with negligible deltas in pace, management, and technical execution.";
+                : `Both drivers operated at an extremely high and comparable level throughout the ${sessionTypeString}, with negligible deltas in pace, management, and technical execution.`;
         }
 
         function backToPaceChart() {
@@ -4925,27 +5110,27 @@
                 const t2 = metrics2?.tireBreakdown?.[tire];
 
                 html += `
-                                        <tr style="font-size: 0.85em; border-top: 1px solid #444;">
-                                            <td><strong>${tire}</strong></td>
-                                            <td>
-                                                ${t1 ? `
-                                                    Avg: ${formatTime(t1.avg)}<br>
-                                                    Fastest: ${formatTime(t1.fastest)}<br>
-                                                    Deg: ${t1.degradation}s/lap<br>
-                                                    <span style="color:#aaa; font-size:0.9em;">Total: ${t1.laps}L ${formatStints(t1.stints)}</span>
-                                                    ${t1.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
-                                                ` : '-'}
-                                            </td>
-                                            <td>
-                                                ${t2 ? `
-                                                    Avg: ${formatTime(t2.avg)}<br>
-                                                    Fastest: ${formatTime(t2.fastest)}<br>
-                                                    Deg: ${t2.degradation}s/lap<br>
-                                                    <span style="color:#aaa; font-size:0.9em;">Total: ${t2.laps}L ${formatStints(t2.stints)}</span>
-                                                    ${t2.nonRepresentative ? `<br><span style="color:#ffb347; font-size:0.8em;">Note: only non‑clean laps (SC/VSC/pit/aborted) – pace not representative.</span>` : ``}
-                                                ` : '-'}
-                                            </td>
-                                        </tr>
+    <tr style="font-size: 0.85em; border-top: 1px solid #444;">
+        <td><strong>${tire}</strong></td>
+        <td>
+            ${t1 ? `
+                <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t1.pushAvg ? formatTime(t1.pushAvg) : '-'}</span><br>
+                <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t1.fastest)})</span><br>
+                Session Avg: ${formatTime(t1.avg)}<br>
+                <span style="color:#888; font-size:0.85em;">Data: ${t1.pushCount} Push / ${t1.laps} Total Laps</span><br>
+                ${formatStints(t1.stints)}
+            ` : '-'}
+        </td>
+        <td>
+            ${t2 ? `
+                <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t2.pushAvg ? formatTime(t2.pushAvg) : '-'}</span><br>
+                <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t2.fastest)})</span><br>
+                Session Avg: ${formatTime(t2.avg)}<br>
+                <span style="color:#888; font-size:0.85em;">Data: ${t2.pushCount} Push / ${t2.laps} Total Laps</span><br>
+                ${formatStints(t2.stints)}
+            ` : '-'}
+        </td>
+    </tr>
 `;
             });
 
