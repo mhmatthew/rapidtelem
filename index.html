@@ -5266,14 +5266,19 @@
             const mapCanvas = document.getElementById('track-map-chart');
             const telemCanvas = document.getElementById(selectedCanvasId);
             const mainContent = document.getElementById('main-content');
+            const largeMapCont = document.getElementById('large-map-container'); 
 
             const wasSplit = mainContent.classList.contains('split-layout');
             const originalTelemW = telemCanvas.parentElement.style.width;
             const originalTelemH = telemCanvas.parentElement.style.height;
 
+            // OVERRIDE MOBILE CSS (the !important in your style tag)
+            const originalDisplay = largeMapCont.style.display;
+            largeMapCont.style.setProperty('display', 'flex', 'important'); 
+
             // Force Split Layout and High-Res Container Sizes
             mainContent.classList.add('split-layout');
-            document.getElementById('large-map-container').appendChild(mapCanvas);
+            largeMapCont.appendChild(mapCanvas); 
             mapCanvas.parentElement.style.width = '800px';
             mapCanvas.parentElement.style.height = '600px';
             telemCanvas.parentElement.style.width = '800px';
@@ -5322,6 +5327,7 @@
             snapChartSlot.appendChild(chartImg);
 
             // 5. Cleanup (Restore UI to exactly how the user had it)
+            largeMapCont.style.display = originalDisplay; 
             mapCanvas.parentElement.style.width = "";
             mapCanvas.parentElement.style.height = "";
             telemCanvas.parentElement.style.width = originalTelemW;
