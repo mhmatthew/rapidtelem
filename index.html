@@ -986,10 +986,34 @@
 
             /* 6. Table & Legend Optimizations */
             .results-table {
-                font-size: 11px;
-                display: block;
-                overflow-x: auto; /* Allow horizontal swipe on wide tables */
+                display: table !important; /* Forces standard table behavior */
+                width: 100% !important; /* Matches button/control width */
+                table-layout: fixed; /* Ensures columns stay within the screen */
+                font-size: 10px; /* Slightly smaller to fit data */
+                word-wrap: break-word; /* Allows text to wrap within cells */
             }
+
+                .results-table th,
+                .results-table td {
+                    padding: 8px 4px; /* Tighter padding to save space */
+                    overflow: hidden; /* Prevents content from pushing width out */
+                    text-overflow: ellipsis;
+                }
+
+            #drivingReportWrapper,
+            #sessionResultsWrapper {
+                padding: 0 !important; /* Removes offset from the edges */
+                width: 100%;
+                margin-top: 15px;
+            }
+
+                #drivingReportWrapper > div,
+                #drivingReportWrapper button {
+                    box-sizing: border-box;
+                    width: 100% !important;
+                    margin-left: 0;
+                    margin-right: 0;
+                }
 
             #tireLegend {
                 font-size: 10px;
@@ -1186,10 +1210,7 @@
         </div>
         <div class="api-controls">
             <select id="year-select">
-                <option value="2026" selected>2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
+                <!-- Will be populated by JavaScript -->
             </select>
             <select id="meeting-select"><option>GP...</option></select>
             <select id="session-select"><option>Session</option></select>
@@ -1533,6 +1554,13 @@
                 currentDriverRadio = Array.isArray(radioJson) ? radioJson : [];
                 sessionFlags = Array.isArray(flagsJson) ? flagsJson : sessionFlags;
 
+                if (laps.length === 0) {
+                    updateStatus("No data found for this selection", "info");
+                    document.getElementById('lap-selector').innerHTML =
+                        '<div style="padding: 10px; color: #888;">No lap data available for this driver.</div>';
+                    return; // Stop here so we don't say "Loaded"
+                }
+
                 console.log(`Checking Radio: Found ${currentDriverRadio.length} messages for Driver #${driverNum} in Session ${sessionKey}`);
 
                 const validTimes = laps.map(l => l.lap_duration).filter(d => d > 0);
@@ -1619,6 +1647,7 @@
                             `;
                 }).join('');
 
+                // ONLY SHOW SUCCESS IF WE ACTUALLY HAD LAPS
                 updateStatus("Laps & Markers Loaded", "success");
             } catch (error) {
                 console.error("Load Laps Error:", error);
@@ -1632,56 +1661,97 @@
         }
 
         async function loadMeetings() {
-            const year = document.getElementById('year-select').value;
+            const yearSelect = document.getElementById('year-select');
+            const selectedYear = parseInt(yearSelect.value);
+            const currentYear = new Date().getFullYear();
+            const now = new Date();
+
+            updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
+
             try {
-                const res = await fetch(`${API_BASE}/meetings?year=${year}`);
+                const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`);
                 let meetings = await res.json();
 
-                // FIX: Check if the response is actually a list (array)
-                if (!Array.isArray(meetings)) {
-                    console.warn("API did not return a list of meetings:", meetings);
-                    meetings = []; // Set to empty list so the code below doesn't crash
+                if (!Array.isArray(meetings) || meetings.length === 0) {
+                    document.getElementById('meeting-select').innerHTML = '<option>No schedule released</option>';
+                    updateStatus(`No data available for ${selectedYear}`, "info");
+                    return;
                 }
 
-                // Use slice().reverse() so we don't mutate the original array if needed elsewhere
-                document.getElementById('meeting-select').innerHTML = meetings.slice().reverse().map(m =>
-                    `<option value="${m.meeting_key}">${m.meeting_name}</option>`
-                ).join('');
+                // 1. Sort chronologically
+                meetings.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
 
-                document.getElementById('meeting-select').onchange = loadSessions;
-                loadSessions();
+                const meetingSelect = document.getElementById('meeting-select');
+
+                // 2. Decide selection logic based on year
+                if (selectedYear < currentYear) {
+                    // HISTORICAL YEAR: Add placeholder and don't auto-select
+                    meetingSelect.innerHTML = '<option value="" selected disabled>Select Track...</option>' +
+                        meetings.map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
+
+                    // Clear sessions since no track is selected yet
+                    document.getElementById('session-select').innerHTML = '<option>-</option>';
+                    updateStatus(`${selectedYear} Season Loaded. Please select a track.`, "success");
+
+                } else {
+                    // CURRENT or FUTURE YEAR: Pre-select most recent race
+                    meetingSelect.innerHTML = meetings.map(m =>
+                        `<option value="${m.meeting_key}">${m.meeting_name}</option>`
+                    ).join('');
+
+                    const pastMeetings = meetings.filter(m => new Date(m.date_start) <= now);
+                    const targetKey = pastMeetings.length > 0
+                        ? pastMeetings[pastMeetings.length - 1].meeting_key
+                        : meetings[0].meeting_key;
+
+                    meetingSelect.value = targetKey;
+
+                    const selectedMeeting = meetings.find(m => m.meeting_key == targetKey);
+                    const shortName = selectedMeeting.meeting_name.split('Grand Prix')[0].trim();
+
+                    updateStatus(`Ready - Auto-selected: ${shortName} GP`, "success");
+
+                    // Auto-trigger session load for current/future only
+                    loadSessions();
+                }
+
+                meetingSelect.onchange = loadSessions;
+
             } catch (error) {
-                console.error("Failed to load meetings:", error);
-                document.getElementById('meeting-select').innerHTML = '<option>Error loading GP</option>';
+                console.error(error);
+                updateStatus("Error loading schedule", "error");
             }
         }
 
         async function loadSessions() {
             const meetingKey = document.getElementById('meeting-select').value;
-            if (!meetingKey || meetingKey === 'GP...') {
-                document.getElementById('session-select').innerHTML = '<option>Session</option>';
-                return;
+            if (!meetingKey || meetingKey === 'GP...') return;
+
+            try {
+                const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
+                const sessions = await res.json();
+
+                if (Array.isArray(sessions) && sessions.length > 0) {
+                    document.getElementById('session-select').innerHTML = sessions.map(s =>
+                        `<option value="${s.session_key}">${s.session_name}</option>`
+                    ).join('');
+
+                    // Re-fetch race control for the new session
+                    fetchSessionRaceControl();
+                    loadDrivers();
+                } else {
+                    // RACE HASN'T HAPPENED YET
+                    document.getElementById('session-select').innerHTML = '<option>No sessions yet</option>';
+                    updateStatus("No session data available for this event", "info");
+
+                    // Clear other dependent dropdowns
+                    if (document.getElementById('driver-select'))
+                        document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
+                }
+            } catch (error) {
+                console.warn("Could not load sessions");
+                updateStatus("Error fetching session details", "error");
             }
-
-            const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
-            const sessions = await res.json();
-
-            // SAFETY CHECK: Ensure sessions is an array
-            if (Array.isArray(sessions)) {
-                document.getElementById('session-select').innerHTML = sessions.map(s =>
-                    `<option value="${s.session_key}">${s.session_name}</option>`
-                ).join('');
-            } else {
-                console.warn("Could not load sessions, API might be limited.");
-            }
-
-            sessionRaceControl = [];
-            document.getElementById('session-select').onchange = () => {
-                loadDrivers();
-                fetchSessionRaceControl();
-                sessionWeatherData = [];
-            };
-            loadDrivers();
         }
 
         async function fetchSessionRaceControl() {
@@ -4198,7 +4268,7 @@
         ) {
             if (!m1 && !m2) return `<div class="error">No data available for report.</div>`;
 
-            let html = `<h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px;">Driving Characteristics Report</h3>`;
+            let html = `<h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px; margin-left: 10px;">Driving Characteristics Report</h3>`;
 
             const telemetryMissing = (!m1?.technique?.telemetryAvailable || !m2?.technique?.telemetryAvailable);
 
@@ -6221,8 +6291,25 @@
             });
         }
 
+        function setupYearSelect() {
+            const yearSelect = document.getElementById('year-select');
+            const currentYear = new Date().getFullYear();
+            const startYear = 2023; // Data availability limit
+
+            // We go up to currentYear + 1 because F1 often releases schedules 
+            // for the next year before the current year ends.
+            let html = '';
+            for (let y = currentYear + 1; y >= startYear; y--) {
+                // Default select the current year
+                const selected = (y === currentYear) ? 'selected' : '';
+                html += `<option value="${y}" ${selected}>${y}</option>`;
+            }
+            yearSelect.innerHTML = html;
+        }
+
         // Update your existing DOMContentLoaded listener:
         document.addEventListener('DOMContentLoaded', async () => {
+            setupYearSelect(); // Call this first
             checkFirstVisit();
             initCharts();
             initPaceAnalysisUI();
