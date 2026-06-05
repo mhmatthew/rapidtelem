@@ -614,23 +614,27 @@
         }
 
         .strategy-drawer {
-            position: absolute;
+            position: fixed; /* Changed from absolute to fixed to prevent scroll drift */
             top: 0;
-            right: -100%;
+            right: 0;
             width: 420px;
             height: 100%;
             background-color: #1f1f1f;
             border-left: 2px solid #444;
             box-shadow: -5px 0 15px rgba(0,0,0,0.5);
-            transition: right 0.4s ease;
             z-index: 1100;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            /* Use transform for cleaner off-screen logic */
+            transform: translateX(105%);
+            visibility: hidden;
+            transition: transform 0.4s ease, visibility 0.4s;
         }
 
             .strategy-drawer.open {
-                right: 0;
+                transform: translateX(0);
+                visibility: visible;
             }
 
         .drawer-header {
@@ -835,91 +839,194 @@
             color: var(--primary-color);
         }
 
-        /* Basic responsive layout for tablets/phones */
+        /* ============================================================
+           MOBILE & TABLET OPTIMIZATION (THE "OVERHAUL" BLOCK)
+           ============================================================ */
         @media (max-width: 900px) {
-            main {
-                flex-direction: column;
-            }
-
-            #sidebar {
-                width: 100%;
-                max-height: 40vh;
-                border-right: none;
-                border-bottom: 1px solid var(--border-color);
-            }
-
-            #chart-container {
-                padding: 10px;
-            }
-
-            .chart-wrapper {
-                height: 180px;
-            }
-
-            /* Hide the large map mode on small screens */
-            #large-map-container {
-                display: none !important;
-            }
-
-            .api-controls {
-                flex-wrap: wrap;
-                gap: 4px;
+            /* 1. Unlock natural scrolling for the whole page */
+            body {
+                height: auto !important;
+                overflow-y: auto !important;
+                overflow-x: hidden;
             }
 
             header {
                 flex-direction: column;
-                align-items: flex-start;
-                gap: 6px;
+                padding: 15px 10px;
+                gap: 15px;
             }
-        }
 
-        @media (max-width: 900px) {
-            .modal-content {
+            .header-brand {
+                justify-content: center;
                 width: 100%;
-                height: 100%;
+            }
+
+                /* Scalable Logo */
+                .header-brand svg {
+                    width: 190px;
+                    height: auto;
+                }
+
+            .page-description {
+                display: none; /* Hide disclaimer to save vertical space */
+            }
+
+            /* 2. Grid-based Controls (Stay aligned on small screens) */
+            .api-controls {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                width: 100%;
+            }
+
+                .api-controls select,
+                .api-controls button {
+                    width: 100%;
+                    font-size: 14px;
+                    padding: 10px 6px;
+                    height: 44px; /* Better touch target size */
+                }
+
+            button#toggle-map-layout {
+                display: none !important; /* Irrelevant on mobile */
+            }
+
+            /* 3. Stack Sidebar (Controls) on top of Charts */
+            main {
+                flex-direction: column;
+                height: auto;
+                overflow: visible;
+            }
+
+            #sidebar {
+                width: 100% !important;
+                max-height: none; /* Let it grow with content */
+                border-right: none;
+                border-bottom: 2px solid var(--border-color);
+                padding: 15px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            #chart-container {
+                width: 100% !important;
+                padding: 15px 10px;
+                box-sizing: border-box;
+                overflow: visible;
+                background-color: var(--bg-color);
+            }
+
+            .chart-wrapper {
+                height: 240px; /* Taller charts for better readability */
+                margin-bottom: 5px;
+            }
+
+            /* 4. Large Map Logic */
+            #large-map-container {
+                display: none !important; /* Always hidden on mobile */
+            }
+
+            /* 5. Pace Analysis Modal Improvements */
+            .modal-content {
+                width: 100% !important;
+                height: 100% !important;
                 border-radius: 0;
                 padding: 10px;
+                overflow-x: hidden; /* Prevent horizontal drift */
             }
 
             .modal-controls {
+                padding: 8px;
+                gap: 10px;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            /* Force rows to wrap and stack */
+            .control-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr; /* Two equal columns */
                 gap: 6px;
+                width: 100%;
             }
 
-                .modal-controls label {
-                    display: none; /* rely on placeholder text to save space */
-                }
-
-                .modal-controls select,
-                .modal-controls button {
-                    min-width: auto;
-                    flex: 1 1 45%;
-                    font-size: 12px;
-                    padding: 6px 8px;
-                }
-
-            #timelineWrapper {
-                height: 140px;
+            /* Make certain items span the full width if needed */
+            .btn-primary, #btnToggleWeather {
+                /* Optional: uncomment next line if you want "Load" or "Weather" to be full width */
+                /* grid-column: span 2; */
             }
 
+            /* Ensure the "View Toggles" group (Timeline/Full/Weather) doesn't break the layout */
+            .control-row > div[style*="display: flex"] {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr 1fr; /* Three columns for the sub-buttons */
+                grid-column: span 2; /* Take up the whole row */
+                gap: 4px;
+                width: 100%;
+            }
+
+            .modal-controls select,
+            .modal-controls button {
+                width: 100% !important;
+                min-width: 0 !important; /* Allow buttons to shrink to fit the grid */
+                font-size: 11px; /* Slightly smaller text to prevent clipping */
+                height: 40px; /* Comfortable touch height */
+                padding: 5px 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis; /* Add "..." if text is too long */
+            }
+
+            /* Adjust chart height for stacked controls */
             #paceAnalysisChart {
-                min-height: 320px;
-            }
-        }
-
-        @media (max-width: 600px) {
-            #chart-container {
-                overflow-x: auto;
+                min-height: 300px;
+                flex-grow: 1;
             }
 
+            /* 6. Table & Legend Optimizations */
             .results-table {
                 font-size: 11px;
+                display: block;
+                overflow-x: auto; /* Allow horizontal swipe on wide tables */
             }
 
-                .results-table th,
-                .results-table td {
-                    padding: 6px 4px;
+            #tireLegend {
+                font-size: 10px;
+                justify-content: flex-start;
+                gap: 5px;
+            }
+
+                #tireLegend span {
+                    margin-right: 5px;
                 }
+
+            /* Strategy Drawer Mobile Fix */
+            .strategy-drawer {
+                width: 100% !important; /* Take full width on mobile */
+                border-left: none;
+                /* Ensure it's completely tucked away */
+                transform: translateX(100%);
+            }
+
+            /* Ensure the body doesn't wiggle when drawer is hidden */
+            main {
+                overflow-x: hidden;
+            }
         }
+
+        /* Extreme narrow screens (Phones < 400px) */
+        @media (max-width: 400px) {
+            .api-controls {
+                grid-template-columns: 1fr; /* Single column for very narrow phones */
+            }
+
+            .slot-btn {
+                font-size: 10px;
+                padding: 12px 2px;
+            }
+        }
+     
     </style>
 </head>
 <body>
