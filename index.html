@@ -1233,15 +1233,16 @@
         </div>
     </header>
 
-    <main id="main-content">
+     <main id="main-content">
         <aside id="sidebar">
-            <!-- Status Section -->
+            
+            <!-- 1. Status Section (System Feedback) -->
             <div>
                 <h2>Status</h2>
                 <div id="status-container"><div class="status info">System Ready</div></div>
             </div>
 
-            <!-- Updated Slot Manager with Clear Buttons -->
+            <!-- 2. Slot Manager (Data Target) -->
             <div>
                 <h2>Slot Manager</h2>
                 <div class="slot-selector">
@@ -1253,28 +1254,13 @@
                 <button onclick="clearSlots()" style="width: 100%; margin-top: 5px; background: #444;">Clear All Laps</button>
             </div>
 
-            <!-- Dual Weather Display -->
-            <div>
-                <h2>Weather</h2>
-                <div id="weather-ref" class="slot-info" style="border-left: 3px solid var(--primary-color);">S1: No Data</div>
-                <div id="weather-comp" class="slot-info" style="border-left: 3px solid var(--compare-color); margin-top: 5px;">S2: No Data</div>
-            </div>
-            <div>
-                <h2>Track Map</h2>
-                <div style="display: flex; justify-content: space-between; font-size: 0.7em; margin-top: 5px; padding: 0 10px;">
-                    <span style="color: var(--primary-color);">● Slot 1 Faster</span>
-                    <span style="color: var(--compare-color);">● Slot 2 Faster</span>
-                </div>
-                <div id="sidebar-map-wrapper" style="height: 180px; background: #111; border-radius: 6px;">
-                    <canvas id="track-map-chart"></canvas>
-                </div>
-            </div>
-
+            <!-- 3. Laps (Data Selection - MOVED UP) -->
             <div>
                 <h2>Laps</h2>
                 <div id="lap-selector"></div>
             </div>
 
+            <!-- 4. Sector Comparison (Immediate Summary - MOVED UP) -->
             <div>
                 <h2>Sector Comparison</h2>
                 <table class="sector-table">
@@ -1286,7 +1272,27 @@
                     </tbody>
                 </table>
             </div>
-            <!-- Team Radio Section -->
+
+            <!-- 5. Track Map (Visual Context) -->
+            <div>
+                <h2>Track Map</h2>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7em; margin-top: 5px; padding: 0 10px;">
+                    <span style="color: var(--primary-color);">● Slot 1 Faster</span>
+                    <span style="color: var(--compare-color);">● Slot 2 Faster</span>
+                </div>
+                <div id="sidebar-map-wrapper" style="height: 180px; background: #111; border-radius: 6px;">
+                    <canvas id="track-map-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- 6. Weather (Metadata) -->
+            <div>
+                <h2>Weather</h2>
+                <div id="weather-ref" class="slot-info" style="border-left: 3px solid var(--primary-color);">S1: No Data</div>
+                <div id="weather-comp" class="slot-info" style="border-left: 3px solid var(--compare-color); margin-top: 5px;">S2: No Data</div>
+            </div>
+
+            <!-- 7. Team Radio (Metadata) -->
             <div>
                 <h2>Team Radio</h2>
                 <div id="radio-log" style="font-size: 0.75em; max-height: 200px; overflow-y: auto; background: #111; padding: 10px; border-radius: 4px; border: 1px solid #333;">
@@ -1294,7 +1300,7 @@
                 </div>
             </div>
 
-            <!-- Export Ansalysis Section -->
+            <!-- 8. Export Analysis (Post-Analysis Action) -->
             <div>
                 <h2>Export Analysis</h2>
                 <div style="display: flex; gap: 5px;">
@@ -1312,6 +1318,7 @@
                 <button onclick="copyShareLink()" style="width: 100%; margin-top: 5px; background: #28a745;">🔗 Share This Comparison</button>
             </div>
 
+            <!-- 9. Contact -->
             <div>
                 <h2>Contact</h2>
                 <button id="buy-coffee-btn" class="import-button" title="Buy me a coffee">☕ Buy Me a Coffee</button>
