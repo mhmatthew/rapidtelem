@@ -8,6 +8,10 @@
     <title>Rapid Telemetry - F1 Distance Comparison & Pace Analysis</title>
     <link rel="icon" type="image/png" href="rt-profile-256.png">
     <link rel="apple-touch-icon" href="rt-profile-256.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
 
     <!-- Chart.js library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -33,7 +37,8 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* --- NEW FONT FAMILY --- */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -184,7 +189,8 @@
                 font-size: 1.1em; /* Makes the time itself larger */
                 font-weight: bold; /* Makes the time stand out more */
                 color: var(--accent-color);
-                font-family: monospace;
+                /* --- NEW FONT FAMILY --- */
+                font-family: 'Roboto Mono', monospace;
             }
 
         #ref-label {
@@ -341,7 +347,8 @@
         }
 
         .lap-time {
-            font-family: 'Courier New', monospace; /* Monospace for alignment */
+            /* --- NEW FONT FAMILY --- */
+            font-family: 'Roboto Mono', monospace; /* Monospace for alignment */
             color: var(--text-color-light);
             flex-shrink: 0;
             font-size: 1.0em; /* Significantly larger time display */
@@ -356,21 +363,21 @@
 
 
         /* --- PACE ANALYSIS MODAL STYLES --- */
-.modal-overlay {
-    position: fixed;
-    top: 35px; /* Pushes the overlay down below the ticker */
-    left: 0;
-    width: 100%;
-    height: calc(100% - 35px); /* Occupies the remaining vertical space */
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
+        .modal-overlay {
+            position: fixed;
+            top: 35px; /* Pushes the overlay down below the ticker */
+            left: 0;
+            width: 100%;
+            height: calc(100% - 35px); /* Occupies the remaining vertical space */
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
 
             .modal-overlay.visible {
                 opacity: 1;
@@ -752,7 +759,7 @@
         .weather-details {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            gap: 6px;
             padding: 8px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 4px;
@@ -765,14 +772,15 @@
 
         .weather-label {
             color: #888;
-            font-size: 0.7em;
+            font-size: 0.65em;
             text-transform: uppercase;
         }
 
         .weather-value {
             color: #fff;
             font-weight: bold;
-            font-size: 0.9em;
+            line-height: 1.2;
+            font-size: 0.8em;
             font-family: monospace;
         }
 
@@ -824,12 +832,12 @@
         }
         /* Bone dry */
 
-#welcomeModal .modal-content {
-    box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
-    max-height: 90%; /* Use percentage relative to the *overlay's* new height */
-    overflow-y: auto; /* Adds a scrollbar if content exceeds max-height */
-    box-sizing: border-box; /* Ensures padding is included in width/height calculation */
-}
+        #welcomeModal .modal-content {
+            box-shadow: 0 0 30px rgba(225, 6, 0, 0.2); /* Subtle red glow */
+            max-height: 90%; /* Use percentage relative to the *overlay's* new height */
+            overflow-y: auto; /* Adds a scrollbar if content exceeds max-height */
+            box-sizing: border-box; /* Ensures padding is included in width/height calculation */
+        }
 
         #welcomeModal p {
             margin-top: 0;
@@ -1050,7 +1058,6 @@
                 padding: 12px 2px;
             }
         }
-     
     </style>
 </head>
 <body>
@@ -1078,7 +1085,7 @@
             background: #000000; /* True black to differentiate from the app's dark grey */
             border-bottom: 1px solid #333;
             padding: 6px 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            /* font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; */ /* --- REMOVED --- */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -2292,17 +2299,18 @@
                     }
                 },
 
+                // --- CONSOLIDATED PLUGINS SECTION ---
                 plugins: {
                     legend: {
                         labels: {
                             color: '#eee',
                             boxWidth: 10,
-                            font: { family: "'Inter', sans-serif", size: 11 }
+                            font: { family: 'Inter', size: 11 } // Corrected font string
                         }
                     },
                     tooltip: {
                         enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)', // Taking the darker opacity
                         titleColor: '#ffc107',
                         borderColor: '#444',
                         borderWidth: 1,
@@ -2310,29 +2318,26 @@
                         cornerRadius: 4,
 
                         // Visual Stability Fixes:
-                        caretSize: 0,                // Removes the triangle pointer that causes box-flipping
-                        position: 'nearest',         // Anchors box to data
-                        animation: false,            // Disables the box "sliding" effect
-
-                        // Interaction Alignment Fixes:
-                        mode: 'index',               // Allows showing BOTH drivers in one box
-                        axis: 'x',                   // Syncs both drivers to the vertical mouse line
+                        caretSize: 0,
+                        position: 'nearest',
+                        animation: false,
+                        mode: 'index',
+                        axis: 'x',
 
                         // Technical Branding:
                         titleFont: {
-                            family: "'Roboto Mono', monospace",
+                            family: 'Roboto Mono', // Corrected font string
                             size: 13,
                             weight: 'bold'
                         },
                         bodyFont: {
-                            family: "'Roboto Mono', monospace",
+                            family: 'Roboto Mono', // Corrected font string
                             size: 12
                         },
 
                         callbacks: {
                             title: (context) => {
                                 if (context[0]) {
-                                    // Shows the distance of the vertical slice
                                     return `DIST: ${context[0].parsed.x.toFixed(1)}m`;
                                 }
                                 return '';
@@ -2341,7 +2346,6 @@
                                 let label = context.dataset.label || '';
                                 if (label) label += ': ';
                                 if (context.parsed.y !== null) {
-                                    // Units & Precision
                                     if (label.includes('Speed')) return label + context.parsed.y.toFixed(1) + ' km/h';
                                     if (label.includes('RPM')) return label + context.parsed.y.toFixed(0);
                                     if (label.includes('Gear')) return label + context.parsed.y.toFixed(0);
@@ -2353,6 +2357,8 @@
                         }
                     }
                 },
+                // --- END CONSOLIDATED PLUGINS SECTION ---
+
                 scales: {
                     x: {
                         type: 'linear',
@@ -2360,50 +2366,19 @@
                             display: true,
                             text: 'Distance (m)',
                             color: '#888',
-                            font: { family: "'Inter', sans-serif", weight: 'bold' }
+                            font: { family: 'Inter', weight: 'bold' } // Corrected font string
                         },
                         grid: { color: 'rgba(255, 255, 255, 0.05)' },
                         ticks: {
                             color: '#888',
-                            font: { family: "'Roboto Mono', monospace", size: 10 }
+                            font: { family: 'Roboto Mono', size: 10 } // Corrected font string
                         }
                     },
                     y: {
                         grid: { color: 'rgba(255, 255, 255, 0.05)' },
                         ticks: {
                             color: '#888',
-                            font: { family: "'Roboto Mono', monospace", size: 10 }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { labels: { color: '#eee', boxWidth: 10 } },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#ffc107', // Accent color for the distance
-                        callbacks: {
-                            // NEW: Formatting the top value (Title)
-                            title: (context) => {
-                                if (context[0]) {
-                                    return `Distance: ${context[0].parsed.x.toFixed(1)} m`;
-                                }
-                                return '';
-                            },
-                            // NEW: Clean up the labels (Values)
-                            label: (context) => {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed.y !== null) {
-                                    // Custom formatting based on the chart
-                                    if (label.includes('Speed')) return label + context.parsed.y.toFixed(1) + ' km/h';
-                                    if (label.includes('RPM')) return label + context.parsed.y.toFixed(0);
-                                    if (label.includes('Gear')) return label + context.parsed.y.toFixed(0);
-                                    if (label.includes('Thr') || label.includes('Brk')) return label + context.parsed.y.toFixed(0) + '%';
-                                    return label + context.parsed.y.toFixed(2);
-                                }
-                                return label;
-                            }
+                            font: { family: 'Roboto Mono', size: 10 } // Corrected font string
                         }
                     }
                 }
@@ -2417,7 +2392,7 @@
                         { label: 'Slot 2', data: [], borderColor: '#00d2be', borderWidth: 2, borderDash: [5, 5], pointRadius: 0 }
                     ]
                 },
-                options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Speed (km/h)', color: '#eee' } } }
+                options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Speed (km/h)', color: '#eee', font: { family: 'Inter' } } } } // Added missing title font
             });
 
             charts.inputs = new Chart(document.getElementById('throttle-brake-chart'), {
@@ -2430,7 +2405,7 @@
                         { label: 'S2 Brk', data: [], borderColor: '#ff0000', borderDash: [4, 4], pointRadius: 0 }
                     ]
                 },
-                options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Inputs (%)', color: '#eee' } } }
+                options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Inputs (%)', color: '#eee', font: { family: 'Inter' } } } } // Added missing title font
             });
 
             charts.gearRpm = new Chart(document.getElementById('rpm-gear-chart'), {
@@ -2446,15 +2421,15 @@
                 },
                 options: {
                     ...commonOptions,
-                    plugins: { ...commonOptions.plugins, title: { display: true, text: 'Engine RPM & Gear', color: '#eee' } },
+                    plugins: { ...commonOptions.plugins, title: { display: true, text: 'Engine RPM & Gear', color: '#eee', font: { family: 'Inter' } } }, // Added missing title font
                     scales: {
                         ...commonOptions.scales,
-                        y: { title: { display: true, text: 'RPM', color: '#ffc107' }, position: 'left' },
+                        y: { title: { display: true, text: 'RPM', color: '#ffc107', font: { family: 'Inter' } }, position: 'left' },
                         y1: {
-                            title: { display: true, text: 'Gear', color: '#ffffff' },
+                            title: { display: true, text: 'Gear', color: '#ffffff', font: { family: 'Inter' } },
                             position: 'right',
                             min: 0, max: 8,
-                            ticks: { stepSize: 1, color: '#fff' },
+                            ticks: { stepSize: 1, color: '#fff', font: { family: 'Roboto Mono' } },
                             grid: { drawOnChartArea: false } // Only show grid for RPM
                         }
                     }
@@ -2465,7 +2440,6 @@
                 type: 'line',
                 data: {
                     datasets: [
-                        // Ensure these match your 4-3-2-1 lane logic in updateCharts
                         { label: 'S1 Coasting', data: [], borderColor: '#ffc107', fill: false, borderWidth: 2, stepped: 'before', pointRadius: 0, z: 1 },
                         { label: 'S1 Overlap', data: [], borderColor: '#e10600', fill: false, borderWidth: 2, stepped: 'before', pointRadius: 0, z: 1 },
                         { label: 'S2 Coasting', data: [], borderColor: '#b15be0', backgroundColor: 'rgba(177, 91, 224, 0.4)', fill: true, stepped: 'before', pointRadius: 0, z: 10 },
@@ -2483,13 +2457,15 @@
                             display: true,
                             text: 'Technique Analysis (Coasting & Overlap)',
                             color: '#eee',
+                            font: { family: 'Inter' } // Added missing title font
                         },
                         legend: {
                             display: true,
                             position: 'top',
                             labels: {
-                                color: '#eee', // Changed from '#ccc'
-                                boxWidth: 10,  // Changed from 12
+                                color: '#eee',
+                                boxWidth: 10,
+                                font: { family: 'Inter' } // Corrected font string
                             }
                         },
                         tooltip: {
@@ -2532,6 +2508,7 @@
                                     return labels[value] || '';
                                 },
                                 color: '#888',
+                                font: { family: 'Inter' } // Corrected font string
                             }
                         }
                     }
@@ -2579,7 +2556,7 @@
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { enabled: true }
+                        tooltip: { enabled: true, bodyFont: { family: 'Inter' } } // Tooltip on map should use Inter for general text
                     }
                 }
             });
@@ -2604,7 +2581,7 @@
                     ...commonOptions,
                     plugins: {
                         ...commonOptions.plugins,
-                        title: { display: true, text: 'Time Delta (Seconds)', color: '#eee' },
+                        title: { display: true, text: 'Time Delta (Seconds)', color: '#eee', font: { family: 'Inter' } }, // Added missing title font
                         annotation: {
                             annotations: {
                                 zeroLine: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.5)', borderWidth: 1 }
@@ -2621,7 +2598,7 @@
                     scales: {
                         ...commonOptions.scales,
                         y: {
-                            title: { display: true, text: 'Seconds', color: '#888' },
+                            title: { display: true, text: 'Seconds', color: '#888', font: { family: 'Inter' } }, // Corrected font string
                             grid: { color: 'rgba(255, 255, 255, 0.1)' }
                         }
                     }
@@ -3130,6 +3107,7 @@
             }
         }
 
+        // --- CORRECTED setupPaceChart() ---
         function setupPaceChart() {
             const ctx = document.getElementById('paceAnalysisChart').getContext('2d');
             if (paceChartInstance) {
@@ -3153,15 +3131,17 @@
                             display: true,
                             text: 'F1 Pace Analysis',
                             color: '#f0f0f0',
-                            font: { size: 18 }
+                            font: { size: 18, family: 'Inter' } // Corrected font string
                         },
                         legend: {
-                            labels: { color: '#f0f0f0', font: { size: 14 } }
+                            labels: { color: '#f0f0f0', font: { size: 14, family: 'Inter' } } // Corrected font string
                         },
                         tooltip: {
                             backgroundColor: 'rgba(0,0,0,0.7)',
                             bodyColor: '#f0f0f0',
                             titleColor: '#e10600',
+                            titleFont: { family: 'Roboto Mono', size: 13, weight: 'bold' }, // Added for consistency
+                            bodyFont: { family: 'Roboto Mono', size: 12 }, // Added for consistency
                             callbacks: {
                                 title: (context) => context.length > 0 ? `Lap ${context[0].parsed.x}` : '',
                                 label: function (context) {
@@ -3178,20 +3158,20 @@
                     scales: {
                         x: {
                             type: 'linear',
-                            min: 0, // Ensure we account for the start of the race
-                            title: { display: true, text: 'Lap Number', color: '#f0f0f0', font: { size: 14 } },
+                            min: 0,
+                            title: { display: true, text: 'Lap Number', color: '#f0f0f0', font: { size: 14, family: 'Inter' } }, // Corrected font string
                             grid: { color: '#333' },
-                            ticks: { color: '#888', stepSize: 5 }
+                            ticks: { color: '#888', stepSize: 5, font: { family: 'Roboto Mono' } } // Corrected font string
                         },
                         y: {
                             type: 'linear',
-                            // --- ADD THIS LINE ---
                             afterFit: (axis) => { axis.width = 80; },
-                            title: { display: true, text: 'Lap Time', color: '#f0f0f0', font: { size: 14 } },
+                            title: { display: true, text: 'Lap Time', color: '#f0f0f0', font: { size: 14, family: 'Inter' } }, // Corrected font string
                             grid: { color: 'rgba(255, 255, 255, 0.1)' },
                             ticks: {
                                 color: '#f0f0f0',
-                                callback: function (value) { return formatTime(value); }
+                                callback: function (value) { return formatTime(value); },
+                                font: { family: 'Roboto Mono' } // Corrected font string
                             }
                         }
                     }
@@ -5280,7 +5260,6 @@
                 }
             });
 
-
             timelineChartInstance = new Chart(ctx, {
                 type: 'scatter',
                 data: {
@@ -5297,24 +5276,24 @@
                     scales: {
                         x: {
                             min: isTimelineFull ? null : 0,
-                            max: isTimelineFull ? null : forcedMax, // Sycronizes right edge
-                            title: { display: true, text: 'Race Minutes', color: '#888' },
+                            max: isTimelineFull ? null : forcedMax,
+                            title: { display: true, text: 'Race Minutes', color: '#888', font: { family: 'Inter' } }, // Corrected font string
                             grid: { color: '#333' },
-                            ticks: { color: '#888' }
+                            ticks: { color: '#888', font: { family: 'Roboto Mono' } } // Corrected font string
                         },
                         y: {
                             min: 0.5, max: 4.5,
-                            afterFit: (axis) => { axis.width = 80; }, // Synchronizes left edge
+                            afterFit: (axis) => { axis.width = 80; },
                             ticks: {
                                 stepSize: 1,
                                 callback: (v) => ({ 4: 'TRACK', 3: 'MGMT', 2: 'STEWARD', 1: 'DRIVER' }[v] || ''),
-                                color: '#aaa', font: { size: 10, weight: 'bold' }
+                                color: '#aaa', font: { size: 10, weight: 'bold', family: 'Inter' } // Corrected font string
                             },
                             grid: { color: 'rgba(255,255,255,0.05)' }
                         }
                     },
                     plugins: {
-                        tooltip: { callbacks: { label: (ctx) => `[Min ${ctx.raw.x}] (Lap ${ctx.raw.lap || '?'}) ${ctx.raw.label}` } },
+                        tooltip: { callbacks: { label: (ctx) => `[Min ${ctx.raw.x}] (Lap ${ctx.raw.lap || '?'}) ${ctx.raw.label}` }, titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' } }, // Added tooltip fonts
                         legend: { display: false }
                     }
                 }
@@ -6269,8 +6248,6 @@
                 windSpeed.push({ x: timeOffset, y: w.wind_speed * 3.6 });
                 pressure.push({ x: timeOffset, y: w.pressure });
 
-                // Calculate a "box" for the track condition bar at the bottom
-                // We look at the time until the next data point to determine the width of the box
                 const nextT = sessionWeatherData[i + 1] ? new Date(sessionWeatherData[i + 1].date) : null;
                 const nextOffset = nextT ? (nextT.getTime() - sessionStart) / 60000 : timeOffset + 1;
 
@@ -6280,12 +6257,12 @@
                     type: 'box',
                     xMin: timeOffset,
                     xMax: nextOffset,
-                    yMin: -2, // Positions it just slightly below the 0 line
-                    yMax: 2,  // Thickness of the bar
+                    yMin: -2,
+                    yMax: 2,
                     backgroundColor: state.color,
                     borderWidth: 0,
                     label: {
-                        display: false // Keeps it clean, hover tooltip provides detail
+                        enabled: false
                     }
                 };
             });
@@ -6296,11 +6273,11 @@
                 type: 'line',
                 data: {
                     datasets: [
-                        { label: 'Track Temp', data: trackTemp, borderColor: '#ffc107', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 }, // Added tension
-                        { label: 'Air Temp', data: airTemp, borderColor: '#e10600', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 },   // Added tension
-                        { label: 'Humidity %', data: humidity, borderColor: '#00d2be', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, yAxisID: 'y1', tension: 0.3 }, // Added tension
-                        { label: 'Wind km/h', data: windSpeed, borderColor: '#28a745', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y2', tension: 0.3 }, // Added tension
-                        { label: 'Pressure hPa', data: pressure, borderColor: '#800080', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y3', tension: 0.3 } // Added tension
+                        { label: 'Track Temp', data: trackTemp, borderColor: '#ffc107', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 },
+                        { label: 'Air Temp', data: airTemp, borderColor: '#e10600', borderWidth: 2, pointRadius: 0, yAxisID: 'y', tension: 0.3 },
+                        { label: 'Humidity %', data: humidity, borderColor: '#00d2be', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, yAxisID: 'y1', tension: 0.3 },
+                        { label: 'Wind km/h', data: windSpeed, borderColor: '#28a745', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y2', tension: 0.3 },
+                        { label: 'Pressure hPa', data: pressure, borderColor: '#800080', borderWidth: 1.5, pointRadius: 0, yAxisID: 'y3', tension: 0.3 }
                     ]
                 },
                 options: {
@@ -6312,16 +6289,16 @@
                             type: 'linear',
                             min: 0,
                             max: bounds.minutes,
-                            title: { display: true, text: 'Session Minutes', color: '#888' },
+                            title: { display: true, text: 'Session Minutes', color: '#888', font: { family: 'Inter' } }, // Corrected font string
                             grid: { color: '#333' },
-                            ticks: { color: '#888' }
+                            ticks: { color: '#888', font: { family: 'Roboto Mono' } } // Corrected font string
                         },
                         y: {
                             type: 'linear',
                             position: 'left',
-                            min: 0, // Ensure bottom bar is visible
-                            title: { display: true, text: 'Temp °C', color: '#eee' },
-                            ticks: { color: '#eee' },
+                            min: 0,
+                            title: { display: true, text: 'Temp °C', color: '#eee', font: { family: 'Inter' } }, // Corrected font string
+                            ticks: { color: '#eee', font: { family: 'Roboto Mono' } }, // Corrected font string
                             grid: { color: 'rgba(255,255,255,0.05)' }
                         },
                         y1: {
@@ -6329,36 +6306,39 @@
                             position: 'right',
                             min: 0,
                             max: 100,
-                            title: { display: true, text: 'Humid %', color: '#00d2be' },
-                            ticks: { color: '#00d2be' },
+                            title: { display: true, text: 'Humid %', color: '#00d2be', font: { family: 'Inter' } }, // Corrected font string
+                            ticks: { color: '#00d2be', font: { family: 'Roboto Mono' } }, // Corrected font string
                             grid: { drawOnChartArea: false }
                         },
                         y2: {
                             type: 'linear',
                             position: 'right',
-                            title: { display: true, text: 'Wind', color: '#28a745' },
-                            ticks: { color: '#28a745' }, // Added color for y2 ticks for consistency
+                            title: { display: true, text: 'Wind', color: '#28a745', font: { family: 'Inter' } }, // Corrected font string
+                            ticks: { color: '#28a745', font: { family: 'Roboto Mono' } }, // Corrected font string
                             grid: { drawOnChartArea: false }
                         },
-                        y3: { // New Y-axis for pressure
+                        y3: {
                             type: 'linear',
-                            position: 'left', // Or 'right' if preferred, but can get crowded
-                            title: { display: true, text: 'Pressure hPa', color: '#800080' },
+                            position: 'left',
+                            title: { display: true, text: 'Pressure hPa', color: '#800080', font: { family: 'Inter' } }, // Corrected font string
                             ticks: {
                                 color: '#800080',
                                 callback: function (value, index, ticks) {
                                     return value.toFixed(1);
-                                }
+                                },
+                                font: { family: 'Roboto Mono' } // Corrected font string
                             },
-                            grid: { drawOnChartArea: false } // No grid lines to prevent clutter
+                            grid: { drawOnChartArea: false }
                         }
                     },
                     plugins: {
-                        legend: { labels: { color: '#ccc', boxWidth: 10, font: { size: 10 } } },
+                        legend: { labels: { color: '#ccc', boxWidth: 10, font: { size: 10, family: 'Inter' } } }, // Corrected font string
                         annotation: {
                             annotations: conditionAnnotations
                         },
                         tooltip: {
+                            titleFont: { family: 'Inter' }, // Added for consistency
+                            bodyFont: { family: 'Inter' }, // Added for consistency
                             callbacks: {
                                 title: (context) => {
                                     if (context[0]) {
@@ -6377,7 +6357,7 @@
                                         const dir = entry ? getWindDir(entry.wind_direction) : '??';
                                         return `${label}: ${val.toFixed(1)} km/h (${dir})`;
                                     }
-                                    if (label.includes('Pressure')) return `${label}: ${val.toFixed(0)} hPa`; // Added for pressure
+                                    if (label.includes('Pressure')) return `${label}: ${val.toFixed(0)} hPa`;
                                     return `${label}: ${val.toFixed(0)}`;
                                 },
                                 footer: (tooltipItems) => {
