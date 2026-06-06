@@ -1661,6 +1661,10 @@
         }
 
         async function loadMeetings() {
+            // RESET lower dropdowns immediately
+            document.getElementById('session-select').innerHTML = '<option>Session</option>';
+            document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
+
             const yearSelect = document.getElementById('year-select');
             const selectedYear = parseInt(yearSelect.value);
             const currentYear = new Date().getFullYear();
@@ -1724,29 +1728,46 @@
         }
 
         async function loadSessions() {
+            // 1. RESET driver dropdown immediately when track/year changes
+            const driverSelect = document.getElementById('driver-select');
+            const sessionSelect = document.getElementById('session-select');
+            if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
+
             const meetingKey = document.getElementById('meeting-select').value;
-            if (!meetingKey || meetingKey === 'GP...') return;
+            // If "Select Track..." or no key, clear session and exit
+            if (!meetingKey || meetingKey === 'GP...') {
+                if (sessionSelect) sessionSelect.innerHTML = '<option>Session</option>';
+                return;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
                 const sessions = await res.json();
 
                 if (Array.isArray(sessions) && sessions.length > 0) {
-                    document.getElementById('session-select').innerHTML = sessions.map(s =>
+                    sessionSelect.innerHTML = sessions.map(s =>
                         `<option value="${s.session_key}">${s.session_name}</option>`
                     ).join('');
 
-                    // Re-fetch race control for the new session
+                    // 2. ADDED: Reset drivers when the user manually changes the SESSION dropdown
+                    sessionSelect.onchange = () => {
+                        if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
+                        // Re-trigger the loading chain for the new session
+                        fetchSessionRaceControl();
+                        loadDrivers();
+                        sessionWeatherData = []; // Clear weather cache for new session
+                        updateStatus("Session changed. Loading drivers...", "info");
+                    };
+
+                    // Trigger the initial load for the first session in the list
                     fetchSessionRaceControl();
                     loadDrivers();
                 } else {
                     // RACE HASN'T HAPPENED YET
-                    document.getElementById('session-select').innerHTML = '<option>No sessions yet</option>';
+                    sessionSelect.innerHTML = '<option>No sessions yet</option>';
                     updateStatus("No session data available for this event", "info");
 
-                    // Clear other dependent dropdowns
-                    if (document.getElementById('driver-select'))
-                        document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
+                    if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
                 }
             } catch (error) {
                 console.warn("Could not load sessions");
@@ -5573,7 +5594,6 @@
             updateStatus("Preparing high-res snapshot...", "info");
 
             // 1. Identify CURRENT Zoom State from the UI
-            // This looks at your speed chart to see if you are zoomed into a sector
             const currentMin = charts.speed.options.scales.x.min || 0;
             const markers = loadedData.ref.markers || loadedData.comp.markers;
             const currentMax = charts.speed.options.scales.x.max || (markers ? markers.total : 0);
@@ -5624,11 +5644,37 @@
                     `S3: ${data.lap.duration_sector_3?.toFixed(3)}`;
             });
 
+            // --- START OF MODIFICATION ---
+            // Get the original Wordmark SVG from the header
+            const wordmarkSvgSource = document.querySelector('.header-brand svg');
+            // Clone it to avoid manipulating the live DOM for the visible page
+            const clonedWordmark = wordmarkSvgSource.cloneNode(true);
+
+            // Get the temporary container that html2canvas will target
+            const snapshotContainer = document.getElementById('snapshot-canvas-container');
+            // Get the specific logo slot within the snapshot container
+            const logoSlot = document.getElementById('snap-logo-slot'); // <--- NEW LINE
+
+            // Remove absolute positioning styles from the cloned SVG.
+            // The logo slot itself will provide the container and sizing.
+            clonedWordmark.style.position = 'static'; // or just remove the style attribute for position
+            clonedWordmark.style.bottom = ''; // Clear existing bottom style
+            clonedWordmark.style.right = '';  // Clear existing right style
+            clonedWordmark.style.width = '100%'; // Make it fill the slot
+            clonedWordmark.style.height = '100%'; // Make it fill the slot
+            clonedWordmark.style.zIndex = ''; // Clear z-index
+            clonedWordmark.style.display = 'block'; // Ensure visibility
+
+            // Append the styled cloned SVG to the designated logo slot
+            logoSlot.appendChild(clonedWordmark); // <--- CHANGED FROM snapshotContainer.appendChild
+
+            // --- END OF MODIFICATION ---
+
             // 3. RESOLUTION BOOST & ZOOM SYNC
             const mapCanvas = document.getElementById('track-map-chart');
             const telemCanvas = document.getElementById(selectedCanvasId);
             const mainContent = document.getElementById('main-content');
-            const largeMapCont = document.getElementById('large-map-container'); 
+            const largeMapCont = document.getElementById('large-map-container');
 
             const wasSplit = mainContent.classList.contains('split-layout');
             const originalTelemW = telemCanvas.parentElement.style.width;
@@ -5636,11 +5682,11 @@
 
             // OVERRIDE MOBILE CSS (the !important in your style tag)
             const originalDisplay = largeMapCont.style.display;
-            largeMapCont.style.setProperty('display', 'flex', 'important'); 
+            largeMapCont.style.setProperty('display', 'flex', 'important');
 
             // Force Split Layout and High-Res Container Sizes
             mainContent.classList.add('split-layout');
-            largeMapCont.appendChild(mapCanvas); 
+            largeMapCont.appendChild(mapCanvas);
             mapCanvas.parentElement.style.width = '800px';
             mapCanvas.parentElement.style.height = '600px';
             telemCanvas.parentElement.style.width = '800px';
@@ -5668,7 +5714,7 @@
             // Tiny delay for redraw
             await new Promise(r => setTimeout(r, 100));
 
-            // 4. Capture
+            // 4. Capture Chart.js canvases as images
             const snapMapSlot = document.getElementById('snap-map-slot');
             const snapChartSlot = document.getElementById('snap-chart-slot');
             snapMapSlot.querySelectorAll('img').forEach(n => n.remove());
@@ -5689,7 +5735,7 @@
             snapChartSlot.appendChild(chartImg);
 
             // 5. Cleanup (Restore UI to exactly how the user had it)
-            largeMapCont.style.display = originalDisplay; 
+            largeMapCont.style.display = originalDisplay;
             mapCanvas.parentElement.style.width = "";
             mapCanvas.parentElement.style.height = "";
             telemCanvas.parentElement.style.width = originalTelemW;
@@ -5709,12 +5755,15 @@
             });
             syncMapToRange(currentMin, currentMax);
 
-            // 6. Generate File
-            setTimeout(() => {
-                html2canvas(document.getElementById('snapshot-canvas-container'), {
+            try {
+                // 6. Generate final image using html2canvas on the temporary container
+                // This will now include the dynamically added Wordmark SVG
+                html2canvas(snapshotContainer, {
                     backgroundColor: '#1a1a1a',
-                    scale: 2,
-                    useCORS: true
+                    scale: 2, // High DPI for better quality
+                    useCORS: true,
+                    logging: false,
+                    windowHeight: snapshotContainer.scrollHeight // Capture full height including new content
                 }).then(canvas => {
                     const link = document.createElement('a');
                     const cleanChartName = selectedChartName.replace(/\s+/g, '');
@@ -5733,7 +5782,17 @@
                     link.click();
                     updateStatus("Export Complete", "success");
                 });
-            }, 200);
+            } catch (err) {
+                console.error("Export failed", err);
+                updateStatus("Export Failed", "error");
+            } finally {
+                // --- START OF MODIFICATION (Cleanup) ---
+                // IMPORTANT: Remove the cloned SVG from the logoSlot
+                if (logoSlot.contains(clonedWordmark)) { // Check if it's still there
+                    logoSlot.removeChild(clonedWordmark);
+                }
+                // --- END OF MODIFICATION (Cleanup) ---
+            }
         }
 
         function copyShareLink() {
@@ -5971,7 +6030,13 @@
                 const s1 = analyzeStints(currentReportData1.stints, currentReportData1.laps);
                 const s2 = analyzeStints(currentReportData2.stints, currentReportData2.laps);
 
-                const insight = await compareStrategies(s1, s2, currentReportDriver1, currentReportDriver2, currentReportData1, currentReportData2, sessionKey, m1, m2);
+                const incidents = getRaceIncidents(sessionRaceControl);
+                const penServed1 = incidents.penaltiesServed.filter(p => String(p.driver) === String(currentReportDriver1.driver_number)).length;
+                const penServed2 = incidents.penaltiesServed.filter(p => String(p.driver) === String(currentReportDriver2.driver_number)).length;
+                const penRecv1 = incidents.penalties.filter(p => String(p.driver) === String(currentReportDriver1.driver_number)).length;
+                const penRecv2 = incidents.penalties.filter(p => String(p.driver) === String(currentReportDriver2.driver_number)).length;
+
+                const insight = await compareStrategies(s1, s2, currentReportDriver1, currentReportDriver2, currentReportData1, currentReportData2, sessionKey, m1, m2, { penServed1, penServed2, penRecv1, penRecv2 });
 
                 const best1 = Math.min(...currentReportData1.laps.map(l => l.lap_duration));
                 const best2 = Math.min(...currentReportData2.laps.map(l => l.lap_duration));
@@ -5991,13 +6056,19 @@
                         <tbody>
                             <tr><td>Strategy Profile</td><td>${s1.strategyType}</td><td>${s2.strategyType}</td></tr>
                             <tr><td>Starting Tire</td><td>${s1.startingTire || 'N/A'}</td><td>${s2.startingTire || 'N/A'}</td></tr>
-                            <tr><td>Pit Stop Lap(s)</td>
-                                <td>${formatPitLaps(s1.pitLaps, currentReportData1.laps, currentReportData2.laps)}</td>
-                                <td>${formatPitLaps(s2.pitLaps, currentReportData1.laps, currentReportData2.laps)}</td>
+                            <tr><td>Pit Stop Out Lap(s)</td>
+                                <td>${formatPitLaps(s1.pitLaps, currentReportData1.laps)}</td>
+                                <td>${formatPitLaps(s2.pitLaps, currentReportData2.laps)}</td>
                             </tr>
                             <tr><td>Avg Pit Time Loss</td>
                                 <td>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
                                 <td>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td>
+                            </tr>
+                            <tr>
+                                <td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td>
                             </tr>
                             <tr><td>Best Lap Time</td>
                                 <td>${formatTime(best1)}</td>
@@ -6031,14 +6102,42 @@
             // 3b. Add export footer (same style as main snapshot footer)
             const exportFooter = document.createElement('div');
             exportFooter.style.marginTop = "20px";
-            exportFooter.style.textAlign = "center";
-            exportFooter.style.fontSize = "13px";
-            exportFooter.style.color = "#555";
+            // Make footer a flex container to hold text and logo side-by-side
+            exportFooter.style.display = "flex";
+            exportFooter.style.justifyContent = "space-between"; // Distribute items
+            exportFooter.style.alignItems = "center"; // Vertically align items
             exportFooter.style.borderTop = "1px solid #333";
             exportFooter.style.paddingTop = "10px";
             exportFooter.style.flexShrink = "0";
-            exportFooter.textContent = "Generated by Rapid Telemetry (rapidtelem.com) | Data via OpenF1";
+
+            // Create a div for the text content
+            const footerTextContent = document.createElement('div');
+            footerTextContent.style.fontSize = "13px";
+            footerTextContent.style.color = "#555";
+            footerTextContent.textContent = "Generated by Rapid Telemetry (rapidtelem.com) | Data via OpenF1";
+            exportFooter.appendChild(footerTextContent);
+
+            // Create a slot for the logo
+            const modalLogoSlot = document.createElement('div'); // Renamed to avoid confusion with snap-logo-slot
+            modalLogoSlot.style.width = "200px";
+            modalLogoSlot.style.height = "40px";
+            modalLogoSlot.style.flexShrink = "0"; // Prevent logo from shrinking
+            exportFooter.appendChild(modalLogoSlot);
+
             exportClone.appendChild(exportFooter);
+
+            // --- ADD LOGO WATERMARK TO MODAL EXPORTS ---
+            const wordmarkSvgSource = document.querySelector('.header-brand svg');
+            const clonedWordmark = wordmarkSvgSource.cloneNode(true);
+
+            // Apply styles to the cloned SVG to fit the modalLogoSlot
+            clonedWordmark.style.width = '100%';
+            clonedWordmark.style.height = '100%';
+            clonedWordmark.style.display = 'block';
+            clonedWordmark.style.position = 'static'; // Ensure it's not absolutely positioned
+
+            modalLogoSlot.appendChild(clonedWordmark); // Append to the new modal logo slot
+            // --- END ADD LOGO ---
 
             // 4. Handle Canvases (Stamping them as images)
             const originalCanvases = modalContent.querySelectorAll('canvas');
@@ -6082,6 +6181,12 @@
                 console.error("Export failed", err);
                 updateStatus("Export Failed", "error");
             } finally {
+                // --- CLEANUP LOGO FROM MODAL EXPORT ---
+                // Remove the cloned SVG from the modalLogoSlot
+                if (modalLogoSlot.contains(clonedWordmark)) {
+                    modalLogoSlot.removeChild(clonedWordmark);
+                }
+                // --- END CLEANUP ---
                 document.body.removeChild(exportClone);
             }
         }
@@ -6499,8 +6604,13 @@
             </div>
         </div>
 
-        <div style="margin-top: 20px; text-align: center; font-size: 13px; color: #555; border-top: 1px solid #333; padding-top: 10px; flex-shrink: 0;">
-            Generated by Rapid Telemetry (rapidtelem.com) | Data via OpenF1
+        <!-- Final footer with Logo Slot -->
+        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #333; padding-top: 10px; flex-shrink: 0;">
+            <div style="font-size: 13px; color: #555;">
+                Generated by Rapid Telemetry (rapidtelem.com) | Data via OpenF1
+            </div>
+            <!-- NEW LOGO SLOT -->
+            <div id="snap-logo-slot" style="width: 200px; height: 40px;"></div>
         </div>
     </div>
 
