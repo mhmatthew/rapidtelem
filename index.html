@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -160,17 +158,16 @@
             color: #888;
         }
 
-            .slot-btn.active-ref {
-                background: var(--primary-color);
-                color: white;
-                font-weight: bold;
-            }
-
-            .slot-btn.active-comp {
-                background: var(--compare-color);
-                color: black;
-                font-weight: bold;
-            }
+.slot-btn.active-ref {
+    background: linear-gradient(90deg, #e10600 0%, #8b0400 100%);
+    box-shadow: 0 0 15px rgba(225, 6, 0, 0.3);
+    color: white;
+}
+.slot-btn.active-comp {
+    background: linear-gradient(90deg, #00d2be 0%, #008174 100%);
+    box-shadow: 0 0 15px rgba(0, 210, 190, 0.2);
+    color: black;
+}
 
         .slot-info {
             font-size: 0.9em; /* Increased overall font size */
@@ -847,6 +844,14 @@
             color: var(--primary-color);
         }
 
+/* Feed Light Colors */
+.live-indicator.connected .pulse-dot { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+.live-indicator.connected .pulse-label { color: #00ff00; }
+
+.live-indicator.restricted .pulse-dot { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
+.live-indicator.restricted .pulse-label { color: #ff0000; }
+
+
         /* ============================================================
            MOBILE & TABLET OPTIMIZATION (THE "OVERHAUL" BLOCK)
            ============================================================ */
@@ -1062,21 +1067,22 @@
 </head>
 <body>
 
-    <!-- Rapid Telemetry Global Header Ticker -->
-    <div class="rt-global-ticker">
-        <div class="ticker-content">
-            <div class="live-indicator">
-                <span class="pulse-dot"></span>
-                <span class="pulse-label">ANALYSIS FEED</span>
-            </div>
-            <div class="ticker-message">
-                Decoding the stories hidden in the telemetry. New race debriefs and technical insights.
-            </div>
-            <a href="https://rapidtelem.substack.com" target="_blank" class="ticker-cta">
-                VISIT SUBSTACK <span class="arrow">→</span>
-            </a>
+<!-- Rapid Telemetry Global Header Ticker -->
+<div class="rt-global-ticker">
+    <div class="ticker-content">
+        <div class="live-indicator">
+            <span class="pulse-dot"></span>
+            <span class="pulse-label">ANALYSIS FEED</span>
         </div>
+        <!-- Added id="ticker-text" below -->
+        <div class="ticker-message" id="ticker-text">
+            Decoding the stories hidden in the telemetry. New race debriefs and technical insights.
+        </div>
+        <a href="https://rapidtelem.substack.com" target="_blank" class="ticker-cta">
+            VISIT SUBSTACK <span class="arrow">→</span>
+        </a>
     </div>
+</div>
 
     <style>
         /* Permanent Ticker Styles */
@@ -1667,120 +1673,149 @@
             loadMeetings();
         }
 
-        async function loadMeetings() {
-            // RESET lower dropdowns immediately
-            document.getElementById('session-select').innerHTML = '<option>Session</option>';
-            document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
+async function loadMeetings() {
+    clearSlots(); 
+    clearPaceChart(); // Reset chart when year/track changes
+    // 1. RESET lower dropdowns immediately to prevent stale data
+    document.getElementById('session-select').innerHTML = '<option>Session</option>';
+    document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
 
-            const yearSelect = document.getElementById('year-select');
-            const selectedYear = parseInt(yearSelect.value);
-            const currentYear = new Date().getFullYear();
-            const now = new Date();
+    const yearSelect = document.getElementById('year-select');
+    const selectedYear = parseInt(yearSelect.value);
+    const currentYear = new Date().getFullYear();
+    const now = new Date();
 
-            updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
+    // 2. RETRIEVE API KEY (if the user has saved one in the modal)
+    const apiKey = localStorage.getItem('openf1_api_key');
+    const headers = apiKey ? { 'x-api-key': apiKey } : {};
 
-            try {
-                const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`);
-                let meetings = await res.json();
+    updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
 
-                if (!Array.isArray(meetings) || meetings.length === 0) {
-                    document.getElementById('meeting-select').innerHTML = '<option>No schedule released</option>';
-                    updateStatus(`No data available for ${selectedYear}`, "info");
-                    return;
-                }
+    try {
+        // 3. FETCH data with potential API Key headers
+        const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`, { headers });
+        const data = await res.json();
 
-                // 1. Sort chronologically
-                meetings.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
-
-                const meetingSelect = document.getElementById('meeting-select');
-
-                // 2. Decide selection logic based on year
-                if (selectedYear < currentYear) {
-                    // HISTORICAL YEAR: Add placeholder and don't auto-select
-                    meetingSelect.innerHTML = '<option value="" selected disabled>Select Track...</option>' +
-                        meetings.map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
-
-                    // Clear sessions since no track is selected yet
-                    document.getElementById('session-select').innerHTML = '<option>-</option>';
-                    updateStatus(`${selectedYear} Season Loaded. Please select a track.`, "success");
-
-                } else {
-                    // CURRENT or FUTURE YEAR: Pre-select most recent race
-                    meetingSelect.innerHTML = meetings.map(m =>
-                        `<option value="${m.meeting_key}">${m.meeting_name}</option>`
-                    ).join('');
-
-                    const pastMeetings = meetings.filter(m => new Date(m.date_start) <= now);
-                    const targetKey = pastMeetings.length > 0
-                        ? pastMeetings[pastMeetings.length - 1].meeting_key
-                        : meetings[0].meeting_key;
-
-                    meetingSelect.value = targetKey;
-
-                    const selectedMeeting = meetings.find(m => m.meeting_key == targetKey);
-                    const shortName = selectedMeeting.meeting_name.split('Grand Prix')[0].trim();
-
-                    updateStatus(`Ready - Auto-selected: ${shortName} GP`, "success");
-
-                    // Auto-trigger session load for current/future only
-                    loadSessions();
-                }
-
-                meetingSelect.onchange = loadSessions;
-
-            } catch (error) {
-                console.error(error);
-                updateStatus("Error loading schedule", "error");
-            }
+        // 4. CHECK FOR LIVE SESSION RESTRICTION
+        // If restricted, data will be an object { detail: "..." } instead of an array
+        if (data && data.detail && data.detail.toLowerCase().includes("live f1 session")) {
+            updateStatus("Live Session Restricted (API Key Required)", "error");
+            document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
+            return; // Halt execution
         }
 
-        async function loadSessions() {
-            // 1. RESET driver dropdown immediately when track/year changes
-            const driverSelect = document.getElementById('driver-select');
-            const sessionSelect = document.getElementById('session-select');
-            if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
+        let meetings = data;
 
-            const meetingKey = document.getElementById('meeting-select').value;
-            // If "Select Track..." or no key, clear session and exit
-            if (!meetingKey || meetingKey === 'GP...') {
-                if (sessionSelect) sessionSelect.innerHTML = '<option>Session</option>';
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
-                const sessions = await res.json();
-
-                if (Array.isArray(sessions) && sessions.length > 0) {
-                    sessionSelect.innerHTML = sessions.map(s =>
-                        `<option value="${s.session_key}">${s.session_name}</option>`
-                    ).join('');
-
-                    // 2. ADDED: Reset drivers when the user manually changes the SESSION dropdown
-                    sessionSelect.onchange = () => {
-                        if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
-                        // Re-trigger the loading chain for the new session
-                        fetchSessionRaceControl();
-                        loadDrivers();
-                        sessionWeatherData = []; // Clear weather cache for new session
-                        updateStatus("Session changed. Loading drivers...", "info");
-                    };
-
-                    // Trigger the initial load for the first session in the list
-                    fetchSessionRaceControl();
-                    loadDrivers();
-                } else {
-                    // RACE HASN'T HAPPENED YET
-                    sessionSelect.innerHTML = '<option>No sessions yet</option>';
-                    updateStatus("No session data available for this event", "info");
-
-                    if (driverSelect) driverSelect.innerHTML = '<option>Driver</option>';
-                }
-            } catch (error) {
-                console.warn("Could not load sessions");
-                updateStatus("Error fetching session details", "error");
-            }
+        // 5. VALIDATE ARRAY
+        if (!Array.isArray(meetings) || meetings.length === 0) {
+            document.getElementById('meeting-select').innerHTML = '<option>No schedule released</option>';
+            updateStatus(`No data available for ${selectedYear}`, "info");
+            return;
         }
+
+        // 6. SORT meetings chronologically
+        meetings.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
+
+        const meetingSelect = document.getElementById('meeting-select');
+
+        // 7. DECIDE SELECTION LOGIC BASED ON YEAR
+        if (selectedYear < currentYear) {
+            // HISTORICAL YEAR: Add placeholder and don't auto-select
+            meetingSelect.innerHTML = '<option value="" selected disabled>Select Track...</option>' +
+                meetings.map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
+
+            // Clear sessions since no track is selected yet
+            document.getElementById('session-select').innerHTML = '<option>-</option>';
+            updateStatus(`${selectedYear} Season Loaded. Please select a track.`, "success");
+
+        } else {
+            // CURRENT or FUTURE YEAR: Pre-select most recent race
+            meetingSelect.innerHTML = meetings.map(m =>
+                `<option value="${m.meeting_key}">${m.meeting_name}</option>`
+            ).join('');
+
+            const pastMeetings = meetings.filter(m => new Date(m.date_start) <= now);
+            const targetKey = pastMeetings.length > 0
+                ? pastMeetings[pastMeetings.length - 1].meeting_key
+                : meetings[0].meeting_key;
+
+            meetingSelect.value = targetKey;
+
+            const selectedMeeting = meetings.find(m => m.meeting_key == targetKey);
+            const shortName = selectedMeeting.meeting_name.split('Grand Prix')[0].trim();
+
+            updateStatus(`Ready - Auto-selected: ${shortName} GP`, "success");
+
+            // Auto-trigger session load for current/future only
+            loadSessions();
+        }
+
+        // Handle manual track changes
+        meetingSelect.onchange = loadSessions;
+
+    } catch (error) {
+        console.error("Schedule Load Error:", error);
+        updateStatus("Error loading schedule", "error");
+    }
+}
+
+async function loadSessions() {
+    // 1. Instant Synchronous Resets (No network lag here)
+    clearSlots();
+    clearPaceChart();
+
+    const driverSelect = document.getElementById('driver-select');
+    const sessionSelect = document.getElementById('session-select');
+    if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
+
+    const meetingKey = document.getElementById('meeting-select').value;
+    if (!meetingKey || meetingKey === 'GP...') {
+        if (sessionSelect) sessionSelect.innerHTML = '<option>Session</option>';
+        return;
+    }
+
+    try {
+        updateStatus("Fetching Sessions...", "info"); // BLUE STATUS
+        const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
+        const sessions = await res.json();
+
+        if (Array.isArray(sessions) && sessions.length > 0) {
+            sessionSelect.innerHTML = sessions.map(s =>
+                `<option value="${s.session_key}">${s.session_name}</option>`
+            ).join('');
+
+            // Define manual change behavior
+            sessionSelect.onchange = async () => {
+                clearSlots();     // Clear when user switches session
+                clearPaceChart(); // Clear modal when user switches session
+                
+                if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
+                updateStatus("Session changed. Loading drivers...", "info");
+                
+                try {
+                    await fetchSessionRaceControl();
+                    await loadDrivers();
+                    sessionWeatherData = []; 
+                    updateStatus("Ready - Drivers Loaded", "success"); // GREEN STATUS (No Hang)
+                } catch (e) {
+                    updateStatus("Error updating drivers", "error");
+                }
+            };
+
+            // INITIAL auto-load for first session
+            await fetchSessionRaceControl();
+            await loadDrivers();
+            updateStatus("Ready", "success"); // GREEN STATUS (No Hang)
+            
+        } else {
+            sessionSelect.innerHTML = '<option>No sessions yet</option>';
+            updateStatus("No session data available", "info");
+        }
+    } catch (error) {
+        console.warn("Could not load sessions");
+        updateStatus("Error fetching session details", "error"); // RED STATUS
+    }
+}
 
         async function fetchSessionRaceControl() {
             const sessionKey = document.getElementById('session-select').value;
@@ -1864,8 +1899,10 @@
                     }
 
                     // When the user changes driver, we load laps
-                    driverSelect.onchange = loadLaps;
-
+driverSelect.onchange = () => {
+    clearPaceChart(); // Reset pace chart on driver change
+    loadLaps();
+};
                     // Clear lap list so stale content isn’t shown
                     document.getElementById('lap-selector').innerHTML =
                         '<div style="padding: 10px; color: #888;">Select a driver to view laps...</div>';
@@ -2319,10 +2356,8 @@
 
                         // Visual Stability Fixes:
                         caretSize: 0,
-                        position: 'nearest',
+                        position: 'average',
                         animation: false,
-                        mode: 'index',
-                        axis: 'x',
 
                         // Technical Branding:
                         titleFont: {
@@ -2607,35 +2642,58 @@
 
         }
 
-        function updateCharts() {
-            const s1 = loadedData.ref.telemetry || [];
-            const s2 = loadedData.comp.telemetry || [];
+function updateCharts() {
+    const s1 = loadedData.ref.telemetry || [];
+    const s2 = loadedData.comp.telemetry || [];
 
-            // Safety check for telemetry charts
-            [charts.speed, charts.inputs, charts.gearRpm].forEach(chart => {
-                chart.options.scales.x.min = null;
-                chart.options.scales.x.max = null;
-            });
+    // Helper to interpolate any value (speed, rpm, gear) for Slot 2 onto Slot 1's grid
+    function getInterpolatedValue(targetDist, telemetry, key) {
+        if (!telemetry.length) return null;
+        const idx = telemetry.findIndex(p => p.distance >= targetDist);
+        if (idx === 0) return telemetry[0][key];
+        if (idx === -1) return null;
 
-            // Speed Chart
-            charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
-            charts.speed.data.datasets[1].data = s2.map(d => ({ x: d.distance, y: d.speed }));
-            charts.speed.update();
+        const pA = telemetry[idx - 1];
+        const pB = telemetry[idx];
+        if (pB.distance === pA.distance) return pA[key];
 
-            // Inputs Chart
-            charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
-            charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
-            charts.inputs.data.datasets[2].data = s2.map(d => ({ x: d.distance, y: d.throttle }));
-            charts.inputs.data.datasets[3].data = s2.map(d => ({ x: d.distance, y: d.brake }));
-            charts.inputs.update();
+        // Linear Interpolation
+        return pA[key] + (targetDist - pA.distance) * (pB[key] - pA[key]) / (pB.distance - pA.distance);
+    }
 
-            // RPM Chart
-            charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
-            charts.gearRpm.data.datasets[1].data = s2.map(d => ({ x: d.distance, y: d.rpm }));
-            // Populate Gear data
-            charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
-            charts.gearRpm.data.datasets[3].data = s2.map(d => ({ x: d.distance, y: d.n_gear }));
-            charts.gearRpm.update();
+    // --- SPEED CHART (Aligned to S1) ---
+    charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
+    charts.speed.data.datasets[1].data = s1.map(d => ({ 
+        x: d.distance, 
+        y: s2.length ? getInterpolatedValue(d.distance, s2, 'speed') : null 
+    }));
+    charts.speed.update('none');
+
+    // --- INPUTS CHART (Aligned to S1) ---
+    charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
+    charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
+    charts.inputs.data.datasets[2].data = s1.map(d => ({ 
+        x: d.distance, 
+        y: s2.length ? getInterpolatedValue(d.distance, s2, 'throttle') : null 
+    }));
+    charts.inputs.data.datasets[3].data = s1.map(d => ({ 
+        x: d.distance, 
+        y: s2.length ? getInterpolatedValue(d.distance, s2, 'brake') : null 
+    }));
+    charts.inputs.update('none');
+
+    // --- RPM & GEAR CHART (Aligned to S1) ---
+    charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
+    charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
+    charts.gearRpm.data.datasets[1].data = s1.map(d => ({ 
+        x: d.distance, 
+        y: s2.length ? getInterpolatedValue(d.distance, s2, 'rpm') : null 
+    }));
+    charts.gearRpm.data.datasets[3].data = s1.map(d => ({ 
+        x: d.distance, 
+        y: s2.length ? getInterpolatedValue(d.distance, s2, 'n_gear') : null 
+    }));
+    charts.gearRpm.update('none');
 
             // --- TRACK MAP LOGIC ---
             if (s1.length > 0 && s2.length > 0) {
@@ -2763,10 +2821,42 @@
             setTimeout(() => Object.values(charts).forEach(c => c.resize()), 50);
         });
 
-        function updateStatus(message, type) {
-            const statusContainer = document.getElementById('status-container');
-            statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
+function updateStatus(message, type) {
+    const statusContainer = document.getElementById('status-container');
+    const feedIndicator = document.querySelector('.live-indicator');
+    const feedLabel = document.querySelector('.pulse-label');
+    const tickerText = document.getElementById('ticker-text');
+
+    statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
+
+    if (type === 'success') {
+        feedIndicator.classList.add('connected');
+        feedIndicator.classList.remove('restricted');
+        feedLabel.innerText = 'ANALYSIS FEED: ONLINE';
+    } 
+
+    if (type === 'error') {
+        feedIndicator.classList.add('restricted');
+        feedIndicator.classList.remove('connected');
+        
+        if (message.toLowerCase().includes('restricted') || message.toLowerCase().includes('locked')) {
+            feedLabel.innerText = 'FEED: SESSION RESTRICTED';
+            if (tickerText) {
+                tickerText.innerHTML = `
+                    <span style="color: #ff8080;">Live Session in progress. </span>
+                    <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
+                        Enter API Key
+                    </a> or 
+                    <a href="https://buy.stripe.com/eVqcN41BPekP0iIalBcEw02" target="_blank" style="color: #fff; text-decoration: underline;">
+                        Get Access
+                    </a>
+                `;
+            }
+        } else {
+            feedLabel.innerText = 'FEED: CONNECTION ERROR';
         }
+    }
+}
 
         function zoomToSector(sectorNum) {
             // FIX: Use Ref markers if available, otherwise use Comp markers
@@ -2834,20 +2924,25 @@
             charts.map.update('none'); // Update without full re-render for performance
         }
 
-        function clearSlots() {
-            loadedData = {
-                ref: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] },
-                comp: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] }
-            };
-            document.getElementById('ref-label').innerHTML = "S1: Empty <span>--:--.---</span>";
-            document.getElementById('comp-label').innerHTML = "S2: Empty <span>--:--.---</span>";
-            document.getElementById('weather-ref').innerHTML = "S1: No Data";
-            document.getElementById('weather-comp').innerHTML = "S2: No Data";
-            updateSectorTable();
-            updateCharts();
-            updateRadioLog();
-            updateStatus("Slots Cleared", "info");
-        }
+function clearSlots() {
+    loadedData = {
+        ref: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] },
+        comp: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] }
+    };
+    
+    // Reset Labels
+    if (document.getElementById('ref-label')) document.getElementById('ref-label').innerHTML = "S1: Empty <span>--:--.---</span>";
+    if (document.getElementById('comp-label')) document.getElementById('comp-label').innerHTML = "S2: Empty <span>--:--.---</span>";
+    
+    // Reset Weather
+    if (document.getElementById('weather-ref')) document.getElementById('weather-ref').innerHTML = "S1: No Data";
+    if (document.getElementById('weather-comp')) document.getElementById('weather-comp').innerHTML = "S2: No Data";
+    
+    updateSectorTable();
+    updateCharts();
+    updateRadioLog();
+    // Note: No updateStatus call here, as this is often used as a sub-function
+}
 
         function updateRadioLog() {
             const radioLogElement = document.getElementById('radio-log');
@@ -3165,8 +3260,13 @@
                         },
                         y: {
                             type: 'linear',
-                            afterFit: (axis) => { axis.width = 80; },
-                            title: { display: true, text: 'Lap Time', color: '#f0f0f0', font: { size: 14, family: 'Inter' } }, // Corrected font string
+    title: { 
+        display: true, 
+        text: 'Lap Time', 
+        color: '#f0f0f0', 
+        padding: 10, // Add some breathing room
+        font: { size: 14, family: 'Inter' } 
+    },
                             grid: { color: 'rgba(255, 255, 255, 0.1)' },
                             ticks: {
                                 color: '#f0f0f0',
@@ -3181,16 +3281,16 @@
             renderTireLegend();
         }
 
-        function clearPaceChart() {
-            if (paceChartInstance) {
-                paceChartInstance.data.datasets = [];
-                paceChartInstance.options.plugins.annotation.annotations = {};
-                paceChartInstance.update();
-            }
-            savedPaceChartDatasets = []; // Clear saved data too
-            savedPaceChartAnnotations = {};
-            renderTireLegend(); // Re-render in case it cleared up
-        }
+function clearPaceChart() {
+    if (paceChartInstance) {
+        paceChartInstance.data.datasets = [];
+        paceChartInstance.options.plugins.annotation.annotations = {};
+        paceChartInstance.update('none');
+    }
+    savedPaceChartDatasets = [];
+    savedPaceChartAnnotations = {};
+    if (document.getElementById('tireLegend')) renderTireLegend();
+}
 
         async function loadPaceData() {
             const sessionKey = document.getElementById('paceSessionSelect').value;
@@ -6392,6 +6492,30 @@
             yearSelect.innerHTML = html;
         }
 
+function openApiKeyModal() {
+    document.getElementById('apiKeyModal').classList.add('visible');
+}
+
+function closeApiKeyModal() {
+    document.getElementById('apiKeyModal').classList.remove('visible');
+}
+
+function saveApiKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (key) {
+        localStorage.setItem('openf1_api_key', key);
+        updateStatus("API Key Saved", "success");
+        closeApiKeyModal();
+        loadMeetings(); // Retry the load with the new key
+    }
+}
+
+function clearApiKey() {
+    localStorage.removeItem('openf1_api_key');
+    document.getElementById('api-key-input').value = '';
+    updateStatus("API Key Cleared", "info");
+}
+
         // Update your existing DOMContentLoaded listener:
         document.addEventListener('DOMContentLoaded', async () => {
             setupYearSelect(); // Call this first
@@ -6594,6 +6718,31 @@
         </div>
     </div>
 
+<!-- API KEY MODAL -->
+<div id="apiKeyModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; height: auto; border-top: 4px solid var(--accent-color); text-align: center;">
+        <div class="modal-header">
+            <h2 style="margin: 0; color: var(--accent-color);">Personal API Key</h2>
+            <button class="modal-close-btn" onclick="closeApiKeyModal()">&times;</button>
+        </div>
+        <p style="font-size: 0.85em; color: #ccc; margin-bottom: 20px;">
+            Enter your OpenF1 API key to unlock data during live sessions.
+        </p>
+        <input type="password" id="api-key-input" placeholder="Enter API Key here..." 
+               style="width: 100%; padding: 12px; background: #111; border: 1px solid #444; color: white; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box;">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-primary" onclick="saveApiKey()" style="flex: 1; padding: 10px;">Save Key</button>
+            <button onclick="clearApiKey()" style="flex: 1; background: #444; border: none; color: white; border-radius: 4px;">Clear</button>
+        </div>
+        <div style="border-top: 1px solid #333; padding-top: 15px;">
+            <p style="font-size: 0.75em; color: #888; margin: 0;">Don't have a key?</p>
+            <a href="https://buy.stripe.com/eVqcN41BPekP0iIalBcEw02" target="_blank" 
+               style="color: var(--accent-color); font-size: 0.85em; text-decoration: none; font-weight: bold;">
+               Purchase Authenticated Access →
+            </a>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
