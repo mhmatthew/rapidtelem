@@ -1760,11 +1760,22 @@ async function loadMeetings() {
         // Handle manual track changes
         meetingSelect.onchange = loadSessions;
 
-    } catch (error) {
-        console.error("Schedule Load Error:", error);
+} catch (error) {
+    console.error("Schedule Load Error:", error);
+    
+    // Treat any fetch failure during a race year as potentially restricted
+    const currentYear = new Date().getFullYear();
+    const selectedYear = parseInt(document.getElementById('year-select').value);
+
+    if (selectedYear >= currentYear) {
+        updateStatus("Live Session Restricted (API Key Required)", "error");
+        document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
+    } else {
         updateStatus("Error loading schedule", "error");
     }
 }
+}
+
 
 async function loadSessions() {
     // 1. Instant Synchronous Resets (No network lag here)
@@ -2973,28 +2984,43 @@ function updateStatus(message, type) {
         feedLabel.innerText = 'ANALYSIS FEED: ONLINE';
     } 
 
-    if (type === 'error') {
-        feedIndicator.classList.add('restricted');
-        feedIndicator.classList.remove('connected');
+if (type === 'error') {
+    feedIndicator.classList.add('restricted');
+    feedIndicator.classList.remove('connected');
+
+    const isRestricted = message.toLowerCase().includes('restricted') || 
+                         message.toLowerCase().includes('locked');
+
+    if (isRestricted) {
+        feedLabel.innerText = 'FEED: SESSION RESTRICTED';
         
-        if (message.toLowerCase().includes('restricted') || message.toLowerCase().includes('locked')) {
-            feedLabel.innerText = 'FEED: SESSION RESTRICTED';
-            if (tickerText) {
-                tickerText.innerHTML = `
-                    <span style="color: #ff8080;">Live Session in progress. </span>
-                    <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
-                        Enter API Key
-                    </a> or 
-                    <a href="https://buy.stripe.com/eVqcN41BPekP0iIalBcEw02" target="_blank" style="color: #fff; text-decoration: underline;">
-                        Get Access
-                    </a>
-                `;
-            }
-        } else {
-            feedLabel.innerText = 'FEED: CONNECTION ERROR';
+        if (tickerText) {
+            tickerText.innerHTML = `
+                <span style="color: #ff8080;">Live Session in progress. </span>
+                <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
+                    Enter API Key
+                </a> or 
+                <a href="https://buy.stripe.com/eVqcN41BPekP0iIalBcEw02" target="_blank" style="color: #fff; text-decoration: underline;">
+                    Get Access
+                </a>
+            `;
+        }
+    } else {
+        // Generic connection error - still offer API key as a possible fix
+        feedLabel.innerText = 'FEED: CONNECTION ERROR';
+
+        if (tickerText) {
+            tickerText.innerHTML = `
+                <span style="color: #ff8080;">Unable to load schedule. </span>
+                <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
+                    Try API Key
+                </a>
+            `;
         }
     }
 }
+}
+
 
         function zoomToSector(sectorNum) {
             // FIX: Use Ref markers if available, otherwise use Comp markers
