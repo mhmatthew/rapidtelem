@@ -6687,25 +6687,40 @@ function clearApiKey() {
 }
 
         // Update your existing DOMContentLoaded listener:
-        document.addEventListener('DOMContentLoaded', async () => {
-            setupYearSelect(); // Call this first
-            checkFirstVisit();
-            initCharts();
-            initPaceAnalysisUI();
+document.addEventListener('DOMContentLoaded', async () => {
+    setupYearSelect();
+    checkFirstVisit();
+    initPaceAnalysisUI();
 
-            const params = new URLSearchParams(window.location.search);
-            const hasSharedSession = params.get('session');
+    // Initialize charts immediately for fast page load
+    initCharts();
 
-            if (hasSharedSession) {
-                // Do NOT auto-load default year/meetings; let loadFromURL drive everything.
-                await initAPI({ skipInitialLoad: true });
-                await loadFromURL();
-            } else {
-                // Normal interactive flow
-                await initAPI();
-            }
+    // Re-render all charts once fonts are ready (with 3s safety timeout)
+    Promise.race([
+        document.fonts.ready,
+        new Promise(resolve => setTimeout(resolve, 3000))
+    ]).then(() => {
+        // Main charts
+        Object.values(charts).forEach(chart => {
+            if (chart) chart.update();
         });
 
+        // Pace Analysis chart (if it exists)
+        if (paceChartInstance) {
+            paceChartInstance.update();
+        }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const hasSharedSession = params.get('session');
+
+    if (hasSharedSession) {
+        await initAPI({ skipInitialLoad: true });
+        await loadFromURL();
+    } else {
+        await initAPI();
+    }
+});
 
         document.getElementById('buy-coffee-btn').addEventListener('click', function () {
             window.open('https://www.buymeacoffee.com/mhmatthew', '_blank', 'noopener');
