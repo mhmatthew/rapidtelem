@@ -1183,7 +1183,7 @@
             }
         }
 
-        /* Mobile Responsiveness */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
     .ticker-message {
         display: none;
@@ -1204,12 +1204,16 @@
     .live-indicator.restricted ~ .ticker-cta {
         font-size: 10px;
         padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     /* Push modals below the taller ticker on mobile */
     .modal-overlay {
-        top: 55px !important;                    /* Increased from 35px */
-        height: calc(100% - 55px) !important;    /* Adjust height accordingly */
+        top: 55px !important;
+        height: calc(100% - 55px) !important;
     }
 
     .strategy-drawer {
@@ -1221,6 +1225,10 @@
     .live-indicator.restricted ~ .ticker-cta {
         font-size: 9px;
         padding: 2px 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     /* Ensure modals stay below the taller ticker on very narrow screens */
