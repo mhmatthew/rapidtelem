@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1698,9 +1699,41 @@
                         });
 
                         if (hasRadio) iconHtml += '<span title="Radio" style="color: #00d2be;">📻</span>';
-                        if (lapEvents.some(f => f.flag === 'YELLOW')) iconHtml += '<span title="Yellow Flag" style="color: #ffff00;">⚠️</span>';
-                        if (lapEvents.some(f => f.flag === 'RED')) iconHtml += '<span title="Red Flag" style="color: #ff0000;">🚩</span>';
-                        if (lapEvents.some(f => f.category === 'Safety Car')) iconHtml += '<span title="Safety Car" style="color: #ffc107;">🏎️</span>';
+
+                        // 1. Chequered Flag (Highest Priority)
+                        if (lapEvents.some(f => f.flag === 'CHEQUERED' || (f.message && f.message.toUpperCase().includes("CHEQUERED")))) {
+                            iconHtml += '<span title="Session Finished" style="color: #ffffff;">🏁</span>';
+                        }
+                        // 1a. Standing Re-Start Icon 
+                        else if (lapEvents.some(f => f.message && f.message.toUpperCase().includes("STANDING START"))) {
+                            iconHtml += '<span title="Race Resumed (Standing Start)" style="color: #00ff00;">🚦</span>';
+                        }
+                        // 2. Red Flag (Strict check to ignore "Red Flag Infringement")
+                        else if (lapEvents.some(f => {
+                            if (f.flag === 'RED') return true;
+                            if (!f.message) return false;
+                            const msg = f.message.toUpperCase();
+                            // Trigger only if it's a suspension, NOT an infringement note
+                            return (msg.startsWith("RED FLAG") || msg.includes("RACE SUSPENDED")) &&
+                                !msg.includes("INFRINGEMENT");
+                        })) {
+                            iconHtml += '<span title="Red Flag" style="color: #ff0000;">🚩</span>';
+                        }
+
+                        // 3. Safety Car (Ignore infringements)
+                        if (lapEvents.some(f => {
+                            const msg = (f.message || "").toUpperCase();
+                            const cat = (f.category || "").toUpperCase();
+                            return (cat.includes("SAFETY") || msg.includes("SAFETY CAR")) &&
+                                !msg.includes("INFRINGEMENT");
+                        })) {
+                            iconHtml += '<span title="Safety Car" style="color: #ffc107;">🚗</span>';
+                        }
+
+                        // 4. Yellow Flag
+                        if (lapEvents.some(f => f.flag === 'YELLOW' || f.flag === 'DOUBLE YELLOW')) {
+                            iconHtml += '<span title="Yellow Flag" style="color: #ffff00;">⚠️</span>';
+                        }
                     } else if (hasRadio) {
                         iconHtml += '<span title="Radio" style="color: #00d2be;">📻</span>';
                     }
@@ -4247,37 +4280,46 @@ function clearPaceChart() {
         function calculateAdvancedMetrics(laps, slotData = null, allLapsData1 = null, allLapsData2 = null) {
             if (!laps || laps.length === 0) return null;
 
-            // 1. Identify clean laps (no SC, no Pits)
+            // 1. Identify "Clean Laps" (No Pits, No SC/VSC/Red Flag)
             let cleanLaps = getCleanLaps(laps, allLapsData1, allLapsData2);
 
-            // 2. FALLBACK: If NO laps are "clean" (e.g., a very short test or messy race),
-            // use all valid laps so the report doesn't crash.
+            // 2. Categorize Pit Stops (Green vs Intervention)
+            const stopStats = typeof getStopBreakdown === 'function'
+                ? getStopBreakdown(laps, allLapsData1, allLapsData2)
+                : { total: laps.filter(l => l.isPitLap).length };
+
+            // 3. Fallback: If NO laps are "clean", use all valid laps to prevent crash
             if (cleanLaps.length === 0) {
-                console.warn("No clean laps found, analyzing all available laps for report fallback.");
+                console.warn("No clean laps found, analyzing all available laps for fallback.");
                 cleanLaps = laps.filter(l => l.lap_duration > 0);
             }
 
-            // 3. Final check: if still no laps (data missing), exit
             if (cleanLaps.length === 0) return null;
 
-            // From here down, the rest of your function will now work
-            // because 'cleanLaps' is correctly defined.
+            // 4. Base Pace Array (Declare 'durations' ONLY once here)
             const durations = cleanLaps.map(l => l.lap_duration);
             const bestLap = Math.min(...durations);
-            const mean = durations.reduce((a, b) => a + b, 0) / durations.length;
 
-            const variance = durations.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / durations.length;
+            // 5. Representative Filter (The 107% Rule)
+            // Excludes major mistakes/incidents for the Consistency Score/Standard Deviation
+            const representativeDurations = durations.filter(d => d <= bestLap * 1.07);
+
+            const mean = representativeDurations.reduce((a, b) => a + b, 0) / representativeDurations.length;
+            const variance = representativeDurations.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / representativeDurations.length;
             const stdDev = Math.sqrt(variance);
             const cv = (stdDev / mean) * 100;
+
+            // 6. Competitive Windows (+0.5s Cluster)
             const competitiveLaps = durations.filter(t => t <= bestLap + 0.5);
-            const within05s = competitiveLaps.length; // Kept as 'within05s' to avoid ReferenceError
-            const avgCompetitiveLap = within05s > 0
-                ? competitiveLaps.reduce((a, b) => a + b, 0) / within05s
+            const within05sCount = competitiveLaps.length;
+            const avgCompetitiveLap = within05sCount > 0
+                ? competitiveLaps.reduce((a, b) => a + b, 0) / within05sCount
                 : null;
 
-            // === Pit analysis must use ALL laps (not clean laps) ===
+            // 7. Pit Analysis (Uses the mean calculated from push laps)
             const recovery = calculateRecoveryPace(laps, mean);
 
+            // 8. Technique Analysis (Telemetry-based)
             let technique = {
                 telemetryAvailable: false,
                 overlap: { total: 0, s1: 0, s2: 0, s3: 0 },
@@ -4306,11 +4348,27 @@ function clearPaceChart() {
                     const curr = tel[i];
                     const prev = tel[i - 1];
                     const dt = (new Date(curr.date) - new Date(prev.date)) / 1000;
-                    let sector = (markers && curr.distance < markers.s1) ? 's1' : (markers && curr.distance < markers.s2 ? 's2' : 's3');
 
-                    if (curr.throttle > 0 && curr.brake > 0) { technique.overlap.total += dt; technique.overlap[sector] += dt; }
-                    if (curr.throttle === 0 && curr.brake === 0) { technique.coasting.total += dt; technique.coasting[sector] += dt; }
-                    if (prev.brake > 0 && curr.brake === 0) lastBrakeRelease = new Date(curr.date).getTime();
+                    let sector = 's3';
+                    if (markers) {
+                        if (curr.distance < markers.s1) sector = 's1';
+                        else if (curr.distance < markers.s2) sector = 's2';
+                    }
+
+                    // Overlap
+                    if (curr.throttle > 5 && curr.brake > 5) {
+                        technique.overlap.total += dt;
+                        technique.overlap[sector] += dt;
+                    }
+                    // Coasting
+                    if (curr.throttle === 0 && curr.brake === 0) {
+                        technique.coasting.total += dt;
+                        technique.coasting[sector] += dt;
+                    }
+                    // Transition (Brake Release to Full Throttle)
+                    if (prev.brake > 0 && curr.brake === 0) {
+                        lastBrakeRelease = new Date(curr.date).getTime();
+                    }
                     if (lastBrakeRelease && curr.throttle >= 99) {
                         const diff = (new Date(curr.date).getTime() - lastBrakeRelease) / 1000;
                         if (diff < 4) technique.transitions[sector].push(diff);
@@ -4320,28 +4378,35 @@ function clearPaceChart() {
 
                 const getAvg = arr => arr.length > 0 ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(3) : "0.000";
                 const allTrans = [...technique.transitions.s1, ...technique.transitions.s2, ...technique.transitions.s3];
+
                 technique.transitions.avgTotal = getAvg(allTrans);
                 technique.transitions.avgS1 = getAvg(technique.transitions.s1);
                 technique.transitions.avgS2 = getAvg(technique.transitions.s2);
                 technique.transitions.avgS3 = getAvg(technique.transitions.s3);
 
-                ['overlap', 'coasting'].forEach(key => Object.keys(technique[key]).forEach(s => technique[key][s] = technique[key][s].toFixed(3)));
+                ['overlap', 'coasting'].forEach(key => {
+                    Object.keys(technique[key]).forEach(s => {
+                        technique[key][s] = parseFloat(technique[key][s]).toFixed(3);
+                    });
+                });
             }
 
+            // 9. Final Results Object
             return {
                 fastestLap: bestLap,
                 averageLap: mean,
                 stdDev: stdDev.toFixed(3),
-                consistencyScore: (100 - cv).toFixed(1),
-                competitiveLapsPercent: ((within05s / durations.length) * 100).toFixed(1),
+                consistencyScore: (100 - cv).toFixed(1), // Representative of pure "push" phase
+                competitiveLapsPercent: ((within05sCount / durations.length) * 100).toFixed(1),
                 avgCompetitiveLap: avgCompetitiveLap,
-                recoveryStats: recovery,                    // ← Now uses full laps
+                stopStats: stopStats,
+                recoveryStats: recovery,
                 stintStats: calculateStintDegradation(cleanLaps, allLapsData1, allLapsData2),
-                // IMPORTANT: pass *all* laps here, not cleanLaps
                 tireBreakdown: calculateTireBreakdown(laps, allLapsData1, allLapsData2),
                 technique: technique
             };
         }
+
 
         // Helper to calculate tire data specifically for the report
         function calculateTireBreakdown(laps, allLapsData1, allLapsData2) {
@@ -4748,6 +4813,13 @@ function clearPaceChart() {
             const content = document.getElementById('strategyDrawerContent');
             const sessionKey = document.getElementById('paceSessionSelect').value;
 
+            // Helper to categorize stops
+            const getStopStats = (pitLaps, laps1, laps2) => {
+                const green = pitLaps.filter(lap => getTrackStatusAtLap(lap, laps1, laps2) === null);
+                const intervention = pitLaps.filter(lap => getTrackStatusAtLap(lap, laps1, laps2) !== null);
+                return { greenCount: green.length, interventionCount: intervention.length };
+            };
+
             if (!drawer || !content) return;
 
             drawer.classList.add('open');
@@ -4807,6 +4879,9 @@ function clearPaceChart() {
                 const best1 = Math.min(...data1.laps.map(l => l.lap_duration));
                 const best2 = Math.min(...data2.laps.map(l => l.lap_duration));
 
+                const stats1 = getStopStats(strategy1.pitLaps, data1.laps, data2.laps);
+                const stats2 = getStopStats(strategy2.pitLaps, data1.laps, data2.laps);
+
                 content.innerHTML = `
                                                 <div style="padding: 5px 0 15px 0; border-bottom: 1px solid #444; margin-bottom: 20px;">
                                                     <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
@@ -4827,16 +4902,14 @@ function clearPaceChart() {
                 <td>${formatPitLaps(strategy1.pitLaps, data1.laps)}</td>
                 <td>${formatPitLaps(strategy2.pitLaps, data2.laps)}</td>
             </tr>
+            <tr><td>Green Flag Stops</td><td>${stats1.greenCount}</td><td>${stats2.greenCount}</td></tr>
+            <tr><td>Intervention Stops</td><td>${stats1.interventionCount}</td><td>${stats2.interventionCount}</td></tr>
             <tr><td>Avg Pit Time Loss</td>
                 <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
                 <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
             </tr>
-            <tr>
-                <td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td>
-            </tr>
-            <tr>
-                <td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td>
-            </tr>
+            <tr><td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td></tr>
+            <tr><td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td></tr>
             <tr><td>Best Lap Time</td>
                 <td>${formatTime(best1)}</td>
                 <td>${formatTime(best2)}</td>
@@ -4876,65 +4949,57 @@ function clearPaceChart() {
             const cleanLaps1 = getCleanLaps(data1.laps, data1.laps, data2.laps);
             const cleanLaps2 = getCleanLaps(data2.laps, data1.laps, data2.laps);
 
-            // --- 1. PIT SEQUENCE & INTERVENTION ANALYSIS ---
+            // --- 1. PIT SEQUENCE & INTERVENTION ANALYSIS (Consolidated) ---
             const vPits = s1.pitLaps || [];
             const pPits = s2.pitLaps || [];
 
-            let driver1CheapStops = [];
-            let driver2CheapStops = [];
+            // Combine all unique pit OUT laps into one chronological list
+            const allPitLaps = [...new Set([...vPits, ...pPits])].sort((a, b) => a - b);
 
-            vPits.forEach(lap => {
+            allPitLaps.forEach(lap => {
                 const status = getTrackStatusAtLap(lap, data1.laps, data2.laps);
-                if (status) driver1CheapStops.push({ lap, status });
+                if (!status) return; // Skip green flag stops for tactical text
+
+                const isD1Pitting = vPits.includes(lap);
+                const isD2Pitting = pPits.includes(lap);
+
+                if (isD1Pitting && isD2Pitting) {
+                    // Both drivers stopped on this lap
+                    if (status === "RED FLAG") {
+                        insights.push(`The session suspension on Lap ${lap} provided a strategic reset; both drivers leveraged the **Red Flag** for a 'free' tire change.`);
+                    } else {
+                        insights.push(`The tactical landscape shifted on Lap ${lap} during an active **${status}** period; both drivers executed synchronized 'cheap' stops.`);
+                    }
+                } else if (isD1Pitting) {
+                    // Only Driver 1 stopped
+                    insights.push(`${driver1.last_name} gained a tactical advantage by pitting during a **${status}** window at Lap ${lap}.`);
+                } else if (isD2Pitting) {
+                    // Only Driver 2 stopped
+                    insights.push(`${driver2.last_name} gained a tactical advantage by pitting during a **${status}** window at Lap ${lap}.`);
+                }
             });
 
-            pPits.forEach(lap => {
-                const status = getTrackStatusAtLap(lap, data1.laps, data2.laps);
-                if (status) driver2CheapStops.push({ lap, status });
-            });
-
+            // --- 1a. FORCED STOPS (WET TO DRY) ---
             const isWetStart = t => ['INTERMEDIATE', 'WET'].includes((t || '').toUpperCase());
-            const firstPitLap1 = (s1.pitLaps && s1.pitLaps.length) ? Math.min(...s1.pitLaps) : null;
-            const firstPitLap2 = (s2.pitLaps && s2.pitLaps.length) ? Math.min(...s2.pitLaps) : null;
+            const firstPitLap1 = vPits.length ? Math.min(...vPits) : null;
+            const firstPitLap2 = pPits.length ? Math.min(...pPits) : null;
 
             const mostlyDry = (sessionWeatherData?.length > 0)
                 ? (sessionWeatherData.filter(w => w.rainfall === 1).length / sessionWeatherData.length) < 0.25
-                : true; // fallback
+                : true;
 
             if (isWetStart(s1.startingTire) && firstPitLap1 != null && firstPitLap1 <= 5 && mostlyDry) {
                 insights.unshift(
-                    `${driver1.last_name} effectively had a **forced early stop**: starting on ${s1.startingTire} and pitting on Lap ${firstPitLap1} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction rather than a strategic gain.`
+                    `${driver1.last_name} effectively had a **forced early stop**: starting on ${s1.startingTire} and pitting on Lap ${firstPitLap1} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction.`
                 );
             }
             if (isWetStart(s2.startingTire) && firstPitLap2 != null && firstPitLap2 <= 5 && mostlyDry) {
                 insights.unshift(
-                    `${driver2.last_name} effectively had a **forced early stop**: starting on ${s2.startingTire} and pitting on Lap ${firstPitLap2} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction rather than a strategic gain.`
+                    `${driver2.last_name} effectively had a **forced early stop**: starting on ${s2.startingTire} and pitting on Lap ${firstPitLap2} suggests conditions quickly shifted dry, turning the opening stint into an unavoidable tyre correction.`
                 );
             }
 
-            // Synchronized stops
-            const syncLaps = driver1CheapStops.filter(d1 =>
-                driver2CheapStops.some(d2 => d2.lap === d1.lap)
-            );
-
-            syncLaps.forEach(s => {
-                insights.push(`The tactical landscape shifted on Lap ${s.lap} during an active **${s.status}** period; both drivers executed synchronized 'cheap' stops.`);
-            });
-
-            // Solo advantages
-            const solo1 = driver1CheapStops.filter(d1 => !syncLaps.some(s => s.lap === d1.lap));
-            const solo2 = driver2CheapStops.filter(d2 => !syncLaps.some(s => s.lap === d2.lap));
-
-            if (solo1.length > 0) {
-                const details = solo1.map(s => `Lap ${s.lap} (${s.status})`).join(", ");
-                insights.push(`${driver1.last_name} gained an advantage by pitting during tactical windows at ${details}.`);
-            }
-            if (solo2.length > 0) {
-                const details = solo2.map(s => `Lap ${s.lap} (${s.status})`).join(", ");
-                insights.push(`${driver2.last_name} gained an advantage by pitting during tactical windows at ${details}.`);
-            }
-
-            // --- 2. THERMAL SENSITIVITY (Weather Analysis) ---
+        // --- 2. THERMAL SENSITIVITY ---
             if (sessionWeatherData && sessionWeatherData.length > 5 && cleanLaps1.length > 10 && cleanLaps2.length > 10) {
                 const tempStart = sessionWeatherData[0].track_temperature;
                 const tempEnd = sessionWeatherData[sessionWeatherData.length - 1].track_temperature;
@@ -5094,25 +5159,43 @@ function clearPaceChart() {
                 }
             }
 
-            // --- extra stops / runs ---
-            const stops1 = s1.pitLaps?.length || 0;
-            const stops2 = s2.pitLaps?.length || 0;
+            // --- Categorized Pit Stop Analysis ---
+            const getStopBreakdown = (laps, driverLaps1, driverLaps2) => {
+                const stops = laps || [];
+                const green = stops.filter(lap => getTrackStatusAtLap(lap, driverLaps1, driverLaps2) === null);
+                const intervention = stops.filter(lap => getTrackStatusAtLap(lap, driverLaps1, driverLaps2) !== null);
+                return { total: stops.length, green: green.length, intervention: intervention.length };
+            };
 
-            if (stops1 !== stops2) {
-                const moreStopsDriver = stops1 > stops2 ? driver1.last_name : driver2.last_name;
-                const fewerStopsDriver = stops1 > stops2 ? driver2.last_name : driver1.last_name;
-                const diff = Math.abs(stops1 - stops2);
+            const p1Stats = getStopBreakdown(s1.pitLaps, data1.laps, data2.laps);
+            const p2Stats = getStopBreakdown(s2.pitLaps, data1.laps, data2.laps);
+
+            if (p1Stats.total !== p2Stats.total) {
+                const moreTotalDriver = p1Stats.total > p2Stats.total ? driver1.last_name : driver2.last_name;
+                const fewerTotalDriver = p1Stats.total > p2Stats.total ? driver2.last_name : driver1.last_name;
+                const totalDiff = Math.abs(p1Stats.total - p2Stats.total);
+                const greenDiff = Math.abs(p1Stats.green - p2Stats.green);
 
                 if (isRace) {
-                    insights.push(
-                        `${moreStopsDriver} ran **${diff} extra stop(s)** versus ${fewerStopsDriver}; ` +
-                        `in normal green‑flag conditions that usually needs to be offset by stronger ` +
-                        `push‑phase pace or 'cheap stop' opportunities.`
-                    );
+                    // Scenario A: Same number of green flag stops (The Hamilton Case)
+                    if (p1Stats.green === p2Stats.green) {
+                        insights.push(
+                            `Both drivers matched for strategic **Green Flag** stops. However, ${moreTotalDriver} visited the pits ${totalDiff} extra time(s) during race interventions (SC/Red Flag), ` +
+                            `representing low-cost tactical adjustments rather than a fundamental strategy shift.`
+                        );
+                    }
+                    // Scenario B: Different number of green flag stops
+                    else {
+                        insights.push(
+                            `${moreTotalDriver} ran **${greenDiff} extra Green Flag stop(s)** versus ${fewerTotalDriver}; ` +
+                            `this aggressive strategic offset usually needs to be justified by significantly higher push-phase pace to recover the lost track position.`
+                        );
+                    }
                 } else if (isPractice || isQualifying) {
+                    // Volume-based logic remains for Practice/Qualy
                     insights.push(
-                        `${moreStopsDriver} cycled the pits more often, trading continuous long runs for ` +
-                        `additional resets on fuel/tyre state and out‑lap prep compared with ${fewerStopsDriver}.`
+                        `${moreTotalDriver} cycled the pits more often, trading continuous long runs for ` +
+                        `additional resets on fuel/tyre state and out‑lap prep compared with ${fewerTotalDriver}.`
                     );
                 }
             }
@@ -5398,19 +5481,60 @@ function clearPaceChart() {
             }
 
             // --- 10. INTERVENTION IMPACT ---
-            if (isRace && typeof sessionRaceControl !== 'undefined') {
-                const scEvents = sessionRaceControl.filter(m => {
+
+            // Identify all interventions
+            const allInterventions = sessionRaceControl.filter(m => {
+                const t = m.message.toUpperCase();
+                return t.includes("SAFETY CAR") ||
+                    t.includes("VSC") ||
+                    t.includes("RED FLAG") ||
+                    t.includes("ABORTED") ||
+                    t.includes("SUSPENDED");
+            });
+
+            if (isRace && typeof sessionRaceControl !== 'undefined' && allInterventions.length > 0) {
+
+                // 10a. Red Flag Detection (Highest Significance)
+                const redFlagEvents = allInterventions.filter(m => {
+                    const t = m.message.toUpperCase();
+                    return t.includes("RED FLAG") || t.includes("SUSPENDED") || t.includes("ABORTED");
+                });
+
+                if (redFlagEvents.length > 0) {
+                    const firstRedLap = redFlagEvents[0].lap_number || "late-race";
+                    insights.push(`The race was fundamentally altered by a **Red Flag** suspension at Lap ${firstRedLap}. This provided a "free" strategic reset for the entire field, neutralizing prior tire-life advantages and converting the finish into a high-intensity sprint.`);
+                }
+
+                // 10b. SC/VSC Detection (Only if a Red Flag didn't already provide the reset)
+                const scEvents = allInterventions.filter(m => {
                     const t = m.message.toUpperCase();
                     return t.includes("SAFETY CAR DEPLOYED") || t.includes("VIRTUAL SAFETY CAR DEPLOYED");
                 });
 
                 if (scEvents.length > 0) {
                     const lastSC = scEvents[scEvents.length - 1];
-                    if (bounds && lastSC.lap_number > (bounds.laps * 0.7)) {
-                        insights.push(`Late-race interventions significantly compressed the field, neutralizing the historical pace advantages built during the earlier green-flag stints and forcing a high-pressure sprint finish.`);
-                    } else {
-                        insights.push(`Strategic deployment of the Safety Car early in the race provided critical 'cheap' pit windows that may have disrupted the natural tire-degradation curves.`);
+                    // If there was a red flag, we only mention the SC if it happened much earlier
+                    const shouldMentionSC = redFlagEvents.length === 0 || (redFlagEvents[0].lap_number - lastSC.lap_number > 10);
+
+                    if (shouldMentionSC) {
+                        if (bounds && lastSC.lap_number > (bounds.laps * 0.7)) {
+                            insights.push(`Late-race Safety Car interventions significantly compressed the field, neutralizing the pace advantages built during the earlier green-flag stints.`);
+                        } else {
+                            insights.push(`Strategic deployment of the Safety Car provided critical 'cheap' pit windows that disrupted natural tire-degradation curves.`);
+                        }
                     }
+                }
+            }
+
+            // Logic to identify the finish status
+            const finishEvent = sessionRaceControl.find(m => m.message.toUpperCase().includes("CHEQUERED FLAG"));
+            if (finishEvent) {
+                const isRedFinish = allInterventions.length > 0 &&
+                    (allInterventions[allInterventions.length - 1].message.toUpperCase().includes("RED") ||
+                        allInterventions[allInterventions.length - 1].message.toUpperCase().includes("SUSPENDED"));
+
+                if (isRedFinish) {
+                    insights.push(`The race concluded following a period of track suspension, making qualifying-style "push" lap consistency the deciding factor in the final classification.`);
                 }
             }
 
@@ -5527,7 +5651,17 @@ function clearPaceChart() {
                 const text = msg.message.toUpperCase();
                 const event = { x: parseFloat(timeOffset.toFixed(2)), y: 0, label: msg.message, lap: msg.lap_number };
 
-                if (msg.category === "SessionStatus" || msg.category === "SafetyCar" || text.includes("CHEQUERED") || msg.flag === "RED" || text.includes("SAFETY CAR") || text.includes("VIRTUAL")) {
+                if (
+                    msg.category === "SessionStatus" ||
+                    msg.category === "SafetyCar" ||
+                    text.includes("CHEQUERED") ||
+                    msg.flag === "RED" ||
+                    text.includes("RED FLAG") ||    // Added for 2026 "Other" messages
+                    text.includes("ABORTED") ||     // Added for 2026 "SessionStatus" messages
+                    text.includes("SUSPENDED") ||   // Added for 2026 "Race Suspended" messages
+                    text.includes("SAFETY CAR") ||
+                    text.includes("VIRTUAL")
+                ) {
                     event.y = 4; catTrack.push(event);
                 } else if (msg.category === "Drs" || text.includes("PIT EXIT") || text.includes("RAIN") || (msg.category === "Flag" && msg.flag === "CLEAR")) {
                     event.y = 3; catRaceMgmt.push(event);
@@ -5671,62 +5805,83 @@ function clearPaceChart() {
          * Determines the track status (RED FLAG, SC, VSC) at the time of a specific pit lap.
          * Uses a time window around the pit lap instead of processing the entire session.
          */
-        function getTrackStatusAtLap(lapNumber, allLapsData) {
+        function getTrackStatusAtLap(lapNumber, allLapsData1, allLapsData2) {
             if (!sessionRaceControl || sessionRaceControl.length === 0) return null;
 
-            const lapData = allLapsData?.find(l => l.lap_number === lapNumber) || null;
+            const cand1 = allLapsData1?.find(l => l.lap_number === lapNumber) || null;
+            const cand2 = allLapsData2?.find(l => l.lap_number === lapNumber) || null;
+            const hasValidDateStart = (lap) => (lap && lap.date_start && Number.isFinite(new Date(lap.date_start).getTime()));
+            const lapData = (hasValidDateStart(cand1) ? cand1 : null) || (hasValidDateStart(cand2) ? cand2 : null);
+
             if (!lapData) return null;
 
-            const refTime = new Date(lapData.date_start).getTime();
-            if (!Number.isFinite(refTime)) return null;
-
-            // We'll scan from session start up to this lap's start time:
+            const pitRefTime = new Date(lapData.date_start).getTime();
             let currentStatus = null;
-            let statusStack = [];
+            let redFlagLock = false;
 
-            // We will track both VSC and SC separately.
-            for (const m of sessionRaceControl) {
+            const sortedMsgs = [...sessionRaceControl].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            for (const m of sortedMsgs) {
                 const mTime = new Date(m.date).getTime();
-                if (mTime > refTime) break;
+                if (mTime > pitRefTime) break;
 
-                const msg = (m.message || "").toUpperCase();
-                const cat = m.category || "";
+                const text = (m.message || "").toUpperCase();
+                const flag = (m.flag || "").toUpperCase();
+                const scope = (m.scope || "").toUpperCase();
 
-                // --- VSC logic ---
-                if (msg.includes("VSC DEPLOYED")) {
-                    statusStack.push("VSC");
-                    currentStatus = "VSC";
-                } else if (msg.includes("VSC ENDING")) {
-                    // Remove the top-most VSC, if any.
-                    let lastVSC = statusStack.lastIndexOf("VSC");
-                    if (lastVSC > -1) statusStack.splice(lastVSC, 1);
-                    currentStatus = statusStack.length > 0 ? statusStack[statusStack.length - 1] : null;
+                // 1. RED FLAG (Strict triggers to ignore steward notes)
+                const isActualRedFlag = (flag === "RED") ||
+                    (text.startsWith("RED FLAG") || text.includes("RACE SUSPENDED")) &&
+                    !text.includes("INFRINGEMENT");
+
+                if (isActualRedFlag) {
+                    currentStatus = "RED FLAG";
+                    redFlagLock = true;
                 }
-                // --- Full Safety Car logic ---
-                else if (msg.includes("SAFETY CAR DEPLOYED")) {
-                    statusStack.push("SC");
-                    currentStatus = "SC";
-                } else if (msg.includes("SAFETY CAR IN THIS LAP") || msg.includes("SAFETY CAR IN") || msg.includes("SAFETY CAR ENDING")) {
-                    // Remove the top-most SC, if any.
-                    let lastSC = statusStack.lastIndexOf("SC");
-                    if (lastSC > -1) statusStack.splice(lastSC, 1);
-                    currentStatus = statusStack.length > 0 ? statusStack[statusStack.length - 1] : null;
+                // 2. SAFETY CAR / VSC (Strict triggers to ignore steward notes)
+                else if (text.includes("VIRTUAL SAFETY CAR") || text.includes("VSC")) {
+                    // Only trigger if it's not a steward note or a simple 'noted' event
+                    if (!text.includes("INFRINGEMENT") && !text.includes("NOTED") && !redFlagLock) {
+                        currentStatus = "VSC";
+                    }
+                }
+                else if (text.includes("SAFETY CAR") || m.category === "SafetyCar" || m.category === "Safety Car") {
+                    // Category check is usually safe, but text check needs protection against 'infringement'
+                    if (!text.includes("INFRINGEMENT") && !redFlagLock) {
+                        currentStatus = "SC";
+                    }
                 }
 
-                // Optionally, you may treat "TRACK CLEAR" or "OVERTAKE ENABLED" as a global reset:
-                else if (msg.includes("TRACK CLEAR") || msg.includes("OVERTAKE ENABLED") || msg.includes("SESSION RESTARTED")) {
-                    statusStack = [];
+
+                // 3. FINISHED (Priority: Breaks the lock)
+                if (flag === "CHEQUERED" || text.includes("CHEQUERED FLAG")) {
+                    currentStatus = "FINISHED";
+                    redFlagLock = false; // Reset lock because the race is over
+                }
+
+                // 4. RESET: Global signals for 2026 Resumption (Standing Starts)
+                const isGlobalReset = text.includes("RESTART") ||
+                    text.includes("RESUME") ||
+                    text.includes("GREEN LIGHT") ||
+                    text.includes("STANDING START") || // Catch the standing start resumption
+                    text.includes("SESSION STARTED") || // Catch the status transition
+                    (flag === "GREEN" && scope === "TRACK") ||
+                    (flag === "CLEAR" && scope === "TRACK" && text === "TRACK CLEAR");
+
+                if (isGlobalReset && currentStatus !== "FINISHED") {
                     currentStatus = null;
+                    redFlagLock = false; // Release the lock so the sprint finish is "Green"
                 }
             }
-
             return currentStatus;
         }
 
-        function formatPitLaps(pitLapsArr, allDriverLaps) {
+        function formatPitLaps(pitLapsArr, allDriverLaps1, allDriverLaps2) {
             if (!Array.isArray(pitLapsArr) || pitLapsArr.length === 0) return 'N/A';
+
             return pitLapsArr.map(lapNum => {
-                const status = getTrackStatusAtLap(lapNum, allDriverLaps);
+                const status = getTrackStatusAtLap(lapNum, allDriverLaps1, allDriverLaps2);
+
                 if (status === "SC") return `${lapNum} (Safety Car)`;
                 if (status === "VSC") return `${lapNum} (VSC)`;
                 if (status === "RED FLAG") return `${lapNum} (Red Flag)`;
@@ -5743,19 +5898,17 @@ function clearPaceChart() {
             if (!laps || laps.length === 0) return [];
 
             return laps.filter(lap => {
-                // 1. Always exclude pit laps (In and Out)
+                // Remove Pits
                 if (lap.isPitLap === true || lap.is_pit_out_lap === true) return false;
 
-                // 2. Check track status at the start of this specific lap
+                // Remove Intervention Laps
                 const status = getTrackStatusAtLap(lap.lap_number, allLapsData1, allLapsData2);
+                if (status === "FINISHED" || status === "SC" || status === "VSC" || status === "RED FLAG") return false;
 
-                // If status is SC, VSC, or RED FLAG, this is not a clean lap
-                if (status !== null) return false;
-
+                // If it passed these, it's a Green Flag Push Lap
                 return true;
             });
         }
-
 
         function getRaceIncidents(sessionRaceControl) {
             if (!sessionRaceControl || sessionRaceControl.length === 0) {
@@ -6670,65 +6823,76 @@ function clearPaceChart() {
             yearSelect.innerHTML = html;
         }
 
-function openApiKeyModal() {
-    document.getElementById('apiKeyModal').classList.add('visible');
-}
+        function openApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('visible');
+        }
 
-function closeApiKeyModal() {
-    document.getElementById('apiKeyModal').classList.remove('visible');
-}
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.remove('visible');
+        }
 
-function saveApiKey() {
-    const key = document.getElementById('api-key-input').value.trim();
-    if (key) {
-        localStorage.setItem('openf1_api_key', key);
-        updateStatus("API Key Saved", "success");
-        closeApiKeyModal();
-        loadMeetings(); // Retry the load with the new key
-    }
-}
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (key) {
+                localStorage.setItem('openf1_api_key', key);
+                updateStatus("API Key Saved", "success");
+                closeApiKeyModal();
+                loadMeetings(); // Retry the load with the new key
+            }
+        }
 
-function clearApiKey() {
-    localStorage.removeItem('openf1_api_key');
-    document.getElementById('api-key-input').value = '';
-    updateStatus("API Key Cleared", "info");
-}
+        function clearApiKey() {
+            localStorage.removeItem('openf1_api_key');
+            document.getElementById('api-key-input').value = '';
+            updateStatus("API Key Cleared", "info");
+        }
+
+        function getStopBreakdown(laps, driverLaps1, driverLaps2) {
+            const stops = laps.filter(l => l.isPitLap || l.is_pit_out_lap);
+            const green = stops.filter(lap => getTrackStatusAtLap(lap.lap_number, driverLaps1, driverLaps2) === null);
+            const intervention = stops.filter(lap => getTrackStatusAtLap(lap.lap_number, driverLaps1, driverLaps2) !== null);
+            return {
+                total: stops.length,
+                greenCount: green.length,
+                interventionCount: intervention.length
+            };
+        }
 
         // Update your existing DOMContentLoaded listener:
-document.addEventListener('DOMContentLoaded', async () => {
-    setupYearSelect();
-    checkFirstVisit();
-    initPaceAnalysisUI();
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupYearSelect();
+            checkFirstVisit();
+            initPaceAnalysisUI();
 
-    // Initialize charts immediately for fast page load
-    initCharts();
+            // Initialize charts immediately for fast page load
+            initCharts();
 
-    // Re-render all charts once fonts are ready (with 3s safety timeout)
-    Promise.race([
-        document.fonts.ready,
-        new Promise(resolve => setTimeout(resolve, 3000))
-    ]).then(() => {
-        // Main charts
-        Object.values(charts).forEach(chart => {
-            if (chart) chart.update();
+            // Re-render all charts once fonts are ready (with 3s safety timeout)
+            Promise.race([
+                document.fonts.ready,
+                new Promise(resolve => setTimeout(resolve, 3000))
+            ]).then(() => {
+                // Main charts
+                Object.values(charts).forEach(chart => {
+                    if (chart) chart.update();
+                });
+
+                // Pace Analysis chart (if it exists)
+                if (paceChartInstance) {
+                    paceChartInstance.update();
+                }
+            });
+
+            const params = new URLSearchParams(window.location.search);
+            const hasSharedSession = params.get('session');
+
+            if (hasSharedSession) {
+                await initAPI({ skipInitialLoad: true });
+                await loadFromURL();
+            } else {
+                await initAPI();
+            }
         });
-
-        // Pace Analysis chart (if it exists)
-        if (paceChartInstance) {
-            paceChartInstance.update();
-        }
-    });
-
-    const params = new URLSearchParams(window.location.search);
-    const hasSharedSession = params.get('session');
-
-    if (hasSharedSession) {
-        await initAPI({ skipInitialLoad: true });
-        await loadFromURL();
-    } else {
-        await initAPI();
-    }
-});
 
         document.getElementById('buy-coffee-btn').addEventListener('click', function () {
             window.open('https://www.buymeacoffee.com/mhmatthew', '_blank', 'noopener');
