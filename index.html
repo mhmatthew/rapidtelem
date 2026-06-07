@@ -1184,15 +1184,56 @@
         }
 
         /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .ticker-message {
-                display: none;
-            }
-            /* Hide long text on mobile to save space */
-            .ticker-content {
-                gap: 10px;
-            }
-        }
+@media (max-width: 768px) {
+    .ticker-message {
+        display: none;
+    }
+
+    .ticker-content {
+        gap: 10px;
+    }
+
+    .live-indicator.restricted ~ .ticker-message {
+        display: block !important;
+        font-size: 11px;
+        white-space: normal;
+        line-height: 1.35;
+    }
+
+    /* Smaller Substack button on error */
+    .live-indicator.restricted ~ .ticker-cta {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    /* Push modals below the taller ticker on mobile */
+    .modal-overlay {
+        top: 55px !important;                    /* Increased from 35px */
+        height: calc(100% - 55px) !important;    /* Adjust height accordingly */
+    }
+
+    .strategy-drawer {
+        top: 55px !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .live-indicator.restricted ~ .ticker-cta {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+
+    /* Ensure modals stay below the taller ticker on very narrow screens */
+    .modal-overlay {
+        top: 55px !important;
+        height: calc(100% - 55px) !important;
+    }
+
+    .strategy-drawer {
+        top: 55px !important;
+    }
+}
+
     </style>
 
     <header style="padding: 15px 20px; border-bottom: 1px solid #333; background: #111;">
