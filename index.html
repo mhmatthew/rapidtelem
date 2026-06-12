@@ -1844,76 +1844,89 @@ async function loadMeetings() {
 }
 
 
-async function loadSessions() {
-    // 1. Instant Synchronous Resets (No network lag here)
-    clearSlots();
-    clearPaceChart();
+        async function loadSessions() {
+            // 1. Instant Synchronous Resets (No network lag here)
+            clearSlots();
+            clearPaceChart();
 
-    const driverSelect = document.getElementById('driver-select');
-    const sessionSelect = document.getElementById('session-select');
-    if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
+            const driverSelect = document.getElementById('driver-select');
+            const sessionSelect = document.getElementById('session-select');
+            if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
 
-    const meetingKey = document.getElementById('meeting-select').value;
-    if (!meetingKey || meetingKey === 'GP...') {
-        if (sessionSelect) sessionSelect.innerHTML = '<option>Session</option>';
-        return;
-    }
+            const meetingKey = document.getElementById('meeting-select').value;
+            if (!meetingKey || meetingKey === 'GP...') {
+                if (sessionSelect) sessionSelect.innerHTML = '<option>Session</option>';
+                return;
+            }
 
-    try {
-        updateStatus("Fetching Sessions...", "info"); // BLUE STATUS
-        const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
-        const sessions = await res.json();
+            try {
+                updateStatus("Fetching Sessions...", "info"); // BLUE STATUS
+                const res = await fetch(`${API_BASE}/sessions?meeting_key=${meetingKey}`);
+                const sessions = await res.json();
 
-        if (Array.isArray(sessions) && sessions.length > 0) {
-            sessionSelect.innerHTML = sessions.map(s =>
-                `<option value="${s.session_key}">${s.session_name}</option>`
-            ).join('');
+                if (Array.isArray(sessions) && sessions.length > 0) {
+                    // --- UPDATED: Added Select Session placeholder ---
+                    sessionSelect.innerHTML =
+                        '<option value="" selected disabled>Select Session...</option>' +
+                        sessions.map(s =>
+                            `<option value="${s.session_key}">${s.session_name}</option>`
+                        ).join('');
 
-            // Define manual change behavior
-            sessionSelect.onchange = async () => {
-                clearSlots();     // Clear when user switches session
-                clearPaceChart(); // Clear modal when user switches session
-                
-                if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
-                updateStatus("Session changed. Loading drivers...", "info");
-                
-                try {
-                    await fetchSessionRaceControl();
-                    await loadDrivers();
-                    sessionWeatherData = []; 
-                    updateStatus("Ready - Drivers Loaded", "success"); // GREEN STATUS (No Hang)
-                } catch (e) {
-                    updateStatus("Error updating drivers", "error");
+                    // Define manual change behavior (Keep your original logic here)
+                    sessionSelect.onchange = async () => {
+                        const selectedSession = sessionSelect.value;
+                        if (!selectedSession) return; // safety check for placeholder
+
+                        clearSlots();     // Clear when user switches session
+                        clearPaceChart(); // Clear modal when user switches session
+
+                        if (driverSelect) driverSelect.innerHTML = '<option value="">Driver</option>';
+                        updateStatus("Session changed. Loading drivers...", "info");
+
+                        try {
+                            await fetchSessionRaceControl();
+                            await loadDrivers();
+                            sessionWeatherData = [];
+                            updateStatus("Ready - Drivers Loaded", "success"); // GREEN STATUS (No Hang)
+                        } catch (e) {
+                            updateStatus("Error updating drivers", "error");
+                        }
+                    };
+
+                    // --- OMITTED INITIAL AUTO-LOAD BLOCK ---
+                    // We removed the automatic calls to fetchSessionRaceControl() and loadDrivers()
+                    // that used to sit here so the dropdown stays on "Select Session..."
+
+                    updateStatus("Track Loaded. Please select a session.", "success");
+
+                } else {
+                    sessionSelect.innerHTML = '<option>No sessions yet</option>';
+                    updateStatus("No session data available", "info");
                 }
-            };
-
-            // INITIAL auto-load for first session
-            await fetchSessionRaceControl();
-            await loadDrivers();
-            updateStatus("Ready", "success"); // GREEN STATUS (No Hang)
-            
-        } else {
-            sessionSelect.innerHTML = '<option>No sessions yet</option>';
-            updateStatus("No session data available", "info");
+            } catch (error) {
+                console.warn("Could not load sessions");
+                updateStatus("Error fetching session details", "error"); // RED STATUS
+            }
         }
-    } catch (error) {
-        console.warn("Could not load sessions");
-        updateStatus("Error fetching session details", "error"); // RED STATUS
-    }
-}
+
 
         async function fetchSessionRaceControl() {
             const sessionKey = document.getElementById('session-select').value;
+            if (!sessionKey || sessionKey === 'Session') return false;
+
             try {
-                const response = await fetch(`${API_BASE}/race_control?session_key=${sessionKey}`);
-                const data = await response.json();
-                sessionRaceControl = Array.isArray(data) ? data : []; // Ensure it's always an array
+                // Use fetchSafe so we respect the 1s retry window seen in your logs
+                const data = await fetchSafe(`${API_BASE}/race_control?session_key=${sessionKey}`);
+                sessionRaceControl = Array.isArray(data) ? data : [];
                 console.log(`Cached ${sessionRaceControl.length} session messages.`);
+                return true; // Signal that loading is actually finished
             } catch (e) {
                 console.error("Failed to cache session race control", e);
-                sessionRaceControl = []; // Fallback
+                sessionRaceControl = [];
+                return false;
             }
         }
+
 
         async function loadDrivers(sessionKeyOverride) {
             const driverSelect = document.getElementById('driver-select');
@@ -3633,6 +3646,9 @@ function clearPaceChart() {
             paceChartInstance.options.scales.x.max = bounds.laps;
             paceChartInstance.update();
 
+            // Ensure the timeline aligns its X-axis (minutes) with the Pace Chart (laps)
+            renderRaceTimeline(bounds.minutes); 
+
             // Save the loaded data for potential "Back to Chart" functionality
             savedPaceChartDatasets = JSON.parse(JSON.stringify(datasets));
             savedPaceChartAnnotations = JSON.parse(JSON.stringify(annotations));
@@ -3742,15 +3758,13 @@ function clearPaceChart() {
         }
 
         // UPDATED openPaceAnalysisModal function
-        function openPaceAnalysisModal() {
+        async function openPaceAnalysisModal() { // Added 'async' here
             const modal = document.getElementById('paceAnalysisModal');
             modal.classList.add('visible');
             document.body.style.overflow = 'hidden';
 
             const currentSessionKey = document.getElementById('session-select').value;
 
-            // 1. Determine which drivers to pre-select based on the Slot Manager
-            // We only pre-select if a lap is actually loaded in that slot.
             const slot1Driver = loadedData.ref.lap ? loadedData.ref.lap.driver_number : "";
             const slot2Driver = loadedData.comp.lap ? loadedData.comp.lap.driver_number : "";
 
@@ -3774,7 +3788,7 @@ function clearPaceChart() {
             if (sessionResultsWrapper) sessionResultsWrapper.style.display = 'none';
             if (drivingReportWrapper) drivingReportWrapper.style.display = 'none';
 
-            // 2. Load the dropdown options
+            // Load the dropdown options
             loadPaceSessions().then(() => {
                 const paceSessionSelect = document.getElementById('paceSessionSelect');
                 paceSessionSelect.value = currentSessionKey || '';
@@ -3785,29 +3799,15 @@ function clearPaceChart() {
                         const d1Select = document.getElementById('paceDriver1Select');
                         const d2Select = document.getElementById('paceDriver2Select');
 
-                        // Pre-select Slot 1 driver if they exist
-                        if (slot1Driver) {
-                            d1Select.value = slot1Driver;
-                        } else {
-                            d1Select.value = ""; // Default to "Select Driver"
-                        }
-
-                        // Pre-select Slot 2 driver if they exist
-                        if (slot2Driver) {
-                            d2Select.value = slot2Driver;
-                        } else {
-                            d2Select.value = ""; // Default to "Select Driver"
-                        }
-
-                        // NOTE: We are NOT calling loadPaceData() here.
-                        // The user must click the button manually.
+                        if (slot1Driver) d1Select.value = slot1Driver;
+                        if (slot2Driver) d2Select.value = slot2Driver;
                     });
                 }
             });
 
             setupPaceChart();
 
-            // 3. Restore chart from memory ONLY if they had already loaded data in this session
+            // Restore chart from memory
             if (savedPaceChartDatasets.length > 0) {
                 paceChartInstance.data.datasets = savedPaceChartDatasets;
                 paceChartInstance.options.plugins.annotation.annotations = savedPaceChartAnnotations;
@@ -3816,17 +3816,25 @@ function clearPaceChart() {
                 clearPaceChart();
             }
 
-            if (paceChartInstance) {
-                setTimeout(() => paceChartInstance.resize(), 100);
+            // --- FIXED ORDER OF OPERATIONS START ---
+
+            // 1. First, make sure we have data. If cache is empty, WAIT for it to fetch.
+            if (sessionRaceControl.length === 0) {
+                console.log("Timeline cache empty, fetching before render...");
+                await fetchSessionRaceControl();
             }
 
+            // 2. Now render the timeline (it will have access to the full data)
+            renderRaceTimeline();
 
-            setTimeout(() => {
-                if (sessionRaceControl.length === 0) fetchSessionRaceControl().then(renderRaceTimeline);
-                else renderRaceTimeline();
-            }, 200);
+            // 3. Final UI cleanup
+            if (paceChartInstance) {
+                paceChartInstance.resize();
+            }
 
+            // --- FIXED ORDER OF OPERATIONS END ---
         }
+
 
         function closePaceAnalysisModal() {
             const modal = document.getElementById('paceAnalysisModal');
@@ -5619,7 +5627,13 @@ function clearPaceChart() {
                 if (!isTimelineFull && timeOffset < -0.1) return;
 
                 const text = msg.message.toUpperCase();
-                const event = { x: parseFloat(timeOffset.toFixed(2)), y: 0, label: msg.message, lap: msg.lap_number };
+                const event = {
+                    x: parseFloat(timeOffset.toFixed(2)),
+                    y: 0,
+                    label: msg.message,
+                    // Capture lap_number, but if it's missing, explicitly set it to null
+                    lap: (msg.lap_number !== undefined && msg.lap_number !== null) ? msg.lap_number : null
+                };
 
                 if (
                     msg.category === "SessionStatus" ||
@@ -5659,9 +5673,9 @@ function clearPaceChart() {
                         x: {
                             min: isTimelineFull ? null : 0,
                             max: isTimelineFull ? null : forcedMax,
-                            title: { display: true, text: 'Race Minutes', color: '#888', font: { family: 'Inter' } }, // Corrected font string
+                            title: { display: true, text: 'Race Minutes', color: '#888', font: { family: 'Inter' } },
                             grid: { color: '#333' },
-                            ticks: { color: '#888', font: { family: 'Roboto Mono' } } // Corrected font string
+                            ticks: { color: '#888', font: { family: 'Roboto Mono' } }
                         },
                         y: {
                             min: 0.5, max: 4.5,
@@ -5669,13 +5683,31 @@ function clearPaceChart() {
                             ticks: {
                                 stepSize: 1,
                                 callback: (v) => ({ 4: 'TRACK', 3: 'MGMT', 2: 'STEWARD', 1: 'DRIVER' }[v] || ''),
-                                color: '#aaa', font: { size: 10, weight: 'bold', family: 'Inter' } // Corrected font string
+                                color: '#aaa', font: { size: 10, weight: 'bold', family: 'Inter' }
                             },
                             grid: { color: 'rgba(255,255,255,0.05)' }
                         }
                     },
                     plugins: {
-                        tooltip: { callbacks: { label: (ctx) => `[Min ${ctx.raw.x}] (Lap ${ctx.raw.lap || '?'}) ${ctx.raw.label}` }, titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' } }, // Added tooltip fonts
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const time = ctx.raw.x;
+                                    const msg = ctx.raw.label;
+                                    const lap = ctx.raw.lap;
+
+                                    // If lap exists (is 0 or higher), show it.
+                                    // If lap is null (common in Practice), just show the time and message.
+                                    if (lap !== null && lap !== undefined) {
+                                        return `[Min ${time}] (Lap ${lap}) ${msg}`;
+                                    } else {
+                                        return `[Min ${time}] ${msg}`; // Cleaner look for Practice
+                                    }
+                                }
+                            },
+                            titleFont: { family: 'Inter' },
+                            bodyFont: { family: 'Inter' }
+                        },
                         legend: { display: false }
                     }
                 }
