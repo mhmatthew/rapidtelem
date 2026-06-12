@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1150,7 +1151,15 @@
             font-weight: 700;
             text-decoration: none;
             background: #e10600;
-            padding: 4px 12px;
+            /* --- VERTICAL CENTERING FIX --- */
+            display: inline-flex; /* Use flexbox instead of block */
+            align-items: center; /* Centers items vertically */
+            justify-content: center; /* Centers items horizontally */
+            height: 24px; /* Set a fixed height */
+            padding: 0 12px; /* Side padding only (height handles the rest) */
+            line-height: 1; /* Forces text to stay in its own box */
+            /* ------------------------------ */
+
             border-radius: 3px;
             transition: all 0.2s ease;
             white-space: nowrap;
@@ -1162,9 +1171,12 @@
                 box-shadow: 0 0 15px rgba(225, 6, 0, 0.3);
             }
 
+            /* Ensure the arrow also aligns perfectly */
             .ticker-cta .arrow {
                 margin-left: 5px;
                 font-size: 12px;
+                display: inline-block;
+                transform: translateY(-0px); /* Manual nudge if the arrow symbol itself is off-center */
             }
 
         /* Pulse Animation */
@@ -1195,23 +1207,6 @@
         gap: 10px;
     }
 
-    .live-indicator.restricted ~ .ticker-message {
-        display: block !important;
-        font-size: 11px;
-        white-space: normal;
-        line-height: 1.35;
-    }
-
-    /* Smaller Substack button on error */
-    .live-indicator.restricted ~ .ticker-cta {
-        font-size: 10px;
-        padding: 3px 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-    }
-
     /* Push modals below the taller ticker on mobile */
     .modal-overlay {
         top: 55px !important;
@@ -1224,14 +1219,6 @@
 }
 
 @media (max-width: 400px) {
-    .live-indicator.restricted ~ .ticker-cta {
-        font-size: 9px;
-        padding: 2px 6px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-    }
 
     /* Ensure modals stay below the taller ticker on very narrow screens */
     .modal-overlay {
@@ -1775,15 +1762,12 @@ async function loadMeetings() {
     const currentYear = new Date().getFullYear();
     const now = new Date();
 
-    // 2. RETRIEVE API KEY (if the user has saved one in the modal)
-    const apiKey = localStorage.getItem('openf1_api_key');
-    const headers = apiKey ? { 'x-api-key': apiKey } : {};
 
     updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
 
     try {
         // 3. FETCH data with potential API Key headers
-        const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`, { headers });
+        const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`);
         const data = await res.json();
 
         // 4. CHECK FOR LIVE SESSION RESTRICTION
@@ -3067,41 +3051,26 @@ function updateStatus(message, type) {
         feedLabel.innerText = 'ANALYSIS FEED: ONLINE';
     } 
 
-if (type === 'error') {
-    feedIndicator.classList.add('restricted');
-    feedIndicator.classList.remove('connected');
+    if (type === 'error') {
+        feedIndicator.classList.add('restricted');
+        feedIndicator.classList.remove('connected');
 
-    const isRestricted = message.toLowerCase().includes('restricted') || 
-                         message.toLowerCase().includes('locked');
+        const isRestricted = message.toLowerCase().includes('restricted') ||
+            message.toLowerCase().includes('locked');
 
-    if (isRestricted) {
-        feedLabel.innerText = 'FEED: SESSION RESTRICTED';
-        
-        if (tickerText) {
-            tickerText.innerHTML = `
-                <span style="color: #ff8080;">Live Session in progress. </span>
-                <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
-                    Enter API Key
-                </a> or 
-                <a href="https://openf1.org/" target="_blank" style="color: #fff; text-decoration: underline;">
-                    Get Access
-                </a>
-            `;
-        }
-    } else {
-        // Generic connection error - still offer API key as a possible fix
-        feedLabel.innerText = 'FEED: CONNECTION ERROR';
-
-        if (tickerText) {
-            tickerText.innerHTML = `
-                <span style="color: #ff8080;">Unable to load schedule. </span>
-                <a href="#" onclick="openApiKeyModal()" style="color: #ffc107; font-weight: bold; text-decoration: underline;">
-                    Try API Key
-                </a>
-            `;
+        if (isRestricted) {
+            feedLabel.innerText = 'FEED: SESSION RESTRICTED';
+            if (tickerText) {
+                // Updated to be purely informational
+                tickerText.innerHTML = `<span style="color: #ff8080;">Live Session in progress. Data will be available once the session concludes.</span>`;
+            }
+        } else {
+            feedLabel.innerText = 'FEED: CONNECTION ERROR';
+            if (tickerText) {
+                tickerText.innerHTML = `<span style="color: #ff8080;">Unable to load schedule. Please check your connection.</span>`;
+            }
         }
     }
-}
 }
 
 
@@ -6824,30 +6793,6 @@ function clearPaceChart() {
             yearSelect.innerHTML = html;
         }
 
-        function openApiKeyModal() {
-            document.getElementById('apiKeyModal').classList.add('visible');
-        }
-
-        function closeApiKeyModal() {
-            document.getElementById('apiKeyModal').classList.remove('visible');
-        }
-
-        function saveApiKey() {
-            const key = document.getElementById('api-key-input').value.trim();
-            if (key) {
-                localStorage.setItem('openf1_api_key', key);
-                updateStatus("API Key Saved", "success");
-                closeApiKeyModal();
-                loadMeetings(); // Retry the load with the new key
-            }
-        }
-
-        function clearApiKey() {
-            localStorage.removeItem('openf1_api_key');
-            document.getElementById('api-key-input').value = '';
-            updateStatus("API Key Cleared", "info");
-        }
-
         function getStopBreakdown(laps, driverLaps1, driverLaps2) {
             const stops = laps.filter(l => l.isPitLap || l.is_pit_out_lap);
             const green = stops.filter(lap => getTrackStatusAtLap(lap.lap_number, driverLaps1, driverLaps2) === null);
@@ -7075,32 +7020,6 @@ function clearPaceChart() {
             <div id="snap-logo-slot" style="width: 200px; height: 40px;"></div>
         </div>
     </div>
-
-<!-- API KEY MODAL -->
-<div id="apiKeyModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px; height: auto; border-top: 4px solid var(--accent-color); text-align: center;">
-        <div class="modal-header">
-            <h2 style="margin: 0; color: var(--accent-color);">Personal API Key</h2>
-            <button class="modal-close-btn" onclick="closeApiKeyModal()">&times;</button>
-        </div>
-        <p style="font-size: 0.85em; color: #ccc; margin-bottom: 20px;">
-            Enter your OpenF1 API key to unlock data during live sessions.
-        </p>
-        <input type="password" id="api-key-input" placeholder="Enter API Key here..." 
-               style="width: 100%; padding: 12px; background: #111; border: 1px solid #444; color: white; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box;">
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button class="btn-primary" onclick="saveApiKey()" style="flex: 1; padding: 10px;">Save Key</button>
-            <button onclick="clearApiKey()" style="flex: 1; background: #444; border: none; color: white; border-radius: 4px;">Clear</button>
-        </div>
-        <div style="border-top: 1px solid #333; padding-top: 15px;">
-            <p style="font-size: 0.75em; color: #888; margin: 0;">Don't have a key?</p>
-            <a href="https://openf1.org/" target="_blank" 
-               style="color: var(--accent-color); font-size: 0.85em; text-decoration: none; font-weight: bold;">
-               Purchase Authenticated Access →
-            </a>
-        </div>
-    </div>
-</div>
 
 </body>
 </html>
