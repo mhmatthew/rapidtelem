@@ -2018,26 +2018,63 @@ driverSelect.onchange = () => {
             await driversRequestPromise;
         }
 
+        function processTelemetryWithDistance(rawTele, lapObj) {
+            if (!rawTele || rawTele.length === 0) return [];
 
-        function processTelemetryWithDistance(rawTele, officialStartTime) {
+            const lapStartMs = new Date(lapObj.date_start).getTime();
+            const officialDuration = lapObj.lap_duration;
+
+            // --- FIX: INJECT START POINT AT 0m ---
+            // Seed the metadata from the first actual packet, but anchor it to the line
+            const startPoint = {
+                ...rawTele[0],
+                date: lapObj.date_start,
+                distance: 0
+            };
+
             let cumulativeDist = 0;
-            const startOffset = new Date(officialStartTime).getTime();
+            let processed = [startPoint]; // Pre-fill with the timing line anchor
 
-            return rawTele.map((d, i) => {
+            rawTele.forEach((d, index) => {
                 const currentTimestamp = new Date(d.date).getTime();
 
-                if (i > 0) {
-                    const timeDiff = (currentTimestamp - new Date(rawTele[i - 1].date).getTime()) / 1000;
-                    const avgSpeedMs = (d.speed / 3.6);
+                // Calculate the time gap from the previous point
+                // If it's the very first packet, calculate the gap from the Start Finish Line (lapStartMs)
+                const prevTimestamp = (index === 0)
+                    ? lapStartMs
+                    : new Date(rawTele[index - 1].date).getTime();
 
-                    // Basic validation to prevent massive jumps if there is a data gap
-                    if (timeDiff > 0 && timeDiff < 2) {
-                        cumulativeDist += avgSpeedMs * timeDiff;
-                    }
+                const timeDiff = (currentTimestamp - prevTimestamp) / 1000;
+                const avgSpeedMs = (d.speed / 3.6);
+
+                // Accumulate distance
+                if (timeDiff > 0 && timeDiff < 2) {
+                    cumulativeDist += avgSpeedMs * timeDiff;
                 }
 
-                return { ...d, distance: cumulativeDist };
+                processed.push({
+                    ...d,
+                    distance: cumulativeDist
+                });
             });
+
+            // --- FIX 2: EXTRAPOLATE TO FINISH ---
+            if (processed.length > 0 && officialDuration > 0) {
+                const lastPoint = processed[processed.length - 1];
+                const lastPointElapsed = (new Date(lastPoint.date).getTime() - lapStartMs) / 1000;
+
+                if (lastPointElapsed < officialDuration) {
+                    const remainingTime = officialDuration - lastPointElapsed;
+                    const extraDist = (lastPoint.speed / 3.6) * remainingTime;
+                    processed.push({
+                        ...lastPoint,
+                        date: new Date(lapStartMs + (officialDuration * 1000)).toISOString(),
+                        distance: lastPoint.distance + extraDist
+                    });
+                }
+            }
+
+            return processed;
         }
 
         // ======================================================================
@@ -2131,7 +2168,7 @@ driverSelect.onchange = () => {
                 }) : [];
 
                 // 4. Process Distance, Markers, and Technique Metrics (moved up so we can use telWithDist for location)
-                const telWithDist = processTelemetryWithDistance(trimmedTel, lapObj.date_start);
+                const telWithDist = processTelemetryWithDistance(trimmedTel, lapObj);
 
                 const trimmedLoc = Array.isArray(rawLoc) ? (() => {
                     const locInLap = rawLoc.filter(l => {
@@ -2376,15 +2413,21 @@ driverSelect.onchange = () => {
         }
 
         function calculateMarkers(tel, start, lapObj) {
-            if (!tel.length) return null;
+            if (!tel || !tel.length) return null;
             const lapStart = new Date(start).getTime();
+
+            // Attempt to find official sector boundaries in the telemetry stream
             const s1End = lapStart + (lapObj.duration_sector_1 * 1000);
             const s2End = s1End + (lapObj.duration_sector_2 * 1000);
 
+            const s1Point = tel.find(d => new Date(d.date).getTime() >= s1End);
+            const s2Point = tel.find(d => new Date(d.date).getTime() >= s2End);
+
             return {
-                s1: tel.find(d => new Date(d.date).getTime() >= s1End)?.distance || 0,
-                s2: tel.find(d => new Date(d.date).getTime() >= s2End)?.distance || 0,
-                total: tel[tel.length - 1]?.distance || 0
+                // Fallback: if data is missing, estimate sector as 33% / 66% of total distance
+                s1: s1Point ? s1Point.distance : (tel[tel.length - 1].distance * 0.33),
+                s2: s2Point ? s2Point.distance : (tel[tel.length - 1].distance * 0.66),
+                total: tel[tel.length - 1].distance
             };
         }
 
@@ -2756,204 +2799,268 @@ driverSelect.onchange = () => {
 
         }
 
+        // HELPER: Interpolates time for Delta calculation. Handles "short" laps by clamping to the end.
+        // MODIFIED: Added clamping to ensure elapsed time is never negative.
+        function getInterpolatedTime(targetDist, telemetry, lapStartTime) {
+            if (!telemetry || telemetry.length < 2) return null;
 
-// Ensure this helper function is defined ONCE, preferably globally or at the top of your script.
-// If you already have this globally, you can remove this definition from updateCharts.
-function getInterpolatedTime(targetDist, telemetry, lapStartTime) {
-    if (!telemetry || telemetry.length < 2) return null; // Needs at least 2 points for interpolation
+            const lapStartTimeMs = new Date(lapStartTime).getTime();
 
-    // Find the first telemetry point at or after the target distance
-    const idx = telemetry.findIndex(p => p.distance >= targetDist);
+            // Helper to calculate clamped elapsed time from a telemetry point's date
+            const calculateClampedElapsedTime = (telemetryPointDate) => {
+                const pointTimeMs = new Date(telemetryPointDate).getTime();
+                const rawElapsedTime = (pointTimeMs - lapStartTimeMs) / 1000;
+                return Math.max(0, rawElapsedTime); // Ensure elapsed time is never negative
+            };
 
-    // If targetDist is before the first point, use the first point's time
-    if (idx === 0) return (new Date(telemetry[0].date).getTime() - lapStartTime) / 1000;
-    // If targetDist is beyond the last point, return null (cannot extrapolate)
-    if (idx === -1) return null;
+            const firstPoint = telemetry[0];
+            const lastPoint = telemetry[telemetry.length - 1];
 
-    const pA = telemetry[idx - 1]; // Point before targetDist
-    const pB = telemetry[idx];     // Point at or after targetDist
+            // Case 1: Target distance is at or before the first telemetry point's distance.
+            // Return the clamped elapsed time of the first telemetry point.
+            if (targetDist <= firstPoint.distance) {
+                return calculateClampedElapsedTime(firstPoint.date);
+            }
 
-    // If points are at the same distance, just return time of pA (or pB)
-    if (pB.distance === pA.distance) return (new Date(pA.date).getTime() - lapStartTime) / 1000;
+            // Case 2: Target distance is at or beyond the last telemetry point's distance.
+            // Return the clamped elapsed time of the last telemetry point.
+            if (targetDist >= lastPoint.distance) {
+                return calculateClampedElapsedTime(lastPoint.date);
+            }
 
-    // Linear Interpolation for time
-    const timeA = (new Date(pA.date).getTime() - lapStartTime) / 1000;
-    const timeB = (new Date(pB.date).getTime() - lapStartTime) / 1000;
+            // Case 3: Target distance is somewhere in between, so interpolate.
+            // Find the index of the first telemetry point whose distance is >= targetDist.
+            const idx = telemetry.findIndex(p => p.distance >= targetDist);
 
-    return timeA + (targetDist - pA.distance) * (timeB - timeA) / (pB.distance - pA.distance);
-}
+            // This 'idx' must now be > 0 and < telemetry.length - 1 due to the above checks.
+            // It also implies idx cannot be -1.
+            const pA = telemetry[idx - 1]; // Point before targetDist
+            const pB = telemetry[idx];     // Point after or at targetDist
 
-function updateCharts() {
-    console.log(loadedData.ref.driverName, loadedData.comp.driverName);
-    const s1 = loadedData.ref.telemetry || []; // Telemetry for Slot 1 (Verstappen in your case)
-    const s2 = loadedData.comp.telemetry || []; // Telemetry for Slot 2 (Antonelli in your case)
+            // Calculate clamped elapsed times for these two points
+            const timeA = calculateClampedElapsedTime(pA.date);
+            const timeB = calculateClampedElapsedTime(pB.date);
 
-    // Helper to interpolate any value (speed, rpm, gear) for Slot 2 onto Slot 1's grid
-    // This function remains unchanged as it interpolates specific data keys, not elapsed time.
-    function getInterpolatedValue(targetDist, telemetry, key) {
-        if (!telemetry.length) return null;
-        const idx = telemetry.findIndex(p => p.distance >= targetDist);
-        if (idx === 0) return telemetry[0][key];
-        if (idx === -1) return null;
+            // If both points have the same distance (e.g., duplicate telemetry points, or a very small segment)
+            // to prevent division by zero, return timeA (or timeB, as they should be identical).
+            if (pB.distance === pA.distance) {
+                return timeA;
+            }
 
-        const pA = telemetry[idx - 1];
-        const pB = telemetry[idx];
-        if (pB.distance === pA.distance) return pA[key];
-
-        // Linear Interpolation
-        return pA[key] + (targetDist - pA.distance) * (pB[key] - pA[key]) / (pB.distance - pA.distance);
-    }
-
-    // Defensive checks for lap objects before proceeding with delta calculation
-    const lapRef = loadedData.ref.lap; // Lap object for Slot 1
-    const lapComp = loadedData.comp.lap; // Lap object for Slot 2
-
-    // --- Early Exit if essential data is missing for comparison ---
-    if (!lapRef || !lapComp || s1.length === 0 || s2.length === 0) {
-        // Clear all comparison charts and show only single-slot data if available
-        charts.delta.data.datasets[0].data = [];
-        charts.delta.update();
-
-        // Track map in single-driver mode or clear if no data
-        charts.map.data.datasets[0].data = (s1.length > 0) ? loadedData.ref.location.map(l => ({ x: l.x, y: l.y, delta: 0 })) : [];
-        charts.map.data.datasets[1].data = []; // Clear cursor
-        charts.map.update();
-
-        // Speed chart: show S1 data, clear S2
-        charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
-        charts.speed.data.datasets[1].data = [];
-        charts.speed.update('none');
-
-        // Inputs chart: show S1 data, clear S2
-        charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
-        charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
-        charts.inputs.data.datasets[2].data = [];
-        charts.inputs.data.datasets[3].data = [];
-        charts.inputs.update('none');
-
-        // RPM/Gear chart: show S1 data, clear S2
-        charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
-        charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
-        charts.gearRpm.data.datasets[1].data = [];
-        charts.gearRpm.data.datasets[3].data = [];
-        charts.gearRpm.update('none');
-
-        // Technique chart: clear both
-        charts.technique.data.datasets[0].data = [];
-        charts.technique.data.datasets[1].data = [];
-        charts.technique.data.datasets[2].data = [];
-        charts.technique.data.datasets[3].data = [];
-        charts.technique.update();
-
-        updateStatus("Waiting for two laps to compare...", "info");
-        return; // Exit the function if essential data is missing
-    }
-
-
-    // --- SPEED CHART (Aligned to S1) ---
-    charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
-    charts.speed.data.datasets[1].data = s1.map(d => ({ 
-        x: d.distance, 
-        y: s2.length ? getInterpolatedValue(d.distance, s2, 'speed') : null 
-    }));
-    charts.speed.update('none');
-
-    // --- INPUTS CHART (Aligned to S1) ---
-    charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
-    charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
-    charts.inputs.data.datasets[2].data = s1.map(d => ({ 
-        x: d.distance, 
-        y: s2.length ? getInterpolatedValue(d.distance, s2, 'throttle') : null 
-    }));
-    charts.inputs.data.datasets[3].data = s1.map(d => ({ 
-        x: d.distance, 
-        y: s2.length ? getInterpolatedValue(d.distance, s2, 'brake') : null 
-    }));
-    charts.inputs.update('none');
-
-    // --- RPM & GEAR CHART (Aligned to S1) ---
-    charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
-    charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
-    charts.gearRpm.data.datasets[1].data = s1.map(d => ({ 
-        x: d.distance, 
-        y: s2.length ? getInterpolatedValue(d.distance, s2, 'rpm') : null 
-    }));
-    charts.gearRpm.data.datasets[3].data = s1.map(d => ({ 
-        x: d.distance, 
-        y: s2.length ? getInterpolatedValue(d.distance, s2, 'n_gear') : null 
-    }));
-    charts.gearRpm.update('none');
-
-
-    // --- NEW & SMOOTH DELTA CALCULATION (SECTOR‑NORMALIZED) ---
-    const rawDeltaData = []; // Store raw delta data before normalization
-
-    // Use official lap start times for consistent elapsed time calculation
-    const start1Timestamp = new Date(lapRef.date_start).getTime();
-    const start2Timestamp = new Date(lapComp.date_start).getTime();
-
-    // Determine the maximum common distance
-    const maxDistanceS1 = s1[s1.length - 1]?.distance || 0;
-    const maxDistanceS2 = s2[s2.length - 1]?.distance || 0;
-    const maxDistToCompare = Math.min(maxDistanceS1, maxDistanceS2);
-
-    // Build raw delta trace on S1 distance grid (skip every other point to reduce noise)
-    for (let i = 0; i < s1.length; i += 2) {
-        const p1 = s1[i];
-
-        if (p1.distance > maxDistToCompare + 0.1) break;
-
-        const t1 = (new Date(p1.date).getTime() - start1Timestamp) / 1000;
-        const t2 = getInterpolatedTime(p1.distance, s2, start2Timestamp);
-        if (t2 !== null) {
-            rawDeltaData.push({ x: p1.distance, y: t1 - t2 }); // S1 - S2
+            // Perform linear interpolation for elapsed time
+            // time = timeA + (fraction_of_distance_between_pA_pB) * (time_difference_between_pA_pB)
+            return timeA + (targetDist - pA.distance) * (timeB - timeA) / (pB.distance - pA.distance);
         }
-    }
 
-    // Helper: interpolate raw delta at an arbitrary distance
-    function getRawDeltaAt(dist) {
-        if (!rawDeltaData.length) return 0;
-        const idx = rawDeltaData.findIndex(p => p.x >= dist);
-        if (idx === -1) return rawDeltaData[rawDeltaData.length - 1].y;
-        if (idx === 0) return rawDeltaData[0].y;
-        const a = rawDeltaData[idx - 1];
-        const b = rawDeltaData[idx];
-        if (b.x === a.x) return a.y;
-        return a.y + (dist - a.x) * (b.y - a.y) / (b.x - a.x);
-    }
+        // HELPER: Interpolates values (Speed, RPM, etc). Clamps to last known value if lap is short.
+        function getInterpolatedValue(targetDist, telemetry, key) {
+            if (!telemetry || !telemetry.length) return null;
 
-    let deltaData = [];
+            const lastPoint = telemetry[telemetry.length - 1];
+            if (targetDist >= lastPoint.distance) return lastPoint[key];
 
-    if (rawDeltaData.length > 0 && loadedData.ref.markers) {
-        const markersRef = loadedData.ref.markers; // { s1, s2, total }
+            const idx = telemetry.findIndex(p => p.distance >= targetDist);
+            if (idx === 0) return telemetry[0][key];
+            if (idx === -1) return lastPoint[key];
 
-        // Target cumulative deltas from lap header
-        const targetS1 = (lapRef.duration_sector_1 - lapComp.duration_sector_1);
-        const targetS2 = ((lapRef.duration_sector_1 + lapRef.duration_sector_2) -
-                          (lapComp.duration_sector_1 + lapComp.duration_sector_2));
-        const targetS3 = (lapRef.lap_duration - lapComp.lap_duration); // full lap
+            const pA = telemetry[idx - 1];
+            const pB = telemetry[idx];
+            if (pB.distance === pA.distance) return pA[key];
 
-        // Raw deltas at those boundaries
-        const rawS1 = getRawDeltaAt(markersRef.s1);
-        const rawS2 = getRawDeltaAt(markersRef.s2);
-        const rawS3 = getRawDeltaAt(markersRef.total);
+            return pA[key] + (targetDist - pA.distance) * (pB[key] - pA[key]) / (pB.distance - pA.distance);
+        }
 
-        // Offsets per sector so that each boundary matches the official time
-        const off1 = targetS1 - rawS1;
-        const off2 = targetS2 - rawS2;
-        const off3 = targetS3 - rawS3;
 
-        deltaData = rawDeltaData.map(p => {
-            let off;
-            if (p.x <= markersRef.s1) off = off1;
-            else if (p.x <= markersRef.s2) off = off2;
-            else off = off3;
-            return { x: p.x, y: p.y + off };
-        });
-    }
+        function updateCharts() {
+            console.log(loadedData.ref.driverName, loadedData.comp.driverName);
+            const s1 = loadedData.ref.telemetry || []; // Telemetry for Slot 1 (Target)
+            const s2 = loadedData.comp.telemetry || []; // Telemetry for Slot 2 (Compare)
+            const markers1 = loadedData.ref.markers;
+            const markers2 = loadedData.comp.markers;
 
-    charts.delta.data.datasets[0].data = deltaData;
-    charts.delta.update('none');
+            // Defensive checks for lap objects before proceeding with delta calculation
+            const lapRef = loadedData.ref.lap; // Lap object for Slot 1
+            const lapComp = loadedData.comp.lap; // Lap object for Slot 2
+
+            // --- Early Exit if essential data is missing for comparison ---
+            if (!lapRef || !lapComp || s1.length === 0 || s2.length === 0) {
+                // Clear all comparison charts and show only single-slot data if available
+                charts.delta.data.datasets[0].data = [];
+                charts.delta.update();
+
+                // Track map in single-driver mode or clear if no data
+                charts.map.data.datasets[0].data = (s1.length > 0) ? loadedData.ref.location.map(l => ({ x: l.x, y: l.y, delta: 0 })) : [];
+                charts.map.data.datasets[1].data = []; // Clear cursor
+                charts.map.update();
+
+                // Speed chart: show S1 data, clear S2
+                charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
+                charts.speed.data.datasets[1].data = [];
+                charts.speed.update('none');
+
+                // Inputs chart: show S1 data, clear S2
+                charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
+                charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
+                charts.inputs.data.datasets[2].data = [];
+                charts.inputs.data.datasets[3].data = [];
+                charts.inputs.update('none');
+
+                // RPM/Gear chart: show S1 data, clear S2
+                charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
+                charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
+                charts.gearRpm.data.datasets[1].data = [];
+                charts.gearRpm.data.datasets[3].data = [];
+                charts.gearRpm.update('none');
+
+                // Technique chart: clear both
+                charts.technique.data.datasets[0].data = [];
+                charts.technique.data.datasets[1].data = [];
+                charts.technique.data.datasets[2].data = [];
+                charts.technique.data.datasets[3].data = [];
+                charts.technique.update();
+
+                updateStatus("Waiting for two laps to compare...", "info");
+                return; // Exit the function if essential data is missing
+            }
+
+            // --- NEW SPATIAL SCALING LOGIC ---
+            // This scales S2's distance so its sector ends match S1's distance markers
+            const s2Scaled = s2.map(p => {
+                let scaledDist = p.distance;
+                if (p.distance <= markers2.s1) {
+                    // Scale Sector 1
+                    scaledDist = p.distance * (markers1.s1 / markers2.s1);
+                } else if (p.distance <= markers2.s2) {
+                    // Scale Sector 2
+                    const distInS2 = p.distance - markers2.s1;
+                    const s1Size1 = markers1.s1;
+                    const s2Size1 = markers1.s2 - markers1.s1;
+                    const s2Size2 = markers2.s2 - markers2.s1;
+                    scaledDist = s1Size1 + (distInS2 * (s2Size1 / s2Size2));
+                } else {
+                    // Scale Sector 3
+                    const distInS3 = p.distance - markers2.s2;
+                    const s2End1 = markers1.s2;
+                    const s3Size1 = markers1.total - markers1.s2;
+                    const s3Size2 = markers2.total - markers2.s2;
+                    scaledDist = s2End1 + (distInS3 * (s3Size1 / s3Size2));
+                }
+                return { ...p, distance: scaledDist };
+            });
+
+            // --- SPEED CHART (Aligned to S1) ---
+            // FIX: Using s2Scaled instead of s2 for interpolation
+            charts.speed.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.speed }));
+            charts.speed.data.datasets[1].data = s1.map(d => ({
+                x: d.distance,
+                y: s2Scaled.length ? getInterpolatedValue(d.distance, s2Scaled, 'speed') : null
+            }));
+            charts.speed.update('none');
+
+            // --- INPUTS CHART (Aligned to S1) ---
+            // FIX: Using s2Scaled instead of s2 for interpolation
+            charts.inputs.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.throttle }));
+            charts.inputs.data.datasets[1].data = s1.map(d => ({ x: d.distance, y: d.brake }));
+            charts.inputs.data.datasets[2].data = s1.map(d => ({
+                x: d.distance,
+                y: s2Scaled.length ? getInterpolatedValue(d.distance, s2Scaled, 'throttle') : null
+            }));
+            charts.inputs.data.datasets[3].data = s1.map(d => ({
+                x: d.distance,
+                y: s2Scaled.length ? getInterpolatedValue(d.distance, s2Scaled, 'brake') : null
+            }));
+            charts.inputs.update('none');
+
+            // --- RPM & GEAR CHART (Aligned to S1) ---
+            // FIX: Using s2Scaled instead of s2 for interpolation
+            charts.gearRpm.data.datasets[0].data = s1.map(d => ({ x: d.distance, y: d.rpm }));
+            charts.gearRpm.data.datasets[2].data = s1.map(d => ({ x: d.distance, y: d.n_gear }));
+            charts.gearRpm.data.datasets[1].data = s1.map(d => ({
+                x: d.distance,
+                y: s2Scaled.length ? getInterpolatedValue(d.distance, s2Scaled, 'rpm') : null
+            }));
+            charts.gearRpm.data.datasets[3].data = s1.map(d => ({
+                x: d.distance,
+                y: s2Scaled.length ? getInterpolatedValue(d.distance, s2Scaled, 'n_gear') : null
+            }));
+            charts.gearRpm.update('none');
+
+
+            // --- COMPLETE & SMOOTH DELTA CALCULATION ---
+            const rawDeltaData = [];
+            let deltaData = [];
+            const markers = loadedData.ref.markers;
+
+            const start1Timestamp = new Date(lapRef.date_start).getTime();
+            const start2Timestamp = new Date(lapComp.date_start).getTime();
+
+            // 1. Build the Raw (un-corrected) trace
+            for (let i = 0; i < s1.length; i++) {
+                const p1 = s1[i];
+                const maxDist = Math.min(s1[s1.length - 1].distance, s2Scaled[s2Scaled.length - 1].distance);
+                if (p1.distance > maxDist + 0.1) break;
+
+                const t1 = (new Date(p1.date).getTime() - start1Timestamp) / 1000;
+                const t2 = getInterpolatedTime(p1.distance, s2Scaled, lapComp.date_start);
+                if (t2 !== null) {
+                    rawDeltaData.push({ x: p1.distance, y: t1 - t2 });
+                }
+            }
+
+            // --- MISSING FUNCTION FIX: Internal helper to find delta at specific meters ---
+            function getRawDeltaAt(dist) {
+                if (!rawDeltaData.length) return 0;
+                const idx = rawDeltaData.findIndex(p => p.x >= dist);
+                if (idx === -1) return rawDeltaData[rawDeltaData.length - 1].y;
+                if (idx === 0) return rawDeltaData[0].y;
+                const a = rawDeltaData[idx - 1];
+                const b = rawDeltaData[idx];
+                if (b.x === a.x) return a.y;
+                return a.y + (dist - a.x) * (b.y - a.y) / (b.x - a.x);
+            }
+
+            // 2. Continuous Normalization (Ramp Logic)
+            if (rawDeltaData.length > 0 && markers) {
+                // Official cumulative time differences from the FIA data
+                const targetS1 = (lapRef.duration_sector_1 - lapComp.duration_sector_1);
+                const targetS2 = targetS1 + (lapRef.duration_sector_2 - lapComp.duration_sector_2);
+                const targetS3 = (lapRef.lap_duration - lapComp.lap_duration);
+
+                // Raw (un-corrected) drift at those points
+                const rawS1 = getRawDeltaAt(markers.s1);
+                const rawS2 = getRawDeltaAt(markers.s2);
+                const rawS3 = getRawDeltaAt(markers.total);
+
+                deltaData = rawDeltaData.map(p => {
+                    let finalCorrection = 0;
+                    if (p.x <= markers.s1) {
+                        // Ramp from 0 correction to S1 correction
+                        finalCorrection = (p.x / markers.s1) * (targetS1 - rawS1);
+                    } else if (p.x <= markers.s2) {
+                        // Transition between S1 correction and S2 correction
+                        const pct = (p.x - markers.s1) / (markers.s2 - markers.s1);
+                        const startCorr = (targetS1 - rawS1);
+                        const endCorr = (targetS2 - rawS2);
+                        finalCorrection = startCorr + pct * (endCorr - startCorr);
+                    } else {
+                        // Transition between S2 correction and S3 correction
+                        const pct = (p.x - markers.s2) / (markers.total - markers.s2);
+                        const startCorr = (targetS2 - rawS2);
+                        const endCorr = (targetS3 - rawS3);
+                        finalCorrection = startCorr + pct * (endCorr - startCorr);
+                    }
+                    return { x: p.x, y: p.y + finalCorrection };
+                });
+            }
+
+            // 3. Final visual anchor for the start/finish line
+            if (deltaData.length > 0) {
+                deltaData[0].y = 0;
+            }
+
+            charts.delta.data.datasets[0].data = deltaData;
+            charts.delta.update('none');
+
 
     // --- TRACK MAP LOGIC ---
     updateStatus("Generating Insight Map...", "info");
