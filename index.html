@@ -5570,6 +5570,9 @@ function clearPaceChart() {
             // Identify all interventions
             const allInterventions = sessionRaceControl.filter(m => {
                 const t = m.message.toUpperCase();
+                // Explicitly ignore Chequered Flag so it doesn't count as an "intervention"
+                if (t.includes("CHEQUERED")) return false;
+
                 return t.includes("SAFETY CAR") ||
                     t.includes("VSC") ||
                     t.includes("RED FLAG") ||
@@ -5579,15 +5582,33 @@ function clearPaceChart() {
 
             if (isRace && typeof sessionRaceControl !== 'undefined' && allInterventions.length > 0) {
 
-                // 10a. Red Flag Detection (Highest Significance)
+                // 10a. Red Flag Detection (Priority: Latest event)
                 const redFlagEvents = allInterventions.filter(m => {
                     const t = m.message.toUpperCase();
-                    return t.includes("RED FLAG") || t.includes("SUSPENDED") || t.includes("ABORTED");
+                    // Strict check: Must be a Red Flag, not an infringement or the finish
+                    const isRed = (m.flag === "RED") || (/\bRED FLAG\b/.test(t)) || t.includes("SUSPENDED") || t.includes("ABORTED");
+                    const isNotFinish = !t.includes("CHEQUERED");
+                    const isNotInfraction = !t.includes("INFRINGEMENT");
+
+                    return isRed && isNotFinish && isNotInfraction;
                 });
 
                 if (redFlagEvents.length > 0) {
-                    const firstRedLap = redFlagEvents[0].lap_number || "late-race";
-                    insights.push(`The race was fundamentally altered by a **Red Flag** suspension at Lap ${firstRedLap}. This provided a "free" strategic reset for the entire field, neutralizing prior tire-life advantages and converting the finish into a high-intensity sprint.`);
+                    // SORT: Get the LATEST lap number first
+                    const sortedRedFlags = [...redFlagEvents].sort((a, b) => {
+                        const lapA = a.lap_number || 0;
+                        const lapB = b.lap_number || 0;
+                        return lapB - lapA; // Descending
+                    });
+
+                    const mainRedFlag = sortedRedFlags[0];
+                    const displayLap = mainRedFlag.lap_number || "the opening laps";
+
+                    // Only add the insight if it didn't happen in the very first start procedure 
+                    // OR if it's the only one that happened.
+                    if (mainRedFlag.lap_number > 3 || redFlagEvents.length === 1) {
+                        insights.push(`The race was fundamentally altered by a **Red Flag** suspension at Lap ${displayLap}. This provided a "free" strategic reset for the entire field, neutralizing prior tire-life advantages and converting the finish into a high-intensity sprint.`);
+                    }
                 }
 
                 // 10b. SC/VSC Detection (Only if a Red Flag didn't already provide the reset)
@@ -5614,9 +5635,12 @@ function clearPaceChart() {
             // Logic to identify the finish status
             const finishEvent = sessionRaceControl.find(m => m.message.toUpperCase().includes("CHEQUERED FLAG"));
             if (finishEvent) {
+                // Check for the specific phrase "RED FLAG" or "SUSPENDED" 
+                // and ensure we aren't looking at "CHEQUERED"
+                const lastMsg = allInterventions.length > 0 ? allInterventions[allInterventions.length - 1].message.toUpperCase() : "";
                 const isRedFinish = allInterventions.length > 0 &&
-                    (allInterventions[allInterventions.length - 1].message.toUpperCase().includes("RED") ||
-                        allInterventions[allInterventions.length - 1].message.toUpperCase().includes("SUSPENDED"));
+                    (lastMsg.includes("RED FLAG") || lastMsg.includes("SUSPENDED")) &&
+                    !lastMsg.includes("CHEQUERED");
 
                 if (isRedFinish) {
                     insights.push(`The session concluded following a period of track suspension, making qualifying-style "push" lap consistency the deciding factor in the final classification.`);
@@ -5940,7 +5964,8 @@ function clearPaceChart() {
 
                 // 1. RED FLAG (Strict triggers to ignore steward notes)
                 const isActualRedFlag = (flag === "RED") ||
-                    (text.startsWith("RED FLAG") || text.includes("RACE SUSPENDED")) &&
+                    // Use regex to ensure RED is a standalone word, not part of CHEQUERED
+                    (/\bRED FLAG\b/.test(text) || text.includes("RACE SUSPENDED")) &&
                     !text.includes("INFRINGEMENT");
 
                 if (isActualRedFlag) {
