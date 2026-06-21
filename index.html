@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -161,16 +162,17 @@
             color: #888;
         }
 
-.slot-btn.active-ref {
-    background: linear-gradient(90deg, #e10600 0%, #8b0400 100%);
-    box-shadow: 0 0 15px rgba(225, 6, 0, 0.3);
-    color: white;
-}
-.slot-btn.active-comp {
-    background: linear-gradient(90deg, #00d2be 0%, #008174 100%);
-    box-shadow: 0 0 15px rgba(0, 210, 190, 0.2);
-    color: black;
-}
+            .slot-btn.active-ref {
+                background: linear-gradient(90deg, #e10600 0%, #8b0400 100%);
+                box-shadow: 0 0 15px rgba(225, 6, 0, 0.3);
+                color: white;
+            }
+
+            .slot-btn.active-comp {
+                background: linear-gradient(90deg, #00d2be 0%, #008174 100%);
+                box-shadow: 0 0 15px rgba(0, 210, 190, 0.2);
+                color: black;
+            }
 
         .slot-info {
             font-size: 0.9em; /* Increased overall font size */
@@ -445,13 +447,17 @@
 
         /* Base button cleanup */
         .modal-controls button {
-            flex: 1; /* Makes buttons equal width in their group */
-            min-width: 120px;
-            padding: 8px 16px;
+            flex: 1 1 0; /* Forces all buttons to take up equal space */
+            width: 0; /* Essential for equal flex distribution */
+            padding: 8px 5px; /* Reduced side padding to prevent text clipping */
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border: 1px solid var(--border-color);
+            font-size: 12px; /* Set a consistent size here */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Primary Action Styling */
@@ -847,13 +853,73 @@
             color: var(--primary-color);
         }
 
-/* Feed Light Colors */
-.live-indicator.connected .pulse-dot { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
-.live-indicator.connected .pulse-label { color: #00ff00; }
+        /* Feed Light Colors */
+        .live-indicator.connected .pulse-dot {
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
 
-.live-indicator.restricted .pulse-dot { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
-.live-indicator.restricted .pulse-label { color: #ff0000; }
+        .live-indicator.connected .pulse-label {
+            color: #00ff00;
+        }
 
+        .live-indicator.restricted .pulse-dot {
+            background: #ff0000;
+            box-shadow: 0 0 8px #ff0000;
+        }
+
+        .live-indicator.restricted .pulse-label {
+            color: #ff0000;
+        }
+
+        /* Tire Picker Popup */
+        .tire-picker-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #252526;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 2000;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            display: none;
+        }
+
+        .tire-picker-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .picker-btn {
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        /* Styling for the driver toggle list scrollbar */
+        #driverToggleList::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #driverToggleList::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+
+        #positionsWrapper {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevents internal components from pushing the width */
+        }
 
         /* ============================================================
            MOBILE & TABLET OPTIMIZATION (THE "OVERHAUL" BLOCK)
@@ -1070,22 +1136,22 @@
 </head>
 <body>
 
-<!-- Rapid Telemetry Global Header Ticker -->
-<div class="rt-global-ticker">
-    <div class="ticker-content">
-        <div class="live-indicator">
-            <span class="pulse-dot"></span>
-            <span class="pulse-label">ANALYSIS FEED</span>
+    <!-- Rapid Telemetry Global Header Ticker -->
+    <div class="rt-global-ticker">
+        <div class="ticker-content">
+            <div class="live-indicator">
+                <span class="pulse-dot"></span>
+                <span class="pulse-label">ANALYSIS FEED</span>
+            </div>
+            <!-- Added id="ticker-text" below -->
+            <div class="ticker-message" id="ticker-text">
+                Decode telemetry. Visualize insights. New race debriefs and technical insights.
+            </div>
+            <a href="https://rapidtelem.substack.com" target="_blank" class="ticker-cta">
+                VISIT SUBSTACK <span class="arrow">→</span>
+            </a>
         </div>
-        <!-- Added id="ticker-text" below -->
-        <div class="ticker-message" id="ticker-text">
-            Decode telemetry. Visualize insights. New race debriefs and technical insights.
-        </div>
-        <a href="https://rapidtelem.substack.com" target="_blank" class="ticker-cta">
-            VISIT SUBSTACK <span class="arrow">→</span>
-        </a>
     </div>
-</div>
 
     <style>
         /* Permanent Ticker Styles */
@@ -1197,40 +1263,39 @@
             }
         }
 
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-    .ticker-message {
-        display: none;
-    }
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .ticker-message {
+                display: none;
+            }
 
-    .ticker-content {
-        gap: 10px;
-    }
+            .ticker-content {
+                gap: 10px;
+            }
 
-    /* Push modals below the taller ticker on mobile */
-    .modal-overlay {
-        top: 55px !important;
-        height: calc(100% - 55px) !important;
-    }
+            /* Push modals below the taller ticker on mobile */
+            .modal-overlay {
+                top: 55px !important;
+                height: calc(100% - 55px) !important;
+            }
 
-    .strategy-drawer {
-        top: 55px !important;
-    }
-}
+            .strategy-drawer {
+                top: 55px !important;
+            }
+        }
 
-@media (max-width: 400px) {
+        @media (max-width: 400px) {
 
-    /* Ensure modals stay below the taller ticker on very narrow screens */
-    .modal-overlay {
-        top: 55px !important;
-        height: calc(100% - 55px) !important;
-    }
+            /* Ensure modals stay below the taller ticker on very narrow screens */
+            .modal-overlay {
+                top: 55px !important;
+                height: calc(100% - 55px) !important;
+            }
 
-    .strategy-drawer {
-        top: 55px !important;
-    }
-}
-
+            .strategy-drawer {
+                top: 55px !important;
+            }
+        }
     </style>
 
     <header style="padding: 15px 20px; border-bottom: 1px solid #333; background: #111;">
@@ -1271,9 +1336,9 @@
         </div>
     </header>
 
-     <main id="main-content">
+    <main id="main-content">
         <aside id="sidebar">
-            
+
             <!-- 1. Status Section (System Feedback) -->
             <div>
                 <h2>Status</h2>
@@ -1394,15 +1459,21 @@
 
                 <!-- Row 2: View Switching & Analysis -->
                 <div class="control-row">
-                    <div style="display: flex; gap: 2px; flex: 1;">
+                    <!-- Set flex to 3 to match the 3 buttons inside -->
+                    <div style="display: flex; gap: 10px; flex: 3;">
                         <button class="btn-secondary" id="btnToggleTimeline" onclick="toggleTimelineVisibility()">Timeline</button>
                         <button class="btn-secondary" id="btnFullTimeline" onclick="toggleTimelineFocus()">Full View</button>
-                        <!-- NEW WEATHER BUTTON -->
                         <button class="btn-secondary" id="btnToggleWeather" onclick="toggleWeatherVisibility()">Weather</button>
                     </div>
-                    <button class="btn-analysis" style="border-color: #28a745; color: #28a745;" onclick="exportModalReport()">📸 Export Report</button>
-                    <button class="btn-analysis" onclick="showDrivingReport()">📊 Driving Report</button>
-                    <button class="btn-analysis" onclick="showSessionResults()">🏁 Session Results</button>
+
+                    <!-- These buttons each have flex: 1 from the CSS -->
+                    <button class="btn-analysis" style="border-color: #28a745; color: #28a745;" onclick="exportModalReport()">📸 Export</button>
+                    <button class="btn-analysis" onclick="showDrivingReport()">📊 Report</button>
+                    <button class="btn-analysis" onclick="showSessionResults()">🏁 Results</button>
+                    <button class="btn-analysis" onclick="showPositionsChart()">📈 Positions</button>
+
+                    <!-- Removed inline font-size: 10px -->
+                    <button class="btn-secondary" style="border-color: #555;" onclick="clearAllTireOverrides()">Reset Tires</button>
                 </div>
             </div>
 
@@ -1456,12 +1527,36 @@
                     <canvas id="weatherChart"></canvas>
                 </div>
 
+                <div id="positionsWrapper" style="display: none; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; flex-shrink: 0;">
+                        <span style="font-size: 0.85em; color: var(--accent-color); font-weight: bold; text-transform: uppercase;">
+                            Race Position Tracker
+                        </span>
+                        <button class="btn-secondary" onclick="resetPositionFilters()" style="height: 24px; padding: 0 10px; font-size: 10px; width: auto;">Reset Filters</button>
+                    </div>
+
+                    <!-- CONSTRAINED CHART AREA: calc(100% - 250px) leaves room for header and toggles -->
+                    <div style="height: calc(100% - 250px); min-height: 300px; width: 100%; position: relative;">
+                        <canvas id="positionsChart"></canvas>
+                    </div>
+
+                    <!-- Toggle Grid -->
+                    <div id="driverToggleList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; height: 110px; overflow-y: auto; border: 1px solid #333; margin-top: 10px; flex-shrink: 0;">
+                        <!-- Checkboxes -->
+                    </div>
+
+                    <div style="padding-top: 10px; flex-shrink: 0;">
+                        <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+                    </div>
+                </div>
+
                 <canvas id="paceAnalysisChart"></canvas>
                 <div id="tireLegend"></div>
 
                 <div id="drivingReportWrapper" style="display: none; flex-grow: 1; overflow-y: auto; padding: 15px; background-color: var(--chart-bg); border-radius: 8px;"></div>
                 <div id="sessionResultsWrapper" style="display: none; flex-grow: 1; overflow-y: auto;"></div>
             </div>
+
         </div>
     </div>
 
@@ -1473,6 +1568,27 @@
         </div>
         <div id="strategyDrawerContent" class="drawer-content">
             <!-- JavaScript will inject content here -->
+        </div>
+    </div>
+
+    <!-- Tire Picker Override -->
+    <div id="tirePicker" class="tire-picker-overlay">
+        <!-- Added Driver Name display here -->
+        <div style="font-weight: bold; color: var(--primary-color); font-size: 14px; margin-bottom: 2px;" id="targetDriverName">Driver Name</div>
+
+        <div style="font-weight: bold; color: white; margin-bottom: 10px; font-size: 12px;">
+            Set Compound for <span id="targetStintNum">--</span>
+        </div>
+
+        <div style="font-size: 11px; color: #888;">This will update all reports and sidebar labels for this segment.</div>
+
+        <div class="tire-picker-options">
+            <div class="picker-btn" style="background: #e10600; color: white;" onclick="applyTireOverride('SOFT')">Soft</div>
+            <div class="picker-btn" style="background: #ffcb00; color: black;" onclick="applyTireOverride('MEDIUM')">Med</div>
+            <div class="picker-btn" style="background: #ffffff; color: black;" onclick="applyTireOverride('HARD')">Hard</div>
+            <div class="picker-btn" style="background: #009100; color: white;" onclick="applyTireOverride('INTERMEDIATE')">Inter</div>
+            <div class="picker-btn" style="background: #004bff; color: white;" onclick="applyTireOverride('WET')">Wet</div>
+            <div class="picker-btn" style="background: #444; color: white;" onclick="closeTirePicker()">Cancel</div>
         </div>
     </div>
 
@@ -1518,6 +1634,15 @@
         let isTimelineFull = false;
 
         let driverPB = {}; // keyed by session_key + driver_number
+
+        // Global registry for manual overrides
+        // Initialize from localStorage so corrects survive a page refresh
+        let manualStintOverrides = JSON.parse(localStorage.getItem('rt_tire_overrides') || '{}');
+
+        let positionsChartInstance = null;
+        let allPositionsData = [];
+        let sessionLapsReference = []; // To map time to lap numbers
+        let sessionResultsData = []; // Global variable to store race results
 
 
         const API_BASE = 'https://api.openf1.org/v1';
@@ -1692,7 +1817,7 @@
                         if (lapEvents.some(f => f.flag === 'CHEQUERED' || (f.message && f.message.toUpperCase().includes("CHEQUERED")))) {
                             iconHtml += '<span title="Session Finished" style="color: #ffffff;">🏁</span>';
                         }
-                        // 1a. Standing Re-Start Icon 
+                        // 1a. Standing Re-Start Icon
                         else if (lapEvents.some(f => f.message && f.message.toUpperCase().includes("STANDING START"))) {
                             iconHtml += '<span title="Race Resumed (Standing Start)" style="color: #00ff00;">🚦</span>';
                         }
@@ -1727,14 +1852,14 @@
                     }
 
                     return `
-                                <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
-                                    <div class="lap-main-info">
-                                        <span style="font-weight: bold;">Lap ${l.lap_number}</span>
-                                        <div class="lap-icons">${iconHtml}</div>
-                                    </div>
-                                    <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
-                                </div>
-                            `;
+                                                        <div class="lap-item" onclick="fetchLapData('${l.date_start}', '${l.date_end}', ${JSON.stringify(l).replace(/"/g, '&quot;')})">
+                                                            <div class="lap-main-info">
+                                                                <span style="font-weight: bold;">Lap ${l.lap_number}</span>
+                                                                <div class="lap-icons">${iconHtml}</div>
+                                                            </div>
+                                                            <span class="lap-time ${pbClass}">${l.lap_duration ? formatTime(l.lap_duration) : '---'}</span>
+                                                        </div>
+                                                    `;
                 }).join('');
 
                 // ONLY SHOW SUCCESS IF WE ACTUALLY HAD LAPS
@@ -1750,98 +1875,98 @@
             loadMeetings();
         }
 
-async function loadMeetings() {
-    clearSlots(); 
-    clearPaceChart(); // Reset chart when year/track changes
-    // 1. RESET lower dropdowns immediately to prevent stale data
-    document.getElementById('session-select').innerHTML = '<option>Session</option>';
-    document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
+        async function loadMeetings() {
+            clearSlots();
+            clearPaceChart(); // Reset chart when year/track changes
+            // 1. RESET lower dropdowns immediately to prevent stale data
+            document.getElementById('session-select').innerHTML = '<option>Session</option>';
+            document.getElementById('driver-select').innerHTML = '<option>Driver</option>';
 
-    const yearSelect = document.getElementById('year-select');
-    const selectedYear = parseInt(yearSelect.value);
-    const currentYear = new Date().getFullYear();
-    const now = new Date();
+            const yearSelect = document.getElementById('year-select');
+            const selectedYear = parseInt(yearSelect.value);
+            const currentYear = new Date().getFullYear();
+            const now = new Date();
 
 
-    updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
+            updateStatus(`Fetching ${selectedYear} Schedule...`, "info");
 
-    try {
-        // 3. FETCH data with potential API Key headers
-        const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`);
-        const data = await res.json();
+            try {
+                // 3. FETCH data with potential API Key headers
+                const res = await fetch(`${API_BASE}/meetings?year=${selectedYear}`);
+                const data = await res.json();
 
-        // 4. CHECK FOR LIVE SESSION RESTRICTION
-        // If restricted, data will be an object { detail: "..." } instead of an array
-        if (data && data.detail && data.detail.toLowerCase().includes("live f1 session")) {
-            updateStatus("Live Session Restricted (API Key Required)", "error");
-            document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
-            return; // Halt execution
+                // 4. CHECK FOR LIVE SESSION RESTRICTION
+                // If restricted, data will be an object { detail: "..." } instead of an array
+                if (data && data.detail && data.detail.toLowerCase().includes("live f1 session")) {
+                    updateStatus("Live Session Restricted (API Key Required)", "error");
+                    document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
+                    return; // Halt execution
+                }
+
+                let meetings = data;
+
+                // 5. VALIDATE ARRAY
+                if (!Array.isArray(meetings) || meetings.length === 0) {
+                    document.getElementById('meeting-select').innerHTML = '<option>No schedule released</option>';
+                    updateStatus(`No data available for ${selectedYear}`, "info");
+                    return;
+                }
+
+                // 6. SORT meetings chronologically
+                meetings.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
+
+                const meetingSelect = document.getElementById('meeting-select');
+
+                // 7. DECIDE SELECTION LOGIC BASED ON YEAR
+                if (selectedYear < currentYear) {
+                    // HISTORICAL YEAR: Add placeholder and don't auto-select
+                    meetingSelect.innerHTML = '<option value="" selected disabled>Select Track...</option>' +
+                        meetings.map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
+
+                    // Clear sessions since no track is selected yet
+                    document.getElementById('session-select').innerHTML = '<option>-</option>';
+                    updateStatus(`${selectedYear} Season Loaded. Please select a track.`, "success");
+
+                } else {
+                    // CURRENT or FUTURE YEAR: Pre-select most recent race
+                    meetingSelect.innerHTML = meetings.map(m =>
+                        `<option value="${m.meeting_key}">${m.meeting_name}</option>`
+                    ).join('');
+
+                    const pastMeetings = meetings.filter(m => new Date(m.date_start) <= now);
+                    const targetKey = pastMeetings.length > 0
+                        ? pastMeetings[pastMeetings.length - 1].meeting_key
+                        : meetings[0].meeting_key;
+
+                    meetingSelect.value = targetKey;
+
+                    const selectedMeeting = meetings.find(m => m.meeting_key == targetKey);
+                    const shortName = selectedMeeting.meeting_name.split('Grand Prix')[0].trim();
+
+                    updateStatus(`Ready - Auto-selected: ${shortName} GP`, "success");
+
+                    // Auto-trigger session load for current/future only
+                    loadSessions();
+                }
+
+                // Handle manual track changes
+                meetingSelect.onchange = loadSessions;
+
+            } catch (error) {
+                console.error("Schedule Load Error:", error);
+
+                // Treat any fetch failure during a race year as potentially restricted
+                const currentYear = new Date().getFullYear();
+                const selectedYear = parseInt(document.getElementById('year-select').value);
+
+                if (selectedYear >= currentYear) {
+                    updateStatus("Live Session Restricted (API Key Required)", "error");
+                    document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
+                } else {
+                    updateStatus("Error loading schedule", "error");
+                }
+            }
         }
-
-        let meetings = data;
-
-        // 5. VALIDATE ARRAY
-        if (!Array.isArray(meetings) || meetings.length === 0) {
-            document.getElementById('meeting-select').innerHTML = '<option>No schedule released</option>';
-            updateStatus(`No data available for ${selectedYear}`, "info");
-            return;
-        }
-
-        // 6. SORT meetings chronologically
-        meetings.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
-
-        const meetingSelect = document.getElementById('meeting-select');
-
-        // 7. DECIDE SELECTION LOGIC BASED ON YEAR
-        if (selectedYear < currentYear) {
-            // HISTORICAL YEAR: Add placeholder and don't auto-select
-            meetingSelect.innerHTML = '<option value="" selected disabled>Select Track...</option>' +
-                meetings.map(m => `<option value="${m.meeting_key}">${m.meeting_name}</option>`).join('');
-
-            // Clear sessions since no track is selected yet
-            document.getElementById('session-select').innerHTML = '<option>-</option>';
-            updateStatus(`${selectedYear} Season Loaded. Please select a track.`, "success");
-
-        } else {
-            // CURRENT or FUTURE YEAR: Pre-select most recent race
-            meetingSelect.innerHTML = meetings.map(m =>
-                `<option value="${m.meeting_key}">${m.meeting_name}</option>`
-            ).join('');
-
-            const pastMeetings = meetings.filter(m => new Date(m.date_start) <= now);
-            const targetKey = pastMeetings.length > 0
-                ? pastMeetings[pastMeetings.length - 1].meeting_key
-                : meetings[0].meeting_key;
-
-            meetingSelect.value = targetKey;
-
-            const selectedMeeting = meetings.find(m => m.meeting_key == targetKey);
-            const shortName = selectedMeeting.meeting_name.split('Grand Prix')[0].trim();
-
-            updateStatus(`Ready - Auto-selected: ${shortName} GP`, "success");
-
-            // Auto-trigger session load for current/future only
-            loadSessions();
-        }
-
-        // Handle manual track changes
-        meetingSelect.onchange = loadSessions;
-
-} catch (error) {
-    console.error("Schedule Load Error:", error);
-    
-    // Treat any fetch failure during a race year as potentially restricted
-    const currentYear = new Date().getFullYear();
-    const selectedYear = parseInt(document.getElementById('year-select').value);
-
-    if (selectedYear >= currentYear) {
-        updateStatus("Live Session Restricted (API Key Required)", "error");
-        document.getElementById('meeting-select').innerHTML = '<option value="">API Restricted</option>';
-    } else {
-        updateStatus("Error loading schedule", "error");
-    }
-}
-}
 
 
         async function loadSessions() {
@@ -1997,10 +2122,10 @@ async function loadMeetings() {
                     }
 
                     // When the user changes driver, we load laps
-driverSelect.onchange = () => {
-    clearPaceChart(); // Reset pace chart on driver change
-    loadLaps();
-};
+                    driverSelect.onchange = () => {
+                        clearPaceChart(); // Reset pace chart on driver change
+                        loadLaps();
+                    };
                     // Clear lap list so stale content isn’t shown
                     document.getElementById('lap-selector').innerHTML =
                         '<div style="padding: 10px; color: #888;">Select a driver to view laps...</div>';
@@ -2184,7 +2309,7 @@ driverSelect.onchange = () => {
                         const tLoc = new Date(l.date).getTime();
                         const closestTele = telWithDist.reduce((prev, curr) =>
                             Math.abs(new Date(curr.date).getTime() - tLoc) <
-                            Math.abs(new Date(prev.date).getTime() - tLoc) ? curr : prev
+                                Math.abs(new Date(prev.date).getTime() - tLoc) ? curr : prev
                         );
                         return { ...l, distance: closestTele.distance };
                     });
@@ -2192,19 +2317,32 @@ driverSelect.onchange = () => {
 
                 // 2. Determine Tire Compound (Robust Version)
                 let tireCompound = "UNK";
+                let currentStintId = null;
+
                 if (Array.isArray(stintData) && stintData.length > 0) {
-                    // Sort by stint_number descending to ensure the latest stint on a specific lap is found
-                    const sortedStints = [...stintData].sort((a, b) => b.stint_number - a.stint_number);
-
-                    const currentStint = sortedStints.find(s => {
+                    const currentStint = stintData.find(s => {
                         const lap = lapObj.lap_number;
-                        const isAfterStart = lap >= s.lap_start;
-                        // Handle cases where lap_end is 0 or null (active stint)
-                        const isBeforeEnd = (s.lap_end === 0 || s.lap_end === null || lap <= s.lap_end);
-                        return isAfterStart && isBeforeEnd;
+                        return lap >= s.lap_start && (s.lap_end === 0 || s.lap_end === null || lap <= s.lap_end);
                     });
+                    if (currentStint) {
+                        tireCompound = currentStint.compound.toUpperCase();
+                        currentStintId = currentStint.stint_number;
+                    }
+                }
 
-                    if (currentStint) tireCompound = currentStint.compound.toUpperCase();
+                // If API failed us, try to find the "Virtual ID" from the Pace Analysis data
+                if (tireCompound === "UNK" || !currentStintId) {
+                    const driverDataset = paceChartInstance?.data.datasets.find(d => d.label.includes(`#${driverNum}`));
+                    if (driverDataset) {
+                        const lapMatch = driverDataset.extraData.find(l => l.lap_number === lapObj.lap_number);
+                        if (lapMatch) currentStintId = lapMatch.stintNumber;
+                    }
+                }
+
+                // Final check: Does our manual registry have an entry for this ID?
+                const overrideKey = `${sessionKey}_${driverNum}_${currentStintId}`;
+                if (manualStintOverrides[overrideKey]) {
+                    tireCompound = manualStintOverrides[overrideKey];
                 }
 
                 // 3. Advanced Track Condition Engine (Your existing logic)
@@ -2225,15 +2363,15 @@ driverSelect.onchange = () => {
                     else { trackState = "DRY CONDITIONS"; stateClass = "cond-dry"; icon = "☀️"; }
 
                     weatherHtml = `
-                        <div class="weather-details">
-                            <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
-                            <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
-                            <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
-                            <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
-                            <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
-                            <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
-                            <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
-                        </div>`;
+                                                <div class="weather-details">
+                                                    <div class="weather-metric"><span class="weather-label">Air</span><span class="weather-value">${w.air_temperature.toFixed(1)}°C</span></div>
+                                                    <div class="weather-metric"><span class="weather-label">Track</span><span class="weather-value">${w.track_temperature.toFixed(1)}°C</span></div>
+                                                    <div class="weather-metric"><span class="weather-label">Humid</span><span class="weather-value">${w.humidity}%</span></div>
+                                                    <div class="weather-metric"><span class="weather-label">Press</span><span class="weather-value">${w.pressure.toFixed(0)}</span></div>
+                                                    <div class="weather-metric"><span class="weather-label">Wind</span><span class="weather-value">${(w.wind_speed * 3.6).toFixed(1)} km/h</span></div>
+                                                    <div class="weather-metric"><span class="weather-label">Dir</span><span class="weather-value">${getWindDir(w.wind_direction)}</span></div>
+                                                    <div class="rainfall-indicator ${stateClass}">${icon} ${trackState}</div>
+                                                </div>`;
                 }
 
                 const markers = calculateMarkers(telWithDist, lapObj.date_start, lapObj);
@@ -2439,23 +2577,23 @@ driverSelect.onchange = () => {
             const getS = (lap, key) => lap && lap[key] ? lap[key] + " km/h" : "-";
 
             document.getElementById('sector-body').innerHTML = `
-                                                        <!-- Times -->
-                                                        <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
-                                                        <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
-                                                        <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
+                                                                                <!-- Times -->
+                                                                                <tr onclick="zoomToSector(1)" style="cursor:pointer"><td>Sector 1</td><td style="color:var(--primary-color)">${getT(s1, 1)}</td><td style="color:var(--compare-color)">${getT(s2, 1)}</td></tr>
+                                                                                <tr onclick="zoomToSector(2)" style="cursor:pointer"><td>Sector 2</td><td style="color:var(--primary-color)">${getT(s1, 2)}</td><td style="color:var(--compare-color)">${getT(s2, 2)}</td></tr>
+                                                                                <tr onclick="zoomToSector(3)" style="cursor:pointer"><td>Sector 3</td><td style="color:var(--primary-color)">${getT(s1, 3)}</td><td style="color:var(--compare-color)">${getT(s2, 3)}</td></tr>
 
-                                                        <!-- Speed Traps -->
-                                                        <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
-                                                            <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
-                                                        </tr>
-                                                        <tr><td>Intermediate 1 (S1)</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
-                                                        <tr><td>Intermediate 2 (S2)</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
-                                                        <tr><td>Speed Trap (ST)</td><td>${getS(s1, 'st_speed')}</td><td>${getS(s2, 'st_speed')}</td></tr>
+                                                                                <!-- Speed Traps -->
+                                                                                <tr style="background: rgba(255,255,255,0.05); font-weight: bold; border-top: 2px solid #444;">
+                                                                                    <td colspan="3" style="text-align: center; font-size: 0.9em; padding: 8px;">Speed Traps</td>
+                                                                                </tr>
+                                                                                <tr><td>Intermediate 1 (S1)</td><td>${getS(s1, 'i1_speed')}</td><td>${getS(s2, 'i1_speed')}</td></tr>
+                                                                                <tr><td>Intermediate 2 (S2)</td><td>${getS(s1, 'i2_speed')}</td><td>${getS(s2, 'i2_speed')}</td></tr>
+                                                                                <tr><td>Speed Trap (ST)</td><td>${getS(s1, 'st_speed')}</td><td>${getS(s2, 'st_speed')}</td></tr>
 
-                                                        <tr onclick="zoomToSector(0)" style="cursor:pointer">
-                                                            <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
-                                                        </tr>
-                                                    `;
+                                                                                <tr onclick="zoomToSector(0)" style="cursor:pointer">
+                                                                                    <td colspan="3" style="text-align:center; color:var(--accent-color); padding-top: 10px;">Reset Zoom (Full Lap)</td>
+                                                                                </tr>
+                                                                            `;
         }
 
         function initCharts() {
@@ -3062,77 +3200,77 @@ driverSelect.onchange = () => {
             charts.delta.update('none');
 
 
-    // --- TRACK MAP LOGIC ---
-    updateStatus("Generating Insight Map...", "info");
-    const deltaMapData = calculateDeltaMap(); // now derives from delta curve, not an offset
-    charts.map.data.datasets[0].data = deltaMapData;
+            // --- TRACK MAP LOGIC ---
+            updateStatus("Generating Insight Map...", "info");
+            const deltaMapData = calculateDeltaMap(); // now derives from delta curve, not an offset
+            charts.map.data.datasets[0].data = deltaMapData;
 
-    // --- TECHNIQUE CHART ---
-    const getTechniqueData = (tel, coastY, overlapY) => {
-        const coast = [];
-        const overlap = [];
-        tel.forEach(d => {
-            coast.push({ x: d.distance, y: (d.throttle === 0 && d.brake === 0) ? coastY : 0 });
-            overlap.push({ x: d.distance, y: (d.throttle > 5 && d.brake > 5) ? overlapY : 0 });
-        });
-        return { coast, overlap };
-    };
+            // --- TECHNIQUE CHART ---
+            const getTechniqueData = (tel, coastY, overlapY) => {
+                const coast = [];
+                const overlap = [];
+                tel.forEach(d => {
+                    coast.push({ x: d.distance, y: (d.throttle === 0 && d.brake === 0) ? coastY : 0 });
+                    overlap.push({ x: d.distance, y: (d.throttle > 5 && d.brake > 5) ? overlapY : 0 });
+                });
+                return { coast, overlap };
+            };
 
-    const t1 = getTechniqueData(s1, 4, 3); // S1 Coast = 4, S1 Overlap = 3
-    const t2 = getTechniqueData(s2, 2, 1); // S2 Coast = 2, S2 Overlap = 1
+            const t1 = getTechniqueData(s1, 4, 3); // S1 Coast = 4, S1 Overlap = 3
+            const t2 = getTechniqueData(s2, 2, 1); // S2 Coast = 2, S2 Overlap = 1
 
-    // Map to the reordered datasets
-    charts.technique.data.datasets[0].data = t1.coast;   // Lane 4
-    charts.technique.data.datasets[1].data = t1.overlap; // Lane 3
-    charts.technique.data.datasets[2].data = t2.coast;   // Lane 2
-    charts.technique.data.datasets[3].data = t2.overlap; // Lane 1
+            // Map to the reordered datasets
+            charts.technique.data.datasets[0].data = t1.coast;   // Lane 4
+            charts.technique.data.datasets[1].data = t1.overlap; // Lane 3
+            charts.technique.data.datasets[2].data = t2.coast;   // Lane 2
+            charts.technique.data.datasets[3].data = t2.overlap; // Lane 1
 
 
-    // Sync zoom state from the speed chart (maintains sector zoom)
-    charts.technique.options.scales.x.min = charts.speed.options.scales.x.min;
-    charts.technique.options.scales.x.max = charts.speed.options.scales.x.max;
+            // Sync zoom state from the speed chart (maintains sector zoom)
+            charts.technique.options.scales.x.min = charts.speed.options.scales.x.min;
+            charts.technique.options.scales.x.max = charts.speed.options.scales.x.max;
 
-    // Final update (Only need one)
-    charts.technique.update();
+            // Final update (Only need one)
+            charts.technique.update();
 
-    // NEW: Force the map to calculate the correct aspect ratio immediately on import
-    if (loadedData.ref.telemetry.length > 0) {
-        const totalDist = loadedData.ref.markers ? loadedData.ref.markers.total : 0;
-        // We call this to apply the Anti-Distortion/Aspect Ratio logic
-        syncMapToRange(0, totalDist);
-    }
+            // NEW: Force the map to calculate the correct aspect ratio immediately on import
+            if (loadedData.ref.telemetry.length > 0) {
+                const totalDist = loadedData.ref.markers ? loadedData.ref.markers.total : 0;
+                // We call this to apply the Anti-Distortion/Aspect Ratio logic
+                syncMapToRange(0, totalDist);
+            }
 
-    charts.map.update();
-}
+            charts.map.update();
+        }
 
-function calculateDeltaMap() {
-    const s1Loc = loadedData.ref.location;
-    const deltaCurve = charts.delta?.data?.datasets?.[0]?.data || [];
+        function calculateDeltaMap() {
+            const s1Loc = loadedData.ref.location;
+            const deltaCurve = charts.delta?.data?.datasets?.[0]?.data || [];
 
-    if (!s1Loc || !s1Loc.length || !deltaCurve.length) return [];
+            if (!s1Loc || !s1Loc.length || !deltaCurve.length) return [];
 
-    // Helper: get delta value from the chart curve at a given "distance"
-    function getDeltaAtDistance(dist) {
-        const idx = deltaCurve.findIndex(p => p.x >= dist);
-        if (idx === -1) return deltaCurve[deltaCurve.length - 1].y;
-        if (idx === 0) return deltaCurve[0].y;
-        const a = deltaCurve[idx - 1];
-        const b = deltaCurve[idx];
-        if (b.x === a.x) return a.y;
-        return a.y + (dist - a.x) * (b.y - a.y) / (b.x - a.x);
-    }
+            // Helper: get delta value from the chart curve at a given "distance"
+            function getDeltaAtDistance(dist) {
+                const idx = deltaCurve.findIndex(p => p.x >= dist);
+                if (idx === -1) return deltaCurve[deltaCurve.length - 1].y;
+                if (idx === 0) return deltaCurve[0].y;
+                const a = deltaCurve[idx - 1];
+                const b = deltaCurve[idx];
+                if (b.x === a.x) return a.y;
+                return a.y + (dist - a.x) * (b.y - a.y) / (b.x - a.x);
+            }
 
-    return s1Loc.map(loc => {
-        // location points got a .distance attached in fetchLapData
-        const dist = typeof loc.distance === 'number' ? loc.distance : 0;
-        const deltaValue = getDeltaAtDistance(dist);
-        return {
-            x: loc.x,
-            y: loc.y,
-            delta: deltaValue
-        };
-    });
-}
+            return s1Loc.map(loc => {
+                // location points got a .distance attached in fetchLapData
+                const dist = typeof loc.distance === 'number' ? loc.distance : 0;
+                const deltaValue = getDeltaAtDistance(dist);
+                return {
+                    x: loc.x,
+                    y: loc.y,
+                    delta: deltaValue
+                };
+            });
+        }
 
         function setActiveSlot(slot) {
             activeSlot = slot;
@@ -3157,41 +3295,41 @@ function calculateDeltaMap() {
             setTimeout(() => Object.values(charts).forEach(c => c.resize()), 50);
         });
 
-function updateStatus(message, type) {
-    const statusContainer = document.getElementById('status-container');
-    const feedIndicator = document.querySelector('.live-indicator');
-    const feedLabel = document.querySelector('.pulse-label');
-    const tickerText = document.getElementById('ticker-text');
+        function updateStatus(message, type) {
+            const statusContainer = document.getElementById('status-container');
+            const feedIndicator = document.querySelector('.live-indicator');
+            const feedLabel = document.querySelector('.pulse-label');
+            const tickerText = document.getElementById('ticker-text');
 
-    statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
+            statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
 
-    if (type === 'success') {
-        feedIndicator.classList.add('connected');
-        feedIndicator.classList.remove('restricted');
-        feedLabel.innerText = 'ANALYSIS FEED: ONLINE';
-    } 
-
-    if (type === 'error') {
-        feedIndicator.classList.add('restricted');
-        feedIndicator.classList.remove('connected');
-
-        const isRestricted = message.toLowerCase().includes('restricted') ||
-            message.toLowerCase().includes('locked');
-
-        if (isRestricted) {
-            feedLabel.innerText = 'FEED: SESSION RESTRICTED';
-            if (tickerText) {
-                // Updated to be purely informational
-                tickerText.innerHTML = `<span style="color: #ff8080;">Live Session in progress. Data will be available once the session concludes.</span>`;
+            if (type === 'success') {
+                feedIndicator.classList.add('connected');
+                feedIndicator.classList.remove('restricted');
+                feedLabel.innerText = 'ANALYSIS FEED: ONLINE';
             }
-        } else {
-            feedLabel.innerText = 'FEED: CONNECTION ERROR';
-            if (tickerText) {
-                tickerText.innerHTML = `<span style="color: #ff8080;">Unable to load schedule. Please check your connection.</span>`;
+
+            if (type === 'error') {
+                feedIndicator.classList.add('restricted');
+                feedIndicator.classList.remove('connected');
+
+                const isRestricted = message.toLowerCase().includes('restricted') ||
+                    message.toLowerCase().includes('locked');
+
+                if (isRestricted) {
+                    feedLabel.innerText = 'FEED: SESSION RESTRICTED';
+                    if (tickerText) {
+                        // Updated to be purely informational
+                        tickerText.innerHTML = `<span style="color: #ff8080;">Live Session in progress. Data will be available once the session concludes.</span>`;
+                    }
+                } else {
+                    feedLabel.innerText = 'FEED: CONNECTION ERROR';
+                    if (tickerText) {
+                        tickerText.innerHTML = `<span style="color: #ff8080;">Unable to load schedule. Please check your connection.</span>`;
+                    }
+                }
             }
         }
-    }
-}
 
 
         function zoomToSector(sectorNum) {
@@ -3260,25 +3398,25 @@ function updateStatus(message, type) {
             charts.map.update('none'); // Update without full re-render for performance
         }
 
-function clearSlots() {
-    loadedData = {
-        ref: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] },
-        comp: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] }
-    };
-    
-    // Reset Labels
-    if (document.getElementById('ref-label')) document.getElementById('ref-label').innerHTML = "S1: Empty <span>--:--.---</span>";
-    if (document.getElementById('comp-label')) document.getElementById('comp-label').innerHTML = "S2: Empty <span>--:--.---</span>";
-    
-    // Reset Weather
-    if (document.getElementById('weather-ref')) document.getElementById('weather-ref').innerHTML = "S1: No Data";
-    if (document.getElementById('weather-comp')) document.getElementById('weather-comp').innerHTML = "S2: No Data";
-    
-    updateSectorTable();
-    updateCharts();
-    updateRadioLog();
-    // Note: No updateStatus call here, as this is often used as a sub-function
-}
+        function clearSlots() {
+            loadedData = {
+                ref: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] },
+                comp: { telemetry: [], location: [], lap: null, driverName: "", markers: null, weather: "", radio: [] }
+            };
+
+            // Reset Labels
+            if (document.getElementById('ref-label')) document.getElementById('ref-label').innerHTML = "S1: Empty <span>--:--.---</span>";
+            if (document.getElementById('comp-label')) document.getElementById('comp-label').innerHTML = "S2: Empty <span>--:--.---</span>";
+
+            // Reset Weather
+            if (document.getElementById('weather-ref')) document.getElementById('weather-ref').innerHTML = "S1: No Data";
+            if (document.getElementById('weather-comp')) document.getElementById('weather-comp').innerHTML = "S2: No Data";
+
+            updateSectorTable();
+            updateCharts();
+            updateRadioLog();
+            // Note: No updateStatus call here, as this is often used as a sub-function
+        }
 
         function updateRadioLog() {
             const radioLogElement = document.getElementById('radio-log');
@@ -3376,24 +3514,24 @@ function clearSlots() {
 
                 if (ev.type === 'flag') {
                     return `
-                    <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                            <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
-                            <span>${timeStr}</span>
-                        </div>
-                        <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
-                    </div>`;
+                                            <div style="margin-bottom: 12px; border-left: 3px solid #ffc107; padding: 8px; background: rgba(255, 193, 7, 0.05); border-radius: 0 4px 4px 0;">
+                                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                                    <span style="color: #ffc107; font-weight: bold;">RACE CONTROL</span>
+                                                    <span>${timeStr}</span>
+                                                </div>
+                                                <div style="color: #eee; font-weight: bold; font-size: 0.85em;">${ev.message}</div>
+                                            </div>`;
                 } else { // radio
                     const color = ev.slot === 'ref' ? 'var(--primary-color)' : 'var(--compare-color)';
                     return `
-                    <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
-                            <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
-                            <span>${timeStr}</span>
-                        </div>
-                        <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
-                        <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
-                    </div>`;
+                                            <div style="margin-bottom: 12px; border-left: 3px solid ${color}; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 0 4px 4px 0;">
+                                                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-bottom: 4px;">
+                                                    <span style="color: ${color}; font-weight: bold;">${ev.driver} (S${ev.slot === 'ref' ? '1' : '2'})</span>
+                                                    <span>${timeStr}</span>
+                                                </div>
+                                                <div style="color: #f0f0f0; font-size: 0.85em; font-style: italic; margin-bottom: 8px;">"${ev.transcript || 'Audio transmission...'}"</div>
+                                                <audio controls src="${ev.recording_url}" style="width: 100%; height: 30px; filter: invert(100%) hue-rotate(180deg) brightness(1.5);"></audio>
+                                            </div>`;
                 }
             }).join('');
 
@@ -3405,20 +3543,34 @@ function clearSlots() {
 
         async function initPaceAnalysisUI() {
             await loadPaceSessions();
-            setupPaceChart(); // Initialize an empty chart structure
+            setupPaceChart();
 
-            // Add event listener for modal session selection changes
+            // Listener for Session change
             document.getElementById('paceSessionSelect').addEventListener('change', async (event) => {
                 const sessionKey = event.target.value;
                 if (sessionKey) {
                     await loadPaceDrivers(sessionKey);
                     clearPaceChart();
+                    // Optional: You might want to clear savedPaceChartDatasets here too
+                    savedPaceChartDatasets = [];
+                }
+            });
 
-                    sessionWeatherData = [];
-                    if (weatherChartInstance) {
-                        weatherChartInstance.destroy();
-                        weatherChartInstance = null;
-                    }
+            // --- NEW: LISTENERS FOR DRIVER CHANGE ---
+            document.getElementById('paceDriver1Select').addEventListener('change', (e) => {
+                const newDriverNum = e.target.value;
+                if (newDriverNum) {
+                    clearOverridesForDriver(newDriverNum);
+                    // Clear cache so it doesn't try to restore old data
+                    savedPaceChartDatasets = [];
+                }
+            });
+
+            document.getElementById('paceDriver2Select').addEventListener('change', (e) => {
+                const newDriverNum = e.target.value;
+                if (newDriverNum) {
+                    clearOverridesForDriver(newDriverNum);
+                    savedPaceChartDatasets = [];
                 }
             });
         }
@@ -3541,21 +3693,26 @@ function clearSlots() {
         // --- CORRECTED setupPaceChart() ---
         function setupPaceChart() {
             const ctx = document.getElementById('paceAnalysisChart').getContext('2d');
-            if (paceChartInstance) {
-                paceChartInstance.destroy();
-            }
+            if (paceChartInstance) paceChartInstance.destroy();
 
             paceChartInstance = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    datasets: []
-                },
+                data: { datasets: [] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const idx = elements[0].index;
+                            const datasetIdx = elements[0].datasetIndex;
+                            const dataset = paceChartInstance.data.datasets[datasetIdx];
+                            const lapData = dataset.extraData[idx];
+
+                            // Extract the driver number from the label (e.g., "#44 Hamilton" -> "44")
+                            const driverNum = dataset.label.split(' ')[0].replace('#', '');
+
+                            openTirePicker(lapData.stintNumber, driverNum);
+                        }
                     },
                     plugins: {
                         title: {
@@ -3574,12 +3731,28 @@ function clearSlots() {
                             titleFont: { family: 'Roboto Mono', size: 13, weight: 'bold' }, // Added for consistency
                             bodyFont: { family: 'Roboto Mono', size: 12 }, // Added for consistency
                             callbacks: {
-                                title: (context) => context.length > 0 ? `Lap ${context[0].parsed.x}` : '',
+                                title: (context) => {
+                                    if (context.length > 0) {
+                                        // This ensures the title shows "Lap 1", "Lap 2", etc.
+                                        return `Lap ${context[0].parsed.x}`;
+                                    }
+                                    return '';
+                                },
                                 label: function (context) {
                                     const lapTime = formatTime(context.parsed.y);
                                     const extra = context.dataset.extraData ? context.dataset.extraData[context.dataIndex] : null;
+                                    const driverNum = context.dataset.label.split(' ')[0].replace('#', '');
+                                    const sessionKey = document.getElementById('paceSessionSelect').value;
+
                                     let label = `${context.dataset.label}: ${lapTime}`;
-                                    if (extra && extra.tireCompound) label += ` | ${extra.tireCompound}`;
+
+                                    if (extra && extra.tireCompound) {
+                                        // Check if this specific stint has a manual override in the registry
+                                        const overrideKey = `${sessionKey}_${driverNum}_${extra.stintNumber}`;
+                                        const isManual = manualStintOverrides[overrideKey] ? " (Manual)" : "";
+
+                                        label += ` | ${extra.tireCompound}${isManual}`;
+                                    }
                                     return label;
                                 }
                             }
@@ -3596,13 +3769,13 @@ function clearSlots() {
                         },
                         y: {
                             type: 'linear',
-    title: { 
-        display: true, 
-        text: 'Lap Time', 
-        color: '#f0f0f0', 
-        padding: 10, // Add some breathing room
-        font: { size: 14, family: 'Inter' } 
-    },
+                            title: {
+                                display: true,
+                                text: 'Lap Time',
+                                color: '#f0f0f0',
+                                padding: 10, // Add some breathing room
+                                font: { size: 14, family: 'Inter' }
+                            },
                             grid: { color: 'rgba(255, 255, 255, 0.1)' },
                             ticks: {
                                 color: '#f0f0f0',
@@ -3617,26 +3790,31 @@ function clearSlots() {
             renderTireLegend();
         }
 
-function clearPaceChart() {
-    if (paceChartInstance) {
-        paceChartInstance.data.datasets = [];
-        paceChartInstance.options.plugins.annotation.annotations = {};
-        paceChartInstance.update('none');
-    }
-    savedPaceChartDatasets = [];
-    savedPaceChartAnnotations = {};
-    if (document.getElementById('tireLegend')) renderTireLegend();
-}
+        function clearPaceChart() {
+            if (paceChartInstance) {
+                paceChartInstance.data.datasets = [];
+                // Important: Clear the annotations (pit lines) too
+                if (paceChartInstance.options.plugins.annotation) {
+                    paceChartInstance.options.plugins.annotation.annotations = {};
+                }
+                paceChartInstance.update('none');
+            }
+            savedPaceChartDatasets = []; // Wipe the cache
+            savedPaceChartAnnotations = {}; // Wipe the lines
+            if (document.getElementById('tireLegend')) renderTireLegend();
+        }
 
         async function loadPaceData() {
             const sessionKey = document.getElementById('paceSessionSelect').value;
             const driver1Num = document.getElementById('paceDriver1Select').value;
             const driver2Num = document.getElementById('paceDriver2Select').value;
 
-            if (!sessionKey) {
-                alert('Please select a session.');
-                return;
-            }
+            if (!sessionKey) { alert('Please select a session.'); return; }
+
+            // --- NEW: Reset cache whenever Load Data is pressed ---
+            // This forces the app to run getPaceDriverData (which now checks the cleared registry)
+            savedPaceChartDatasets = [];
+
             if (!driver1Num && !driver2Num) {
                 alert('Please select at least one driver to compare.');
                 return;
@@ -3754,7 +3932,7 @@ function clearPaceChart() {
             paceChartInstance.update();
 
             // Ensure the timeline aligns its X-axis (minutes) with the Pace Chart (laps)
-            renderRaceTimeline(bounds.minutes); 
+            renderRaceTimeline(bounds.minutes);
 
             // Save the loaded data for potential "Back to Chart" functionality
             savedPaceChartDatasets = JSON.parse(JSON.stringify(datasets));
@@ -3784,6 +3962,7 @@ function clearPaceChart() {
             if (paceChartInstance) paceChartInstance.resize();
         }
 
+        // Fetches lap and stint data for a specific driver in a given session for pace analysis
         // Fetches lap and stint data for a specific driver in a given session for pace analysis
         async function getPaceDriverData(sessionKey, driverNumber) {
             try {
@@ -3821,13 +4000,11 @@ function clearPaceChart() {
                     stint_start_lap: Number(stint.lap_start),
                     stint_end_lap: stint.lap_end != null && stint.lap_end !== 0
                         ? Number(stint.lap_end)
-                        : 999, // Use 999 for active/superseded stints to ensure range matching
-                    // FIX: If stint_number > 1, any start lap (including 1) is a pit stop
+                        : 999,
                     is_pit_in_lap: (stint.stint_number > 1) ? Number(stint.lap_start) : null
                 }));
 
                 function findStintForLap(lapNumber) {
-                    // Sort by stint_number descending to find the latest compound assigned to this lap
                     const reverseStints = [...processedStints].sort((a, b) => b.stint_number - a.stint_number);
                     for (const s of reverseStints) {
                         if (lapNumber >= s.stint_start_lap && lapNumber <= s.stint_end_lap) {
@@ -3838,42 +4015,81 @@ function clearPaceChart() {
                 }
 
                 const processedLaps = [];
-                rawLaps.forEach(lap => {
+
+                // 1. Sort laps chronologically BEFORE processing
+                rawLaps.sort((a, b) => a.lap_number - b.lap_number);
+
+                // 2. INITIALIZE COUNTER HERE (The fix for your ReferenceError)
+                let virtualStintCounter = 1;
+
+                rawLaps.forEach((lap) => {
                     const duration = Number(lap.lap_duration);
                     if (!Number.isFinite(duration) || duration <= 0) return;
 
                     const lapNum = Number(lap.lap_number);
+
+                    // 3. Increment counter on Pit Out boundaries
+                    if (lap.is_pit_out_lap) {
+                        virtualStintCounter++;
+                    }
+
                     const stint = findStintForLap(lapNum);
+
+                    // 4. Identify the "API Truth"
+                    const apiCompound = stint ? stint.compound.toUpperCase() : 'UNKNOWN';
+
+                    // 5. Determine the unique Stint ID (API number or our virtual G-counter)
+                    const currentStintId = stint ? stint.stint_number : `G${virtualStintCounter}`;
+
+                    // 6. Check for manual overrides
+                    const overrideKey = `${sessionKey}_${driverNumber}_${currentStintId}`;
+                    let compound = apiCompound;
+                    if (manualStintOverrides[overrideKey]) {
+                        compound = manualStintOverrides[overrideKey];
+                    }
 
                     processedLaps.push({
                         lap_number: lapNum,
                         lap_duration: duration,
                         date_start: lap.date_start,
                         is_pit_out_lap: !!lap.is_pit_out_lap,
-                        stintNumber: stint ? stint.stint_number : null,
-                        tireCompound: stint ? stint.compound : 'UNKNOWN',
+                        stintNumber: currentStintId,
+                        tireCompound: compound,
+                        apiTireCompound: apiCompound, // Stored for local resets
                         isPitLap: (stint && stint.is_pit_in_lap === lapNum)
                     });
                 });
 
+                // Final sort to ensure chart rendering is correct
                 processedLaps.sort((a, b) => a.lap_number - b.lap_number);
                 return { laps: processedLaps, stints: processedStints };
+
             } catch (error) {
-                console.error(`Failed to get pace data for driver ${driverNumber}:`, error);
+                console.error(`Pace Data Error:`, error);
                 return { laps: [], stints: [] };
             }
         }
 
         // UPDATED openPaceAnalysisModal function
-        async function openPaceAnalysisModal() { // Added 'async' here
+        async function openPaceAnalysisModal() {
             const modal = document.getElementById('paceAnalysisModal');
             modal.classList.add('visible');
             document.body.style.overflow = 'hidden';
 
             const currentSessionKey = document.getElementById('session-select').value;
 
+            // 1. Get drivers currently in the Sidebar Slots
             const slot1Driver = loadedData.ref.lap ? loadedData.ref.lap.driver_number : "";
             const slot2Driver = loadedData.comp.lap ? loadedData.comp.lap.driver_number : "";
+
+            // 2. Get drivers currently stored in the Modal's Chart Cache
+            let cachedD1 = "";
+            let cachedD2 = "";
+            if (savedPaceChartDatasets.length > 0) {
+                // Extract driver numbers from the labels (e.g., "#44 Hamilton" -> "44")
+                if (savedPaceChartDatasets[0]) cachedD1 = savedPaceChartDatasets[0].label.split(' ')[0].replace('#', '');
+                if (savedPaceChartDatasets[1]) cachedD2 = savedPaceChartDatasets[1].label.split(' ')[0].replace('#', '');
+            }
 
             // Reset UI visibility
             const paceAnalysisChartCanvas = document.getElementById('paceAnalysisChart');
@@ -3884,38 +4100,48 @@ function clearPaceChart() {
             const weatherWrapper = document.getElementById('weatherWrapper');
             if (weatherWrapper) weatherWrapper.style.display = 'none';
             isWeatherVisible = false;
-            const btnWeather = document.getElementById('btnToggleWeather');
-            if (btnWeather) {
-                btnWeather.innerText = 'Weather';
-                btnWeather.style.backgroundColor = 'var(--primary-color)';
-            }
 
             if (paceAnalysisChartCanvas) paceAnalysisChartCanvas.style.display = 'block';
             if (tireLegendEl) tireLegendEl.style.display = 'flex';
             if (sessionResultsWrapper) sessionResultsWrapper.style.display = 'none';
             if (drivingReportWrapper) drivingReportWrapper.style.display = 'none';
 
-            // Load the dropdown options
-            loadPaceSessions().then(() => {
-                const paceSessionSelect = document.getElementById('paceSessionSelect');
-                paceSessionSelect.value = currentSessionKey || '';
-                paceSessionSelect.disabled = true;
+            // Populate dropdowns
+            await loadPaceSessions();
+            const paceSessionSelect = document.getElementById('paceSessionSelect');
+            paceSessionSelect.value = currentSessionKey || '';
+            paceSessionSelect.disabled = true;
 
-                if (currentSessionKey) {
-                    loadPaceDrivers(currentSessionKey).then(() => {
-                        const d1Select = document.getElementById('paceDriver1Select');
-                        const d2Select = document.getElementById('paceDriver2Select');
+            if (currentSessionKey) {
+                await loadPaceDrivers(currentSessionKey);
+                const d1Select = document.getElementById('paceDriver1Select');
+                const d2Select = document.getElementById('paceDriver2Select');
 
-                        if (slot1Driver) d1Select.value = slot1Driver;
-                        if (slot2Driver) d2Select.value = slot2Driver;
-                    });
-                }
-            });
+                // FIXED LOGIC:
+                // Priority 1: If we have cached chart data, use those drivers.
+                // Priority 2: If no cache, use the Sidebar Slot drivers.
+                d1Select.value = (cachedD1 !== "") ? cachedD1 : slot1Driver;
+                d2Select.value = (cachedD2 !== "") ? cachedD2 : slot2Driver;
+            }
 
             setupPaceChart();
 
-            // Restore chart from memory
+            // Restore Chart Data from memory
             if (savedPaceChartDatasets.length > 0) {
+                savedPaceChartDatasets.forEach(dataset => {
+                    const driverNum = dataset.label.split(' ')[0].replace('#', '');
+                    const sessionKey = paceSessionSelect.value;
+
+                    dataset.extraData.forEach((lap, index) => {
+                        const overrideKey = `${sessionKey}_${driverNum}_${lap.stintNumber}`;
+                        if (manualStintOverrides[overrideKey]) {
+                            const overCompound = manualStintOverrides[overrideKey];
+                            lap.tireCompound = overCompound;
+                            dataset.pointBackgroundColor[index] = TIRE_COLORS[overCompound];
+                        }
+                    });
+                });
+
                 paceChartInstance.data.datasets = savedPaceChartDatasets;
                 paceChartInstance.options.plugins.annotation.annotations = savedPaceChartAnnotations;
                 paceChartInstance.update();
@@ -3923,25 +4149,13 @@ function clearPaceChart() {
                 clearPaceChart();
             }
 
-            // --- FIXED ORDER OF OPERATIONS START ---
-
-            // 1. First, make sure we have data. If cache is empty, WAIT for it to fetch.
             if (sessionRaceControl.length === 0) {
-                console.log("Timeline cache empty, fetching before render...");
                 await fetchSessionRaceControl();
             }
 
-            // 2. Now render the timeline (it will have access to the full data)
             renderRaceTimeline();
-
-            // 3. Final UI cleanup
-            if (paceChartInstance) {
-                paceChartInstance.resize();
-            }
-
-            // --- FIXED ORDER OF OPERATIONS END ---
+            if (paceChartInstance) paceChartInstance.resize();
         }
-
 
         function closePaceAnalysisModal() {
             const modal = document.getElementById('paceAnalysisModal');
@@ -3974,25 +4188,25 @@ function clearPaceChart() {
             const tiresHtml = entries.map(e => {
                 const color = TIRE_COLORS[e.key];
                 return `
-                <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
-                    <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border:1px solid #000;"></span>
-                    <span>${e.label}</span>
-                </span>
-            `;
+                                        <span style="display:inline-flex; align-items:center; margin-right:15px; font-weight: bold;">
+                                            <span style="width:12px; height:12px; border-radius:50%; background:${color}; margin-right:6px; border:1px solid #000;"></span>
+                                            <span>${e.label}</span>
+                                        </span>
+                                    `;
             }).join('');
 
             // NEW: pit-out legend item
             const pitLegend = `
-        <span style="margin-left:15px; font-size:11px; color:#aaa; display:inline-flex; align-items:center; gap:10px;">
-            <span style="display:inline-flex; align-items:center;">
-                <span style="display:inline-block; width:30px; height:0; border-top:2px dashed #e10600; margin-right:4px;"></span>
-                <span>S1 Pit Out Lap(s)</span>
-            </span>
-            <span style="display:inline-flex; align-items:center;">
-                <span style="display:inline-block; width:30px; height:0; border-top:2px dashed #00d2be; margin-right:4px;"></span>
-                <span>S2 Pit Out Lap(s)</span>
-            </span>
-        </span>
+                                <span style="margin-left:15px; font-size:11px; color:#aaa; display:inline-flex; align-items:center; gap:10px;">
+                                    <span style="display:inline-flex; align-items:center;">
+                                        <span style="display:inline-block; width:30px; height:0; border-top:2px dashed #e10600; margin-right:4px;"></span>
+                                        <span>S1 Pit Out Lap(s)</span>
+                                    </span>
+                                    <span style="display:inline-flex; align-items:center;">
+                                        <span style="display:inline-block; width:30px; height:0; border-top:2px dashed #00d2be; margin-right:4px;"></span>
+                                        <span>S2 Pit Out Lap(s)</span>
+                                    </span>
+                                </span>
 `;
 
             legendEl.innerHTML = tiresHtml + pitLegend;
@@ -4121,6 +4335,8 @@ function clearPaceChart() {
                 }
 
                 let results = await response.json();
+                sessionResultsData = results; // <--- SAVE TO GLOBAL VARIABLE
+
 
                 if (!Array.isArray(results)) {
                     console.warn('Unexpected session results response:', results);
@@ -4145,21 +4361,21 @@ function clearPaceChart() {
 
                 // Create table HTML
                 const tableHTML = `
-                                                            <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
-                                                            <table class="results-table">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Pos</th>
-                                                                        <th>Driver</th>
-                                                                        <th>Laps</th>
-                                                                        <th>Total Time</th>
-                                                                        <th>Gap</th>
-                                                                        <th>Points</th>
-                                                                        <th>Status</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    ${results.map(result => {
+                                                                                    <h3 style="color: var(--primary-color); margin-bottom: 10px;">Session Results</h3>
+                                                                                    <table class="results-table">
+                                                                                        <thead>
+                                                                                            <tr>
+                                                                                                <th>Pos</th>
+                                                                                                <th>Driver</th>
+                                                                                                <th>Laps</th>
+                                                                                                <th>Total Time</th>
+                                                                                                <th>Gap</th>
+                                                                                                <th>Points</th>
+                                                                                                <th>Status</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            ${results.map(result => {
                     const driverName = driverNamesMap[result.driver_number] || 'Unknown';
                     let status = 'Finished';
                     if (result.dnf) status = 'DNF';
@@ -4167,30 +4383,34 @@ function clearPaceChart() {
                     else if (result.dsq) status = 'DSQ';
 
                     return `
-                                                                            <tr>
-                                                                                <td class="position-cell">${result.position || '-'}</td>
-                                                                                <td>#${result.driver_number} ${driverName}</td>
-                                                                                <td>${result.number_of_laps || 0}</td>
+                                                                                                    <tr>
+                                                                                                        <td class="position-cell">${result.position || '-'}</td>
+                                                                                                        <td>#${result.driver_number} ${driverName}</td>
+                                                                                                        <td>${result.number_of_laps || 0}</td>
 <td style="font-family: monospace;">
-                                                    ${formatResultDuration(result.duration)}
+                                                                            ${formatResultDuration(result.duration)}
 </td>
 <td style="font-family: monospace;">
-                                                    ${formatResultGap(result.gap_to_leader)}
+                                                                            ${formatResultGap(result.gap_to_leader)}
 </td>
-                                                                                <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
-                                                                                <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
-                                                                            </tr>
-                                                                        `;
+                                                                                                        <td>${result.points !== undefined && result.points !== null ? result.points : 0}</td>
+                                                                                                        <td style="color: ${status === 'Finished' ? 'var(--accent-color)' : 'var(--primary-color)'};">${status}</td>
+                                                                                                    </tr>
+                                                                                                `;
                 }).join('')}
-                                                                </tbody>
-                                                            </table>
-                                                            <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
-                                                        `;
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                    <button id="backToChartButton" style="margin-top: 15px;">Back to Chart</button>
+                                                                                `;
 
                 const paceAnalysisChartCanvas = document.getElementById('paceAnalysisChart');
                 const tireLegendEl = document.getElementById('tireLegend');
                 const sessionResultsWrapper = document.getElementById('sessionResultsWrapper');
                 const drivingReportWrapper = document.getElementById('drivingReportWrapper');
+                const positionsWrapper = document.getElementById('positionsWrapper'); // Get the wrapper
+
+                // ADD THIS LINE: Hide the positions tracker when showing results
+                if (positionsWrapper) positionsWrapper.style.display = 'none'; 
 
                 // Hide other views
                 if (paceAnalysisChartCanvas) paceAnalysisChartCanvas.style.display = 'none';
@@ -4294,6 +4514,7 @@ function clearPaceChart() {
             document.getElementById('paceAnalysisChart').style.display = 'none';
             document.getElementById('tireLegend').style.display = 'none';
             document.getElementById('sessionResultsWrapper').style.display = 'none';
+            document.getElementById('positionsWrapper').style.display = 'none'; // Add this line
 
             const reportWrapper = document.getElementById('drivingReportWrapper');
             reportWrapper.style.display = 'block';
@@ -4702,42 +4923,42 @@ function clearPaceChart() {
             const telemetryMissing = (!m1?.technique?.telemetryAvailable || !m2?.technique?.telemetryAvailable);
 
             html += `
-            <table class="results-table" style="margin-bottom:25px;">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>${d1 ? d1.last_name : 'S1'}</th>
-                        <th>${d2 ? d2.last_name : 'S2'}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- PACE & CONSISTENCY -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Pace & Consistency Analysis</td>
-                    </tr>
-                    <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
-                    <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
-                    <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
-                    <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
-                    <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
-                    <tr><td style="color:var(--accent-color); padding-left: 20px;">└ Avg Competitive Lap</td>
-                    <td>${m1 && m1.avgCompetitiveLap ? formatTime(m1.avgCompetitiveLap) : '-'}</td>
-                    <td>${m2 && m2.avgCompetitiveLap ? formatTime(m2.avgCompetitiveLap) : '-'}</td>
-                    </tr>
+                                    <table class="results-table" style="margin-bottom:25px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th>${d1 ? d1.last_name : 'S1'}</th>
+                                                <th>${d2 ? d2.last_name : 'S2'}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- PACE & CONSISTENCY -->
+                                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                                <td colspan="3">Pace & Consistency Analysis</td>
+                                            </tr>
+                                            <tr><td>Fastest Lap</td><td>${m1 ? formatTime(m1.fastestLap) : '-'}</td><td>${m2 ? formatTime(m2.fastestLap) : '-'}</td></tr>
+                                            <tr><td>Average Lap</td><td>${m1 ? formatTime(m1.averageLap) : '-'}</td><td>${m2 ? formatTime(m2.averageLap) : '-'}</td></tr>
+                                            <tr><td>Consistency (Std Dev)</td><td>${m1 ? m1.stdDev + 's' : '-'}</td><td>${m2 ? m2.stdDev + 's' : '-'}</td></tr>
+                                            <tr><td>Consistency Score</td><td>${m1 ? m1.consistencyScore + '%' : '-'}</td><td>${m2 ? m2.consistencyScore + '%' : '-'}</td></tr>
+                                            <tr><td>Laps within +0.5s of PB</td><td>${m1 ? m1.competitiveLapsPercent + '%' : '-'}</td><td>${m2 ? m2.competitiveLapsPercent + '%' : '-'}</td></tr>
+                                            <tr><td style="color:var(--accent-color); padding-left: 20px;">└ Avg Competitive Lap</td>
+                                            <td>${m1 && m1.avgCompetitiveLap ? formatTime(m1.avgCompetitiveLap) : '-'}</td>
+                                            <td>${m2 && m2.avgCompetitiveLap ? formatTime(m2.avgCompetitiveLap) : '-'}</td>
+                                            </tr>
 
-                    <!-- DISCIPLINE & PENALTIES -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Discipline & Race Conduct</td>
-                    </tr>
-                    <tr><td>Track Limit Deletions</td><td>${trackLimits1}</td><td>${trackLimits2}</td></tr>
-                    <tr><td>Penalties Received</td><td>${penalties1}</td><td>${penalties2}</td></tr>
-                    <tr><td>Penalties Served</td><td>${penaltiesServed1}</td><td>${penaltiesServed2}</td></tr>
+                                            <!-- DISCIPLINE & PENALTIES -->
+                                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                                <td colspan="3">Discipline & Race Conduct</td>
+                                            </tr>
+                                            <tr><td>Track Limit Deletions</td><td>${trackLimits1}</td><td>${trackLimits2}</td></tr>
+                                            <tr><td>Penalties Received</td><td>${penalties1}</td><td>${penalties2}</td></tr>
+                                            <tr><td>Penalties Served</td><td>${penaltiesServed1}</td><td>${penaltiesServed2}</td></tr>
 
-                    <!-- INPUT TECHNIQUE -->
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Input Technique Analysis -- (Telemetry from lap(s) selected)</td>
-                    </tr>
-        `;
+                                            <!-- INPUT TECHNIQUE -->
+                                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                                <td colspan="3">Input Technique Analysis -- (Telemetry from lap(s) selected)</td>
+                                            </tr>
+                                `;
 
             // NEW: Telemetry source row
             if (!telemetryMissing) {
@@ -4752,95 +4973,95 @@ function clearPaceChart() {
                     : "-";
 
                 html += `
-                    <tr style="font-size:0.8em; color:#aaa;">
-                        <td>Telemetry Source</td>
-                        <td>${src1}</td>
-                        <td>${src2}</td>
-                    </tr>
-            `;
+                                            <tr style="font-size:0.8em; color:#aaa;">
+                                                <td>Telemetry Source</td>
+                                                <td>${src1}</td>
+                                                <td>${src2}</td>
+                                            </tr>
+                                    `;
             }
 
             if (telemetryMissing) {
                 html += `
-                    <tr style="background: rgba(255, 193, 7, 0.05);">
-                        <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
-                            ⚠️ Telemetry not loaded for comparison.<br>
-                            Load each driver's fastest lap into the Slot Manager to see technique insights.
-                        </td>
-                    </tr>
-            `;
+                                            <tr style="background: rgba(255, 193, 7, 0.05);">
+                                                <td colspan="3" style="padding: 15px; color: var(--accent-color); text-align: center; font-size: 0.9em; font-style: italic;">
+                                                    ⚠️ Telemetry not loaded for comparison.<br>
+                                                    Load each driver's fastest lap into the Slot Manager to see technique insights.
+                                                </td>
+                                            </tr>
+                                    `;
             } else {
                 html += `
-                    <tr>
-                        <td>Brake Release to 100% Thr</td>
-                        <td>${m1.technique.transitions.avgTotal}s</td>
-                        <td>${m2.technique.transitions.avgTotal}s</td>
-                    </tr>
-                    <tr style="font-size:0.8em; color:#888;">
-                        <td>└ Transitions S1/S2/S3</td>
-                        <td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td>
-                        <td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td>
-                    </tr>
-                    <tr>
-                        <td>Overlap Time (Total)</td>
-                        <td>${m1.technique.overlap.total}s</td>
-                        <td>${m2.technique.overlap.total}s</td>
-                    </tr>
-                    <tr style="font-size:0.8em; color:#888;">
-                        <td>└ Overlap S1/S2/S3</td>
-                        <td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td>
-                        <td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td>
-                    </tr>
-                    <tr>
-                        <td>Coasting Time (Total)</td>
-                        <td>${m1.technique.coasting.total}s</td>
-                        <td>${m2.technique.coasting.total}s</td>
-                    </tr>
-                    <tr style="font-size:0.8em; color:#888;">
-                        <td>└ Coasting S1/S2/S3</td>
-                        <td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td>
-                        <td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td>
-                    </tr>
-            `;
+                                            <tr>
+                                                <td>Brake Release to 100% Thr</td>
+                                                <td>${m1.technique.transitions.avgTotal}s</td>
+                                                <td>${m2.technique.transitions.avgTotal}s</td>
+                                            </tr>
+                                            <tr style="font-size:0.8em; color:#888;">
+                                                <td>└ Transitions S1/S2/S3</td>
+                                                <td>${m1.technique.transitions.avgS1}/${m1.technique.transitions.avgS2}/${m1.technique.transitions.avgS3}</td>
+                                                <td>${m2.technique.transitions.avgS1}/${m2.technique.transitions.avgS2}/${m2.technique.transitions.avgS3}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Overlap Time (Total)</td>
+                                                <td>${m1.technique.overlap.total}s</td>
+                                                <td>${m2.technique.overlap.total}s</td>
+                                            </tr>
+                                            <tr style="font-size:0.8em; color:#888;">
+                                                <td>└ Overlap S1/S2/S3</td>
+                                                <td>${m1.technique.overlap.s1}/${m1.technique.overlap.s2}/${m1.technique.overlap.s3}</td>
+                                                <td>${m2.technique.overlap.s1}/${m2.technique.overlap.s2}/${m2.technique.overlap.s3}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Coasting Time (Total)</td>
+                                                <td>${m1.technique.coasting.total}s</td>
+                                                <td>${m2.technique.coasting.total}s</td>
+                                            </tr>
+                                            <tr style="font-size:0.8em; color:#888;">
+                                                <td>└ Coasting S1/S2/S3</td>
+                                                <td>${m1.technique.coasting.s1}/${m1.technique.coasting.s2}/${m1.technique.coasting.s3}</td>
+                                                <td>${m2.technique.coasting.s1}/${m2.technique.coasting.s2}/${m2.technique.coasting.s3}</td>
+                                            </tr>
+                                    `;
             }
 
             // PIT CYCLE ANALYSIS
             html += `
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Pit Cycle Analysis</td>
-                    </tr>
-                    <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
-                    <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
-                    <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
-                    <tr><td><strong>Total Pit Loss</strong></td>
-                        <td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
-                        <td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
-                    </tr>
+                                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                                <td colspan="3">Pit Cycle Analysis</td>
+                                            </tr>
+                                            <tr><td>Pit Cycles Analyzed</td><td>${m1?.recoveryStats?.count || 0}</td><td>${m2?.recoveryStats?.count || 0}</td></tr>
+                                            <tr><td>Avg In-Lap Time</td><td>${m1?.recoveryStats?.averageInLap ? formatTime(m1.recoveryStats.averageInLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageInLap) : '-'}</td></tr>
+                                            <tr><td>Avg Out-Lap Time</td><td>${m1?.recoveryStats?.averageOutLap ? formatTime(m1.recoveryStats.averageOutLap) : '-'}</td><td>${m2?.recoveryStats?.averageOutLap ? formatTime(m2.recoveryStats.averageOutLap) : '-'}</td></tr>
+                                            <tr><td><strong>Total Pit Loss</strong></td>
+                                                <td><strong>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+                                                <td><strong>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : '-'}</strong></td>
+                                            </tr>
 
-                    <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
-                        <td colspan="3">Performance by Tire Compound</td>
-                    </tr>
-                    ${generateTireBreakdownHTML(m1, m2, d1, d2)}
-                    <tr style="background: rgba(0, 210, 190, 0.08);">
-                        <td colspan="3" style="padding: 12px; text-align: center;">
-                            <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
-                                style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
-                                View Strategy Analysis →
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
+                                            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                                <td colspan="3">Performance by Tire Compound</td>
+                                            </tr>
+                                            ${generateTireBreakdownHTML(m1, m2, d1, d2)}
+                                            <tr style="background: rgba(0, 210, 190, 0.08);">
+                                                <td colspan="3" style="padding: 12px; text-align: center;">
+                                                    <button onclick="openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2)"
+                                                        style="background:#00d2be; color:black; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">
+                                                        View Strategy Analysis →
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                `;
 
             // Key Takeaways
             html += `
-    <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
-        <strong>Key Takeaways:</strong><br>
-        <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2, sessionName)}</span> 
-    </div>
-    <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
-    `;
+                            <div style="margin-top:25px; padding:15px; background:var(--chart-bg); border-radius:6px;">
+                                <strong>Key Takeaways:</strong><br>
+                                <span style="color:#ddd;">${generateVerdict(m1, m2, d1, d2, sessionName)}</span>
+                            </div>
+                            <button onclick="backToPaceChart()" style="margin-top:20px;">Back to Chart</button>
+                            `;
 
             return html;
         }
@@ -4849,19 +5070,16 @@ function clearPaceChart() {
          * Determines strategy profile and identifies PIT OUT laps.
          * Prefers lap-based pit-out flags (most accurate), with a stint-based fallback.
          */
-        function analyzeStints(stints, laps) {
+        function analyzeStints(stints, laps, sessionKey, driverNum) {
             const safeStints = Array.isArray(stints) ? stints : [];
             const safeLaps = Array.isArray(laps) ? laps : [];
 
-            // 1) PIT OUT laps from laps feed (best)
+            // 1) PIT OUT laps logic (already correct in your code)
             const pitOutLaps = safeLaps
                 .filter(l => l && (l.is_pit_out_lap === true || l.is_pit_out_lap === 1))
                 .map(l => Number(l.lap_number))
                 .filter(n => Number.isFinite(n));
 
-            // 2) Fallback: infer PIT OUT lap from stints (new stint starts right after the pit)
-            // If the API's lap_start behaves like the in-lap for your data, this may still be off by one,
-            // but it's only used when pit-out flags aren't available.
             const pitOutFromStints = [];
             for (const s of safeStints) {
                 const sn = Number(s.stint_number);
@@ -4870,10 +5088,8 @@ function clearPaceChart() {
                     pitOutFromStints.push(lapStart);
                 }
             }
-
             const finalPitOutLaps = pitOutLaps.length > 0 ? pitOutLaps : pitOutFromStints;
 
-            // Strategy type
             let strategyType = "No Data";
             if (safeStints.length > 0) {
                 if (finalPitOutLaps.length >= 2) strategyType = "Multi-Stop";
@@ -4881,13 +5097,20 @@ function clearPaceChart() {
                 else strategyType = "Sprint/No-Stop";
             }
 
-            // Starting tire
+            // 2) STARTING TIRE LOGIC (Updated to support Overrides)
             const firstStint = safeStints.find(s => Number(s.stint_number) === 1);
-            const startingTire = firstStint ? String(firstStint.compound || "UNKNOWN").toUpperCase() : "N/A";
+            let startingTire = "N/A";
+
+            if (firstStint) {
+                const stintId = firstStint.stint_number; // Usually 1
+                // Check global registry for an override on this session/driver/stint
+                const overrideKey = `${sessionKey}_${driverNum}_${stintId}`;
+                startingTire = manualStintOverrides[overrideKey] || String(firstStint.compound || "UNKNOWN").toUpperCase();
+            }
 
             return {
                 stintCount: safeStints.length,
-                pitLaps: finalPitOutLaps, // <-- PIT OUT laps
+                pitLaps: finalPitOutLaps,
                 strategyType,
                 startingTire
             };
@@ -4938,8 +5161,8 @@ function clearPaceChart() {
                     data2.laps
                 );
 
-                const strategy1 = analyzeStints(data1.stints, data1.laps);
-                const strategy2 = analyzeStints(data2.stints, data2.laps);
+                const strategy1 = analyzeStints(data1.stints, data1.laps, sessionKey, driver1.driver_number);
+                const strategy2 = analyzeStints(data2.stints, data2.laps, sessionKey, driver2.driver_number);
 
                 const incidents = getRaceIncidents(sessionRaceControl);
 
@@ -4968,48 +5191,48 @@ function clearPaceChart() {
                 const stats2 = getStopStats(strategy2.pitLaps, data1.laps, data2.laps);
 
                 content.innerHTML = `
-                                                <div style="padding: 5px 0 15px 0; border-bottom: 1px solid #444; margin-bottom: 20px;">
-                                                    <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
-                                                </div>
+                                                                        <div style="padding: 5px 0 15px 0; border-bottom: 1px solid #444; margin-bottom: 20px;">
+                                                                            <h3 style="margin:0; color:var(--accent-color);">Strategic Analysis</h3>
+                                                                        </div>
 
 <table class="results-table" style="margin-bottom:25px; width:100%;">
-        <thead>
-            <tr>
-                <th style="text-align:left;">Metric</th>
-                <th>${driver1.last_name}</th>
-                <th>${driver2.last_name}</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
-            <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
-            <tr><td>Pit Stop Out Lap(s)</td>
-                <td>${formatPitLaps(strategy1.pitLaps, data1.laps)}</td>
-                <td>${formatPitLaps(strategy2.pitLaps, data2.laps)}</td>
-            </tr>
-            <tr><td>Green Flag Stops</td><td>${stats1.greenCount}</td><td>${stats2.greenCount}</td></tr>
-            <tr><td>Intervention Stops</td><td>${stats1.interventionCount}</td><td>${stats2.interventionCount}</td></tr>
-            <tr><td>Avg Pit Time Loss</td>
-                <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-            </tr>
-            <tr><td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td></tr>
-            <tr><td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td></tr>
-            <tr><td>Best Lap Time</td>
-                <td>${formatTime(best1)}</td>
-                <td>${formatTime(best2)}</td>
-            </tr>
-        </tbody>
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Metric</th>
+                                        <th>${driver1.last_name}</th>
+                                        <th>${driver2.last_name}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Strategy Profile</td><td>${strategy1.strategyType}</td><td>${strategy2.strategyType}</td></tr>
+                                    <tr><td>Starting Tire</td><td>${strategy1.startingTire || 'N/A'}</td><td>${strategy2.startingTire || 'N/A'}</td></tr>
+                                    <tr><td>Pit Stop Out Lap(s)</td>
+                                        <td>${formatPitLaps(strategy1.pitLaps, data1.laps)}</td>
+                                        <td>${formatPitLaps(strategy2.pitLaps, data2.laps)}</td>
+                                    </tr>
+                                    <tr><td>Green Flag Stops</td><td>${stats1.greenCount}</td><td>${stats2.greenCount}</td></tr>
+                                    <tr><td>Intervention Stops</td><td>${stats1.interventionCount}</td><td>${stats2.interventionCount}</td></tr>
+                                    <tr><td>Avg Pit Time Loss</td>
+                                        <td>${metrics1?.recoveryStats?.averageTotalLoss ? metrics1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                                        <td>${metrics2?.recoveryStats?.averageTotalLoss ? metrics2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                                    </tr>
+                                    <tr><td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td></tr>
+                                    <tr><td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td></tr>
+                                    <tr><td>Best Lap Time</td>
+                                        <td>${formatTime(best1)}</td>
+                                        <td>${formatTime(best2)}</td>
+                                    </tr>
+                                </tbody>
 </table>
 
 
-                                                <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7;">
-                                                    <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
-                                                        Tactical Insights
-                                                    </strong>
-                                                    <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
-                                                </div>
-                                            `;
+                                                                        <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7;">
+                                                                            <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
+                                                                                Tactical Insights
+                                                                            </strong>
+                                                                            <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
+                                                                        </div>
+                                                                    `;
             } catch (err) {
                 console.error("Strategy Drawer Analysis Failed:", err);
                 content.innerHTML = `<div style="color:#ff8080; padding:20px;">Error generating strategy: ${err.message}</div>`;
@@ -5084,7 +5307,7 @@ function clearPaceChart() {
                 );
             }
 
-        // --- 2. THERMAL SENSITIVITY ---
+            // --- 2. THERMAL SENSITIVITY ---
             if (sessionWeatherData && sessionWeatherData.length > 5 && cleanLaps1.length > 10 && cleanLaps2.length > 10) {
                 const tempStart = sessionWeatherData[0].track_temperature;
                 const tempEnd = sessionWeatherData[sessionWeatherData.length - 1].track_temperature;
@@ -5604,7 +5827,7 @@ function clearPaceChart() {
                     const mainRedFlag = sortedRedFlags[0];
                     const displayLap = mainRedFlag.lap_number || "the opening laps";
 
-                    // Only add the insight if it didn't happen in the very first start procedure 
+                    // Only add the insight if it didn't happen in the very first start procedure
                     // OR if it's the only one that happened.
                     if (mainRedFlag.lap_number > 3 || redFlagEvents.length === 1) {
                         insights.push(`The race was fundamentally altered by a **Red Flag** suspension at Lap ${displayLap}. This provided a "free" strategic reset for the entire field, neutralizing prior tire-life advantages and converting the finish into a high-intensity sprint.`);
@@ -5635,7 +5858,7 @@ function clearPaceChart() {
             // Logic to identify the finish status
             const finishEvent = sessionRaceControl.find(m => m.message.toUpperCase().includes("CHEQUERED FLAG"));
             if (finishEvent) {
-                // Check for the specific phrase "RED FLAG" or "SUSPENDED" 
+                // Check for the specific phrase "RED FLAG" or "SUSPENDED"
                 // and ensure we aren't looking at "CHEQUERED"
                 const lastMsg = allInterventions.length > 0 ? allInterventions[allInterventions.length - 1].message.toUpperCase() : "";
                 const isRedFinish = allInterventions.length > 0 &&
@@ -5653,7 +5876,12 @@ function clearPaceChart() {
         }
 
         function backToPaceChart() {
+            // Hide all sub-views
             document.getElementById('drivingReportWrapper').style.display = 'none';
+            document.getElementById('sessionResultsWrapper').style.display = 'none';
+            document.getElementById('positionsWrapper').style.display = 'none'; // ADD THIS LINE
+
+            // Show main chart and legend
             document.getElementById('paceAnalysisChart').style.display = 'block';
             document.getElementById('tireLegend').style.display = 'flex';
         }
@@ -5692,27 +5920,27 @@ function clearPaceChart() {
                 const t2 = metrics2?.tireBreakdown?.[tire];
 
                 html += `
-    <tr style="font-size: 0.85em; border-top: 1px solid #444;">
-        <td><strong>${tire}</strong></td>
-        <td>
-            ${t1 ? `
-                <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t1.pushAvg ? formatTime(t1.pushAvg) : '-'}</span><br>
-                <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t1.fastest)})</span><br>
-                Session Avg: ${formatTime(t1.avg)}<br>
-                <span style="color:#888; font-size:0.85em;">Data: ${t1.pushCount} Push / ${t1.laps} Total Laps</span><br>
-                ${formatStints(t1.stints)}
-            ` : '-'}
-        </td>
-        <td>
-            ${t2 ? `
-                <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t2.pushAvg ? formatTime(t2.pushAvg) : '-'}</span><br>
-                <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t2.fastest)})</span><br>
-                Session Avg: ${formatTime(t2.avg)}<br>
-                <span style="color:#888; font-size:0.85em;">Data: ${t2.pushCount} Push / ${t2.laps} Total Laps</span><br>
-                ${formatStints(t2.stints)}
-            ` : '-'}
-        </td>
-    </tr>
+                            <tr style="font-size: 0.85em; border-top: 1px solid #444;">
+                                <td><strong>${tire}</strong></td>
+                                <td>
+                                    ${t1 ? `
+                                        <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t1.pushAvg ? formatTime(t1.pushAvg) : '-'}</span><br>
+                                        <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t1.fastest)})</span><br>
+                                        Session Avg: ${formatTime(t1.avg)}<br>
+                                        <span style="color:#888; font-size:0.85em;">Data: ${t1.pushCount} Push / ${t1.laps} Total Laps</span><br>
+                                        ${formatStints(t1.stints)}
+                                    ` : '-'}
+                                </td>
+                                <td>
+                                    ${t2 ? `
+                                        <span style="color:var(--accent-color); font-weight:bold;">Push Avg: ${t2.pushAvg ? formatTime(t2.pushAvg) : '-'}</span><br>
+                                        <span style="font-size:0.9em; color:#aaa;">(Best: ${formatTime(t2.fastest)})</span><br>
+                                        Session Avg: ${formatTime(t2.avg)}<br>
+                                        <span style="color:#888; font-size:0.85em;">Data: ${t2.pushCount} Push / ${t2.laps} Total Laps</span><br>
+                                        ${formatStints(t2.stints)}
+                                    ` : '-'}
+                                </td>
+                            </tr>
 `;
             });
 
@@ -5721,12 +5949,12 @@ function clearPaceChart() {
             const bestTire2 = getBestTire(metrics2);
 
             html += `
-                                                        <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
-                                                            <td>Best Tire</td>
-                                                            <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
-                                                            <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
-                                                        </tr>
-                                                    `;
+                                                                                <tr style="background: rgba(0, 210, 190, 0.1); font-weight: bold; border-top: 2px solid #00d2be;">
+                                                                                    <td>Best Tire</td>
+                                                                                    <td>${bestTire1 ? `${bestTire1.tire} (${formatTime(bestTire1.avg)})` : '-'}</td>
+                                                                                    <td>${bestTire2 ? `${bestTire2.tire} (${formatTime(bestTire2.avg)})` : '-'}</td>
+                                                                                </tr>
+                                                                            `;
 
             return html;
         }
@@ -6516,14 +6744,16 @@ function clearPaceChart() {
             let viewName = "Pace Analysis";
             const drivingReportVisible = document.getElementById('drivingReportWrapper').style.display === 'block';
             const sessionResultsVisible = document.getElementById('sessionResultsWrapper').style.display === 'block';
+            const positionsVisible = document.getElementById('positionsWrapper').style.display === 'flex'; // Check for flex
 
             if (drivingReportVisible) viewName = "Driving Report";
             else if (sessionResultsVisible) viewName = "Session Results";
+            else if (positionsVisible) viewName = "Positions"; // Add Positions
 
-            // Driver text for header – special case for Session Results
+            // Driver text for header – special case for Session Results & Positions
             let driversStr;
-            if (viewName === "Session Results") {
-                // Always show this for results, no driver names
+            if (viewName === "Session Results" || viewName === "Positions") {
+                // Both of these views show data for the whole grid
                 driversStr = "Full Grid";
             } else {
                 let tmp = d1Text;
@@ -6551,14 +6781,14 @@ function clearPaceChart() {
             header.style.paddingBottom = "15px";
             header.style.marginBottom = "25px";
             header.innerHTML = `
-            <h1 style="margin: 0; font-size: 34px; color: #e10600; font-weight: 900; line-height: 1;">RAPID TELEMETRY</h1>
-            <p style="margin: 8px 0 0 0; font-size: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
-                ${year} ${track} | ${sessionName} | ${viewName}
-            </p>
-            <p style="margin: 8px 0 0 0; font-size: 20px; color: #fff; font-weight: bold;">
-                ${driversStr}
-            </p>
-        `;
+                                    <h1 style="margin: 0; font-size: 34px; color: #e10600; font-weight: 900; line-height: 1;">RAPID TELEMETRY</h1>
+                                    <p style="margin: 8px 0 0 0; font-size: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 1px;">
+                                        ${year} ${track} | ${sessionName} | ${viewName}
+                                    </p>
+                                    <p style="margin: 8px 0 0 0; font-size: 20px; color: #fff; font-weight: bold;">
+                                        ${driversStr}
+                                    </p>
+                                `;
             exportClone.prepend(header);
 
             // --- NEW: INJECT STRATEGY ANALYSIS AT THE BOTTOM OF THE DRIVING REPORT ---
@@ -6587,47 +6817,47 @@ function clearPaceChart() {
 
                 // Build Strategy HTML Block (Styled to match the main report)
                 const strategyHTML = `
-                <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #444;">
-                    <h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px;">Strategic Analysis & Outcomes</h3>
-                    <table class="results-table" style="margin-bottom:25px; width:100%;">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;">Metric</th>
-                                <th>${currentReportDriver1.last_name}</th>
-                                <th>${currentReportDriver2.last_name}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>Strategy Profile</td><td>${s1.strategyType}</td><td>${s2.strategyType}</td></tr>
-                            <tr><td>Starting Tire</td><td>${s1.startingTire || 'N/A'}</td><td>${s2.startingTire || 'N/A'}</td></tr>
-                            <tr><td>Pit Stop Out Lap(s)</td>
-                                <td>${formatPitLaps(s1.pitLaps, currentReportData1.laps)}</td>
-                                <td>${formatPitLaps(s2.pitLaps, currentReportData2.laps)}</td>
-                            </tr>
-                            <tr><td>Avg Pit Time Loss</td>
-                                <td>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                                <td>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
-                            </tr>
-                            <tr>
-                                <td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td>
-                            </tr>
-                            <tr>
-                                <td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td>
-                            </tr>
-                            <tr><td>Best Lap Time</td>
-                                <td>${formatTime(best1)}</td>
-                                <td>${formatTime(best2)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7; margin-bottom: 20px;">
-                        <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
-                            Tactical Insights
-                        </strong>
-                        <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
-                    </div>
-                </div>
-            `;
+                                        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #444;">
+                                            <h3 style="color:#e10600; margin-top: 0px; margin-bottom: 20px;">Strategic Analysis & Outcomes</h3>
+                                            <table class="results-table" style="margin-bottom:25px; width:100%;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align:left;">Metric</th>
+                                                        <th>${currentReportDriver1.last_name}</th>
+                                                        <th>${currentReportDriver2.last_name}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr><td>Strategy Profile</td><td>${s1.strategyType}</td><td>${s2.strategyType}</td></tr>
+                                                    <tr><td>Starting Tire</td><td>${s1.startingTire || 'N/A'}</td><td>${s2.startingTire || 'N/A'}</td></tr>
+                                                    <tr><td>Pit Stop Out Lap(s)</td>
+                                                        <td>${formatPitLaps(s1.pitLaps, currentReportData1.laps)}</td>
+                                                        <td>${formatPitLaps(s2.pitLaps, currentReportData2.laps)}</td>
+                                                    </tr>
+                                                    <tr><td>Avg Pit Time Loss</td>
+                                                        <td>${m1?.recoveryStats?.averageTotalLoss ? m1.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                                                        <td>${m2?.recoveryStats?.averageTotalLoss ? m2.recoveryStats.averageTotalLoss.toFixed(3) + 's' : 'N/A'}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Penalties Received</td><td>${penRecv1}</td><td>${penRecv2}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Penalties Served</td><td>${penServed1}</td><td>${penServed2}</td>
+                                                    </tr>
+                                                    <tr><td>Best Lap Time</td>
+                                                        <td>${formatTime(best1)}</td>
+                                                        <td>${formatTime(best2)}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <div style="background:rgba(255, 193, 7, 0.08); padding:18px; border-radius:8px; border:1px solid rgba(255, 193, 7, 0.3); line-height:1.7; margin-bottom: 20px;">
+                                                <strong style="color:var(--accent-color); display:block; margin-bottom:10px; font-size:1.1em; border-bottom: 1px solid rgba(255,193,7,0.2); padding-bottom:5px;">
+                                                    Tactical Insights
+                                                </strong>
+                                                <span style="color:#f0f0f0; font-size:0.95em;">${insight}</span>
+                                            </div>
+                                        </div>
+                                    `;
 
                 // Append directly to the bottom of the cloned report wrapper
                 const clonedReportWrapper = exportClone.querySelector('#drivingReportWrapper');
@@ -6639,6 +6869,11 @@ function clearPaceChart() {
 
             // 3. Clean up UI elements from the export (Remove all buttons)
             exportClone.querySelectorAll('button').forEach(btn => btn.remove());
+
+            // ADD THIS: Specifically hide the toggle list in the export clone
+            const toggleList = exportClone.querySelector('#driverToggleList');
+            if (toggleList) toggleList.style.display = 'none';
+
             exportClone.querySelectorAll('tr').forEach(row => {
                 if (row.innerHTML.includes('View Strategy Analysis')) row.remove();
             });
@@ -6946,7 +7181,7 @@ function clearPaceChart() {
             const currentYear = new Date().getFullYear();
             const startYear = 2023; // Data availability limit
 
-            // We go up to currentYear + 1 because F1 often releases schedules 
+            // We go up to currentYear + 1 because F1 often releases schedules
             // for the next year before the current year ends.
             let html = '';
             for (let y = currentYear + 1; y >= startYear; y--) {
@@ -6966,6 +7201,438 @@ function clearPaceChart() {
                 greenCount: green.length,
                 interventionCount: intervention.length
             };
+        }
+
+        // 1. Helper to get the corrected tire compound
+        function getEffectiveCompound(sessionKey, driverNum, stintNum, apiCompound) {
+            const key = `${sessionKey}_${driverNum}_${stintNum}`;
+            const override = manualStintOverrides[key];
+
+            if (override) return override;
+
+            // Convert API "UNKNOWN" or nulls to "UNK" for consistent logic
+            if (!apiCompound || apiCompound.toUpperCase().includes("UNK")) return "UNK";
+            return apiCompound.toUpperCase();
+        }
+
+        // 3. Picker UI Management
+        let currentPickerTarget = null; // { stint, driver, session }
+
+        function openTirePicker(stintNum, driverNum) {
+            const sessionKey = document.getElementById('paceSessionSelect').value;
+            currentPickerTarget = { stintNum, driverNum, sessionKey };
+
+            // 1. Look up the driver's name from the global driverNames object
+            const driverLastName = driverNames[driverNum] || `Driver #${driverNum}`;
+            document.getElementById('targetDriverName').innerText = `${driverLastName.toUpperCase()}`;
+
+            // 2. Handle the display for the Stint ID (API number vs our Generated "G" ID)
+            const displayId = String(stintNum).startsWith('G')
+                ? `Unknown Stint Block (${stintNum.replace('G', '')})`
+                : `Official Stint ${stintNum}`;
+
+            document.getElementById('targetStintNum').innerText = displayId;
+
+            // 3. Show the modal
+            document.getElementById('tirePicker').style.display = 'block';
+        }
+
+        function closeTirePicker() {
+            document.getElementById('tirePicker').style.display = 'none';
+        }
+
+        async function applyTireOverride(compound) {
+            const { sessionKey, driverNum, stintNum } = currentPickerTarget;
+            const key = `${sessionKey}_${driverNum}_${stintNum}`;
+
+            manualStintOverrides[key] = compound;
+
+            // SAVE TO BROWSER MEMORY
+            localStorage.setItem('rt_tire_overrides', JSON.stringify(manualStintOverrides));
+
+            closeTirePicker();
+            updateStatus(`Applied ${compound} to Stint ${stintNum}`, "success");
+
+            // 2. Update the Pace Chart INSTANTLY
+            if (paceChartInstance) {
+                paceChartInstance.data.datasets.forEach(dataset => {
+                    if (dataset.label.includes(`#${driverNum}`)) {
+                        dataset.extraData.forEach((lap, index) => {
+                            if (lap.stintNumber === stintNum) {
+                                lap.tireCompound = compound;
+                                // Update visual dot color
+                                if (dataset.pointBackgroundColor) {
+                                    dataset.pointBackgroundColor[index] = TIRE_COLORS[compound] || TIRE_COLORS['UNKNOWN'];
+                                }
+                            }
+                        });
+                    }
+                });
+                paceChartInstance.update('none');
+                // This prevents the modal from reverting to old data when re-opened
+                savedPaceChartDatasets = JSON.parse(JSON.stringify(paceChartInstance.data.datasets));
+            }
+
+            // 3. Synchronize Sidebar Slots (Slot 1 & Slot 2)
+            ['ref', 'comp'].forEach(slot => {
+                const data = loadedData[slot];
+
+                // Only proceed if this slot contains the driver we are currently updating
+                if (data && data.lap && data.lap.driver_number == driverNum) {
+                    const currentSidebarLapNum = data.lap.lap_number;
+
+                    // Find this driver's data in the Pace Chart to see which stint their sidebar lap belongs to
+                    const driverDataset = paceChartInstance?.data.datasets.find(d => d.label.includes(`#${driverNum}`));
+
+                    if (driverDataset) {
+                        const lapMapping = driverDataset.extraData.find(l => l.lap_number === currentSidebarLapNum);
+
+                        // If the lap currently in the sidebar belongs to the stint we just overridden
+                        if (lapMapping && lapMapping.stintNumber === stintNum) {
+                            updateStatus(`Syncing Sidebar Slot: ${slot.toUpperCase()}`, "success");
+
+                            // Update the internal tire value
+                            data.tire = compound;
+
+                            // Re-render the sidebar label
+                            const timeStr = data.lap.lap_duration ? formatTime(data.lap.lap_duration) : "Live";
+                            const tColor = TIRE_COLORS[compound] || '#aaa';
+                            const labelEl = document.getElementById(`${slot}-label`);
+
+                            if (labelEl) {
+                                labelEl.innerHTML = `${data.driverName} (L${data.lap.lap_number}) <span>${timeStr}</span> <b style="color:${tColor}; margin-left:8px; font-size:0.85em;">[${compound}]</b>`;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 4. Refresh the Driving Report if it's currently open
+            if (document.getElementById('drivingReportWrapper').style.display === 'block') {
+                showDrivingReport();
+            }
+
+            // NEW: If the Strategy Drawer is currently open, refresh it to show the new Starting Tire
+            const drawer = document.getElementById('strategyDrawer');
+            if (drawer.classList.contains('open')) {
+                // Re-run the drawer logic with current report data
+                openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2);
+            }
+        }
+
+        function clearAllTireOverrides() {
+            if (!confirm("Revert all manual tire corrections to original API data?")) return;
+
+            // 1. Clear Registries
+            manualStintOverrides = {};
+            localStorage.removeItem('rt_tire_overrides');
+
+            // 2. Update Pace Analysis Modal Instantly
+            if (paceChartInstance && paceChartInstance.data.datasets) {
+                paceChartInstance.data.datasets.forEach(dataset => {
+                    dataset.extraData.forEach((lap, index) => {
+                        // Revert to the API backup we created in Step 1
+                        const original = lap.apiTireCompound || "UNKNOWN";
+                        lap.tireCompound = original;
+
+                        // Update visual dot color
+                        if (dataset.pointBackgroundColor) {
+                            dataset.pointBackgroundColor[index] = TIRE_COLORS[original] || TIRE_COLORS['UNKNOWN'];
+                        }
+                    });
+                });
+                paceChartInstance.update('none');
+
+                // Update the cache so the change persists when closing/opening modal
+                savedPaceChartDatasets = JSON.parse(JSON.stringify(paceChartInstance.data.datasets));
+            }
+
+            // 3. Update Main Page Sidebar Slots Instantly
+            ['ref', 'comp'].forEach(slot => {
+                const data = loadedData[slot];
+                if (data && data.lap) {
+                    // Find this specific lap in our modal's reverted data
+                    const driverNum = data.lap.driver_number;
+                    const driverDataset = paceChartInstance?.data.datasets.find(d => d.label.includes(`#${driverNum}`));
+
+                    if (driverDataset) {
+                        const lapMatch = driverDataset.extraData.find(l => l.lap_number === data.lap.lap_number);
+                        if (lapMatch) {
+                            // Update the sidebar object
+                            data.tire = lapMatch.tireCompound;
+
+                            // Re-render the sidebar label visuals
+                            const timeStr = data.lap.lap_duration ? formatTime(data.lap.lap_duration) : "Live";
+                            const tColor = TIRE_COLORS[data.tire] || '#aaa';
+                            const labelEl = document.getElementById(`${slot}-label`);
+                            if (labelEl) {
+                                labelEl.innerHTML = `${data.driverName} (L${data.lap.lap_number}) <span>${timeStr}</span> <b style="color:${tColor}; margin-left:8px; font-size:0.85em;">[${data.tire}]</b>`;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 4. Refresh Driving Report if open
+            if (document.getElementById('drivingReportWrapper').style.display === 'block') {
+                showDrivingReport();
+            }
+
+            const drawer = document.getElementById('strategyDrawer');
+            if (drawer.classList.contains('open') && currentReportData1) {
+                openStrategyDrawer(currentReportData1, currentReportData2, currentReportDriver1, currentReportDriver2);
+            }
+
+            updateStatus("Overrides cleared (Local Reset)", "info");
+        }
+
+        function clearOverridesForDriver(driverNum) {
+            const sessionKey = document.getElementById('paceSessionSelect').value;
+            if (!sessionKey || !driverNum) return;
+
+            // Filter the registry to remove any keys matching this session and driver
+            Object.keys(manualStintOverrides).forEach(key => {
+                // key format: "session_driver_stint"
+                const parts = key.split('_');
+                if (parts[0] === sessionKey && parts[1] === driverNum) {
+                    delete manualStintOverrides[key];
+                }
+            });
+
+            // Update localStorage so the "clear" is permanent
+            localStorage.setItem('rt_tire_overrides', JSON.stringify(manualStintOverrides));
+
+            console.log(`Manual overrides cleared for Driver #${driverNum}`);
+        }
+
+        async function showPositionsChart() {
+            const sessionKey = document.getElementById('paceSessionSelect').value;
+            if (!sessionKey) { alert("Select a session first"); return; }
+
+            // UI Toggles
+            document.getElementById('paceAnalysisChart').style.display = 'none';
+            document.getElementById('tireLegend').style.display = 'none';
+            document.getElementById('drivingReportWrapper').style.display = 'none';
+            document.getElementById('sessionResultsWrapper').style.display = 'none';
+            document.getElementById('positionsWrapper').style.display = 'flex';
+
+            updateStatus("Fetching Position Data...", "info");
+
+            try {
+                // 1. Fetch Positions and Laps (to get lap start times)
+                // We use driver_number=1 or any driver just to get a lap/time reference map
+                const [posData, lapsRef] = await Promise.all([
+                    fetchSafe(`${API_BASE}/position?session_key=${sessionKey}`),
+                    fetchSafe(`${API_BASE}/laps?session_key=${sessionKey}`)
+                ]);
+
+                allPositionsData = posData;
+                // Create a reference map of Lap Number -> Start Date
+                sessionLapsReference = lapsRef.filter(l => l.driver_number === lapsRef[0].driver_number);
+
+                renderPositionsChart();
+                generateDriverToggles();
+                updateStatus("Position Chart Loaded", "success");
+            } catch (e) {
+                console.error(e);
+                updateStatus("Error loading positions", "error");
+            }
+        }
+
+        function renderPositionsChart() {
+            const ctx = document.getElementById('positionsChart').getContext('2d');
+            if (positionsChartInstance) positionsChartInstance.destroy();
+
+            const datasets = [];
+            const drivers = [...new Set(allPositionsData.map(d => d.driver_number))];
+
+            // 1. Get Global Session Info
+            const totalSessionLaps = Math.max(...sessionLapsReference.map(l => l.lap_number));
+            const masterLapNumbers = Array.from({ length: totalSessionLaps }, (_, i) => i + 1);
+
+            drivers.forEach(dNum => {
+                const driverName = (driverNames[dNum] || `#${dNum}`).toUpperCase();
+
+                // 2. Identify actual laps completed from the results data
+                // We look for 'number_of_laps' as seen in your showSessionResults function
+                const driverResult = sessionResultsData.find(r => r.driver_number === dNum);
+
+                // If results are found, use number_of_laps. 
+                // If not found (e.g. data hasn't loaded), default to totalSessionLaps to avoid blank charts.
+                const actualLapsCompleted = totalSessionLaps;
+
+                const driverPosData = allPositionsData.filter(p => p.driver_number === dNum)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                const dataPoints = [];
+                let lastKnownPos = driverPosData.length > 0 ? driverPosData[0].position : null;
+
+                // 3. Loop through the race laps
+                for (const lapNum of masterLapNumbers) {
+
+                    // LOGIC: Stop the line if the driver did not complete this lap
+                    if (lapNum > actualLapsCompleted) {
+                        break;
+                    }
+
+                    // Find the start time for this lap from the global reference
+                    const lapRef = sessionLapsReference.find(l => l.lap_number === lapNum);
+                    if (!lapRef) continue;
+
+                    const lapStartTime = new Date(lapRef.date_start).getTime();
+
+                    // Find the last position update that happened BEFORE this lap started
+                    const currentUpdate = driverPosData.reduce((prev, curr) => {
+                        return (new Date(curr.date).getTime() <= lapStartTime) ? curr : prev;
+                    }, null);
+
+                    if (currentUpdate) {
+                        lastKnownPos = currentUpdate.position;
+                    }
+
+                    if (lastKnownPos !== null) {
+                        dataPoints.push({ x: lapNum, y: lastKnownPos });
+                    }
+                }
+
+                if (dataPoints.length > 0) {
+                    datasets.push({
+                        label: driverName,
+                        data: dataPoints,
+                        borderColor: getDriverColor(dNum),
+                        backgroundColor: getDriverColor(dNum),
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        tension: 0,
+                        spanGaps: true
+                    });
+                }
+            });
+
+            // Chart Configuration
+            const maxGridPos = Math.max(...allPositionsData.map(p => p.position), 20);
+
+            positionsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 20, bottom: 20, left: 10, right: 90 } },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'LAP', color: '#888', font: { weight: 'bold' } },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#888', stepSize: 5 },
+                            max: totalSessionLaps
+                        },
+                        y: {
+                            reverse: true,
+                            min: 1,
+                            max: maxGridPos,
+                            title: { display: true, text: 'POSITION', color: '#888', font: { weight: 'bold' } },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: {
+                                stepSize: 1,
+                                color: '#fff',
+                                callback: (val) => 'P' + val
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'nearest',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            callbacks: {
+                                title: (ctx) => `Lap ${ctx[0].parsed.x}`,
+                                label: (ctx) => ` ${ctx.dataset.label}: P${ctx.parsed.y}`
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'lineEndLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        const xScale = chart.scales.x;
+                        const xRight = xScale.getPixelForValue(xScale.max);
+
+                        ctx.save();
+                        ctx.font = 'bold 11px Inter';
+                        ctx.textBaseline = 'middle';
+
+                        chart.data.datasets.forEach((dataset, i) => {
+                            const meta = chart.getDatasetMeta(i);
+                            const lastPoint = meta.data[meta.data.length - 1];
+                            if (lastPoint && !dataset.hidden) {
+                                ctx.fillStyle = dataset.borderColor;
+                                ctx.fillText(dataset.label, xRight + 10, lastPoint.y);
+                            }
+                        });
+
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function generateDriverToggles() {
+            const container = document.getElementById('driverToggleList');
+            container.innerHTML = '';
+
+            positionsChartInstance.data.datasets.forEach((ds, index) => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '8px';
+                div.style.fontSize = '11px';
+
+                div.innerHTML = `
+                <input type="checkbox" id="toggle-${ds.driverNumber}" checked
+                       onchange="toggleDriverLine(${index}, this.checked)">
+                <label for="toggle-${ds.driverNumber}" style="color: ${ds.borderColor}; font-weight: bold; cursor: pointer;">
+                    ${ds.label}
+                </label>
+            `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleDriverLine(index, isVisible) {
+            positionsChartInstance.setDatasetVisibility(index, isVisible);
+            positionsChartInstance.update('none');
+        }
+
+        function resetPositionFilters() {
+            const checkboxes = document.querySelectorAll('#driverToggleList input');
+            checkboxes.forEach((cb, index) => {
+                cb.checked = true;
+                positionsChartInstance.setDatasetVisibility(index, true);
+            });
+            positionsChartInstance.update();
+        }
+
+        // Helper to provide consistent colors for drivers
+        function getDriverColor(dNum) {
+            const colors = {
+                1: '#3671C6', 11: '#3671C6', // Red Bull
+                44: '#27F4D2', 63: '#27F4D2', // Mercedes
+                16: '#E8002D', 55: '#E8002D', // Ferrari
+                4: '#FF8000', 81: '#FF8000',  // McLaren
+                14: '#229971', 18: '#229971', // Aston Martin
+                10: '#0093cc', 31: '#0093cc', // Alpine
+                23: '#64C4FF', 2: '#64C4FF',  // Williams
+                3: '#6692FF', 22: '#6692FF',  // VCARB
+                27: '#B6BABD', 20: '#B6BABD', // Haas
+                77: '#52E252', 24: '#52E252'  // Sauber
+            };
+            // Fallback to a random-ish color based on driver number if not in list
+            return colors[dNum] || `hsl(${(dNum * 137.5) % 360}, 70%, 60%)`;
         }
 
         // Update your existing DOMContentLoaded listener:
@@ -7184,6 +7851,7 @@ function clearPaceChart() {
             <div id="snap-logo-slot" style="width: 200px; height: 40px;"></div>
         </div>
     </div>
+
 
 </body>
 </html>
