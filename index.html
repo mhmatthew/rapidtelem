@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3701,6 +3702,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false, // Still allows hovering near the dot without touching it
+                        // axis: 'x' is REMOVED so it evaluates 2D distance, picking only the closest single point
+                    },
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const idx = elements[0].index;
@@ -4604,7 +4610,12 @@
 
             // 4. Base Pace Array (Declare 'durations' ONLY once here)
             const durations = cleanLaps.map(l => l.lap_duration);
-            const bestLap = Math.min(...durations);
+            
+            // Calculate absolute best lap from ALL valid laps, ignoring track status filters
+            const validFlyingLaps = laps.filter(l => l.lap_duration > 0 && !l.isPitLap);
+            const bestLap = validFlyingLaps.length > 0 
+                ? Math.min(...validFlyingLaps.map(l => l.lap_duration)) 
+                : Math.min(...durations);
 
             // 5. Representative Filter (The 107% Rule)
             // Excludes major mistakes/incidents for the Consistency Score/Standard Deviation
@@ -4765,7 +4776,8 @@
                     : "0.000";
             });
 
-            // 2) Ensure we also list compounds that ONLY appear in non‑clean laps
+            // 2) Catch absolute fastest laps that were filtered out of cleanLaps,
+            //    and list compounds that ONLY appear in non‑clean laps.
             const allCompounds = new Set();
             laps.forEach(lap => {
                 const duration = lap.lap_duration;
@@ -4775,34 +4787,41 @@
             });
 
             allCompounds.forEach(tire => {
-                // Already covered by clean‑lap breakdown → nothing to do
-                if (breakdown[tire]) return;
-
-                // Only used in laps that were filtered out by getCleanLaps (e.g. SC/VSC/pit)
-                const compLaps = laps.filter(lap => {
+                // Find all laps for this tire that were EXCLUDED from cleanLaps
+                const nonCleanCompLaps = laps.filter(lap => {
                     const duration = lap.lap_duration;
                     if (!duration || !Number.isFinite(duration) || duration <= 0) return false;
                     const t = (lap.tireCompound || 'UNKNOWN').toUpperCase();
                     if (t !== tire) return false;
-                    // Make sure this lap is NOT in clean laps
+                    
+                    // True if it is NOT in clean laps
                     return !cleanLaps.some(cl => cl.lap_number === lap.lap_number);
                 });
 
-                if (compLaps.length === 0) return;
+                if (nonCleanCompLaps.length === 0) return;
 
-                const times = compLaps.map(l => l.lap_duration);
+                const times = nonCleanCompLaps.map(l => l.lap_duration);
+                const fastestNonClean = Math.min(...times);
                 const total = times.reduce((a, b) => a + b, 0);
-                const fastest = Math.min(...times);
 
+                // If the tire already exists from clean laps, just check if we need to update the absolute fastest time
+                if (breakdown[tire]) {
+                    if (fastestNonClean < breakdown[tire].fastest) {
+                        breakdown[tire].fastest = fastestNonClean;
+                    }
+                    return; // Stop here so we don't mess up the clean averages
+                }
+
+                // If the tire DOES NOT exist yet (only used in non-clean laps)
                 breakdown[tire] = {
-                    laps: compLaps.length,
-                    total,
-                    fastest,
-                    times,
-                    stints: {},             // we can omit stint breakdown here
-                    avg: total / compLaps.length,
-                    degradation: "0.000",   // single or few messy laps – don’t over‑interpret
-                    nonRepresentative: true // <-- key flag
+                    laps: nonCleanCompLaps.length,
+                    total: total,
+                    fastest: fastestNonClean,
+                    times: times,
+                    stints: {},             
+                    avg: total / nonCleanCompLaps.length,
+                    degradation: "0.000",   
+                    nonRepresentative: true 
                 };
             });
 
